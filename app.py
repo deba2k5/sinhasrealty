@@ -31,11 +31,19 @@ def handle_upload():
         return jsonify({"success": False, "message": "No file selected."}), 400
         
     try:
-        temp_path = "temp_uploaded.xlsx"
-        file.save(temp_path)
-        
-        # Read Excel sheets and insert
-        xls = pd.ExcelFile(temp_path, engine='openpyxl')
+        filename = file.filename.lower()
+        if filename.endswith('.csv'):
+            df = pd.read_csv(file.stream)
+            df = df.dropna(how='all')
+            collection_name = file.filename.rsplit('.', 1)[0]
+            records = df.to_dict('records')
+            if records:
+                db[collection_name].insert_many(records)
+                return jsonify({"success": True, "message": f"Success! {len(records)} rows -> '{collection_name}'"})
+            return jsonify({"success": True, "message": "CSV file was empty."})
+            
+        # If it's an Excel file
+        xls = pd.ExcelFile(file.stream, engine='openpyxl')
         sheets_inserted = {}
         
         for sheet in xls.sheet_names:
@@ -46,17 +54,12 @@ def handle_upload():
                 db[sheet].insert_many(records)
                 sheets_inserted[sheet] = len(records)
                 
-        # Clean up temporary file
-        os.remove(temp_path)
-        
         msg = ", ".join([f"{count} rows -> '{sheet}'" for sheet, count in sheets_inserted.items()])
         if not sheets_inserted:
             msg = "Empty file, nothing imported."
             
         return jsonify({"success": True, "message": f"Success! {msg}"})
     except Exception as e:
-        if os.path.exists("temp_uploaded.xlsx"):
-            os.remove("temp_uploaded.xlsx")
         return jsonify({"success": False, "message": f"Database Error: {str(e)}"}), 500
 
 @app.route('/upload_occupancy', methods=['POST'])

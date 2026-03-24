@@ -174,15 +174,15 @@
         <p style="font-size: 1.1rem; color: #cbd5e1;">Manage Database Storage Automatically & Manually</p>
     </div>
 
-    <!-- Excel Upload Card -->
+    <!-- Excel/CSV Upload Card -->
     <div class="card">
         <h2>Bulk Upload (Simple)</h2>
-        <p>Import thousands of simple rows into individual MongoDB collections.</p>
+        <p>Import thousands of simple rows into individual MongoDB collections from Excel or CSV.</p>
         
         <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
             <span class="upload-icon">📊</span>
-            <div id="file-name">Drag & Drop Excel file here<br>or click to browse</div>
-            <input type="file" id="file-input" accept=".xlsx, .xls">
+            <div id="file-name">Drag & Drop Excel/CSV file here<br>or click to browse</div>
+            <input type="file" id="file-input" accept=".xlsx, .xls, .csv">
         </div>
         
         <button class="btn" id="upload-btn" onclick="uploadFile()">
