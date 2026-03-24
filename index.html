@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinha's Data Portal</title>
+    <!-- Modern high-end font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-color: #0f172a;
+            --bg-grad-1: #1e1b4b;
+            --bg-grad-2: #0f172a;
+            --text-light: #f8fafc;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color), var(--bg-grad-1), var(--bg-grad-2));
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            padding: 2rem;
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: 1fr 1fr;
+        }
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .header h1 {
+            font-size: 3rem;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 4s infinite alternate;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+        @keyframes pulse {
+            0% { filter: drop-shadow(0 0 10px rgba(129, 140, 248, 0.2)); }
+            100% { filter: drop-shadow(0 0 20px rgba(192, 132, 252, 0.4)); }
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(99, 102, 241, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        h2 { margin-top: 0; font-size: 1.5rem; font-weight: 600; }
+        p { color: #94a3b8; font-weight: 300; line-height: 1.6; margin-bottom: 1.5rem; font-size: 0.95rem; }
+        .upload-area {
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 2.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0,0,0,0.1);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+            transform: scale(1.02);
+        }
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        input[type="file"] { display: none; }
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: #fff;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1.5rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+        }
+        .btn:active { transform: scale(0.98); }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label {
+            display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #cbd5e1; font-weight: 500;
+        }
+        .form-group input {
+            width: 100%; padding: 12px 14px; border-radius: 10px;
+            border: 1px solid var(--card-border); background: rgba(0,0,0,0.2);
+            color: white; font-family: inherit; font-size: 1rem;
+            box-sizing: border-box; transition: all 0.3s;
+        }
+        .form-group input:focus {
+            outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            background: rgba(0,0,0,0.4);
+        }
+        .status-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .status-box.show { opacity: 1; height: auto; }
+        .status-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .status-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .loader {
+            display: none; width: 22px; height: 22px;
+            border: 3px solid rgba(255,255,255,0.3); border-radius: 50%;
+            border-top-color: white; animation: spin 0.8s linear infinite; margin: 0 auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Sinha Realty Portal</h1>
+        <p style="font-size: 1.1rem; color: #cbd5e1;">Manage Database Storage Automatically & Manually</p>
+    </div>
+
+    <!-- Excel Upload Card -->
+    <div class="card">
+        <h2>Bulk Upload (Simple)</h2>
+        <p>Import thousands of simple rows into individual MongoDB collections.</p>
+        
+        <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <span class="upload-icon">📊</span>
+            <div id="file-name">Drag & Drop Excel file here<br>or click to browse</div>
+            <input type="file" id="file-input" accept=".xlsx, .xls">
+        </div>
+        
+        <button class="btn" id="upload-btn" onclick="uploadFile()">
+            <span id="btn-text">Upload to MongoDB</span>
+            <div class="loader" id="loader"></div>
+        </button>
+        
+        <div id="upload-status" class="status-box"></div>
+    </div>
+
+    <!-- Occupancy Upload Card -->
+    <div class="card">
+        <h2>Upload Apartments Metadata (ETL)</h2>
+        <p>Import 'OCCUPANCY' excel sheet and auto-map to new Cities/Buildings/Apartments schema.</p>
+        
+        <div class="upload-area" id="drop-zone-occ" onclick="document.getElementById('file-input-occ').click()">
+            <span class="upload-icon">🏢</span>
+            <div id="file-name-occ">Drag & Drop Details Excel here<br>or click to browse</div>
+            <input type="file" id="file-input-occ" accept=".xlsx, .xls">
+        </div>
+        
+        <button class="btn" id="upload-btn-occ" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="uploadOccupancyFile()">
+            <span id="btn-text-occ">Run Schema ETL Upload</span>
+            <div class="loader" id="loader-occ"></div>
+        </button>
+        
+        <div id="upload-status-occ" class="status-box"></div>
+    </div>
+
+    <!-- Manual Entry Card -->
+    <div class="card">
+        <h2>Manual Data Entry</h2>
+        <p>Quickly insert a single new record into the MongoDB database manually.</p>
+        
+        <div class="form-group">
+            <label>City Name</label>
+            <input type="text" id="cityName" placeholder="e.g., Geneva">
+        </div>
+        <div class="form-group">
+            <label>Canton</label>
+            <input type="text" id="canton" placeholder="e.g., Geneva">
+        </div>
+        <div class="form-group">
+            <label>Postal Code Prefix</label>
+            <input type="text" id="postalCode" placeholder="e.g., 12">
+        </div>
+        
+        <button class="btn" id="submit-btn" style="margin-top: auto;" onclick="submitManualData()">
+            <span id="submit-btn-text">Insert into Database</span>
+            <div class="loader" id="submit-loader"></div>
+        </button>
+        <div id="manual-status" class="status-box"></div>
+    </div>
+
+    <!-- Export Card -->
+    <div class="card">
+        <h2>Export Data (CSV)</h2>
+        <p>Download your MongoDB collections securely as CSV files at any time.</p>
+        
+        <div class="form-group">
+            <label>Collection Name</label>
+            <input type="text" id="exportCollection" value="sinhasrealty data" placeholder="e.g., apartments, cities">
+        </div>
+        
+        <button class="btn" style="background: linear-gradient(135deg, #a855f7, #9333ea);" onclick="exportCSV()">
+            <span>Download CSV</span>
+        </button>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name');
+    let selectedFile = null;
+
+    // Drag and drop mechanics
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+    });
+    dropZone.addEventListener('drop', handleDrop, false);
+    function handleDrop(e) { handleFiles(e.dataTransfer.files); }
+    fileInput.addEventListener('change', function() { handleFiles(this.files); });
+
+    function handleFiles(files) {
+        if (files.length > 0) {
+            selectedFile = files[0];
+            fileNameDisplay.innerHTML = `<strong>Selected:</strong><br>${selectedFile.name}`;
+            document.getElementById('upload-status').classList.remove('show');
+        }
+    }
+
+    // Occupancy Upload Logic
+    const dropZoneOcc = document.getElementById('drop-zone-occ');
+    const fileInputOcc = document.getElementById('file-input-occ');
+    const fileNameDisplayOcc = document.getElementById('file-name-occ');
+    let selectedFileOcc = null;
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZoneOcc.addEventListener(eventName, preventDefaults, false);
+    });
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZoneOcc.addEventListener(eventName, () => dropZoneOcc.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZoneOcc.addEventListener(eventName, () => dropZoneOcc.classList.remove('dragover'), false);
+    });
+    dropZoneOcc.addEventListener('drop', (e) => handleFilesOcc(e.dataTransfer.files), false);
+    fileInputOcc.addEventListener('change', function() { handleFilesOcc(this.files); });
+
+    function handleFilesOcc(files) {
+        if (files.length > 0) {
+            selectedFileOcc = files[0];
+            fileNameDisplayOcc.innerHTML = `<strong>Selected:</strong><br>${selectedFileOcc.name}`;
+            document.getElementById('upload-status-occ').classList.remove('show');
+        }
+    }
+
+    function showStatus(elementId, message, isSuccess) {
+        const el = document.getElementById(elementId);
+        el.textContent = message;
+        el.className = `status-box show ${isSuccess ? 'status-success' : 'status-error'}`;
+        setTimeout(() => el.classList.remove('show'), 6000);
+    }
+
+    async function uploadFile() {
+        if (!selectedFile) return showStatus('upload-status', 'Please select an Excel file first.', false);
+        
+        const btnText = document.getElementById('btn-text');
+        const loader = document.getElementById('loader');
+        const btn = document.getElementById('upload-btn');
+        
+        btnText.style.display = 'none';
+        loader.style.display = 'block';
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            showStatus('upload-status', result.message, result.success);
+            if(result.success) {
+                selectedFile = null;
+                fileNameDisplay.innerHTML = 'Drag & Drop Excel file here<br>or click to browse';
+                fileInput.value = '';
+            }
+        } catch (error) {
+            showStatus('upload-status', 'Upload failed. Is the server running?', false);
+        } finally {
+            btnText.style.display = 'block';
+            loader.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    async function uploadOccupancyFile() {
+        if (!selectedFileOcc) return showStatus('upload-status-occ', 'Please select an Excel file first.', false);
+        
+        const btnText = document.getElementById('btn-text-occ');
+        const loader = document.getElementById('loader-occ');
+        const btn = document.getElementById('upload-btn-occ');
+        
+        btnText.style.display = 'none';
+        loader.style.display = 'block';
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('file', selectedFileOcc);
+
+        try {
+            const response = await fetch('/upload_occupancy', { method: 'POST', body: formData });
+            const result = await response.json();
+            showStatus('upload-status-occ', result.message, result.success);
+            if(result.success) {
+                selectedFileOcc = null;
+                fileNameDisplayOcc.innerHTML = 'Drag & Drop Details Excel here<br>or click to browse';
+                fileInputOcc.value = '';
+            }
+        } catch (error) {
+            showStatus('upload-status-occ', 'Upload failed. Is the server running?', false);
+        } finally {
+            btnText.style.display = 'block';
+            loader.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    async function submitManualData() {
+        const payload = {
+            city_name: document.getElementById('cityName').value,
+            canton: document.getElementById('canton').value,
+            country: 'Switzerland',
+            postal_code_prefix: document.getElementById('postalCode').value,
+            is_active: true
+        };
+
+        if(!payload.city_name || !payload.canton) {
+            return showStatus('manual-status', 'City Name and Canton are required!', false);
+        }
+
+        const btnText = document.getElementById('submit-btn-text');
+        const loader = document.getElementById('submit-loader');
+        const btn = document.getElementById('submit-btn');
+
+        btnText.style.display = 'none';
+        loader.style.display = 'block';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/add_city', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            showStatus('manual-status', result.message, result.success);
+            if(result.success) {
+                document.getElementById('cityName').value = '';
+                document.getElementById('canton').value = '';
+                document.getElementById('postalCode').value = '';
+            }
+        } catch (error) {
+            showStatus('manual-status', 'Request failed. Is the Python app running?', false);
+        } finally {
+            btnText.style.display = 'block';
+            loader.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    function exportCSV() {
+        const collection = document.getElementById('exportCollection').value || 'sinhasrealty data';
+        // Hit the GET endpoint which prompts a file download
+        window.location.href = `/download_csv?collection=${encodeURIComponent(collection)}`;
+    }
+</script>
+
+</body>
+</html>
