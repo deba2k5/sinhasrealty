@@ -7,3 +7,5 @@ services:
     envVars:
       - key: MONGO_URI
         value: mongodb+srv://sinhasrealty:sinhasrealty@sinhasrealty.cqt4cec.mongodb.net/?appName=sinhasrealty
+      - key: PYTHON_VERSION
+        value: 3.11.8
