@@ -5,6 +5,9 @@ from pymongo import MongoClient
 import certifi
 import io
 import csv
+from bson.objectid import ObjectId
+import math
+import re
 
 app = Flask(__name__, static_folder=".")
 
@@ -185,6 +188,18 @@ def add_city():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route('/add_property', methods=['POST'])
+def add_property():
+    """Manually insert a single record into the 'sinhasrealty data' collection"""
+    data = request.json
+    try:
+        db['sinhasrealty data'].insert_one(data)
+        addr = data.get('Apartment address', 'record')
+        city = data.get('City', '')
+        return jsonify({"success": True, "message": f"Successfully added property '{addr}' in {city}."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 @app.route('/download_csv', methods=['GET'])
 def download_csv():
     collection_name = request.args.get('collection', 'sinhasrealty data')
@@ -219,6 +234,126 @@ def download_csv():
         )
     except Exception as e:
         return f"Error exporting CSV: {str(e)}", 500
+@app.route('/admin')
+def admin():
+    # Serves the Admin HTML frontend
+    return send_from_directory('.', 'admin.html')
+
+@app.route('/api/data/<collection>', methods=['GET'])
+def get_data(collection):
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 10))
+    search = request.args.get('search', '').strip()
+    skip = (page - 1) * limit
+    
+    query = {}
+    
+    if search:
+        regex = re.compile(search, re.IGNORECASE)
+        sample = db[collection].find_one()
+        if sample:
+            or_clauses = []
+            for key, val in sample.items():
+                if key != '_id':
+                    if isinstance(val, str):
+                        or_clauses.append({key: {"$regex": regex}})
+                    elif isinstance(val, (int, float)) and search.replace('.', '', 1).isdigit():
+                        if '.' in search:
+                            or_clauses.append({key: float(search)})
+                        else:
+                            or_clauses.append({key: int(search)})
+            if or_clauses:
+                query = {'$or': or_clauses}
+
+    cursor = db[collection].find(query)
+    total = db[collection].count_documents(query)
+    
+    docs = list(cursor.skip(skip).limit(limit))
+    for doc in docs:
+        doc['_id'] = str(doc['_id'])
+        # Handle JSON parse errors for UI: JS cannot parse NaN, so map math.nan to None (null)
+        for k, v in doc.items():
+            if isinstance(v, ObjectId):
+                doc[k] = str(v)
+            elif isinstance(v, float) and math.isnan(v):
+                doc[k] = None
+        
+    return jsonify({
+        'data': docs,
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'totalPages': math.ceil(total / limit) if limit > 0 else 1
+    })
+
+@app.route('/api/update/<collection>/<doc_id>', methods=['POST'])
+def update_data(collection, doc_id):
+    try:
+        data = request.json
+        if '_id' in data:
+            del data['_id']
+            
+        # Optional: Handle strings that might actually be ObjectId references (like city_id, building_id)
+        # Here we do a simple generic update
+        result = db[collection].update_one({'_id': ObjectId(doc_id)}, {'$set': data})
+        
+        if result.modified_count > 0:
+            return jsonify({'success': True, 'message': 'Record updated successfully.'})
+        return jsonify({'success': True, 'message': 'No changes were made.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    try:
+        total_apartments = db.apartments.count_documents({})
+        occupied_apartments = db.apartments.count_documents({'apartment_status': 'occupied'})
+        available_apartments = db.apartments.count_documents({'apartment_status': 'available'})
+        
+        total_buildings = db.buildings.count_documents({})
+        total_cities = db.cities.count_documents({})
+        
+        # Specific stats for sinhasrealty data
+        sinhas_total = db['sinhasrealty data'].count_documents({})
+        sinhas_occupied = db['sinhasrealty data'].count_documents({'Unnamed: 12': {'$regex': 'OCCUPIED', '$options': 'i'}})
+        sinhas_available = sinhas_total - sinhas_occupied
+        
+        pipeline = [
+            {"$group": {"_id": "$City", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        city_stats = list(db['sinhasrealty data'].aggregate(pipeline))
+        sinhas_cities = {str(item['_id']): item['count'] for item in city_stats if item['_id']}
+        
+        return jsonify({
+            'success': True,
+            'apartments': {
+                'total': total_apartments,
+                'occupied': occupied_apartments,
+                'available': available_apartments
+            },
+            'buildings': total_buildings,
+            'cities': total_cities,
+            'sinhasrealty_data': {
+                'total': sinhas_total,
+                'occupied': sinhas_occupied,
+                'available': sinhas_available,
+                'city_distribution': sinhas_cities
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/collections', methods=['GET'])
+def get_collections():
+    try:
+        # Get all collection names, filtering out system collections if necessary
+        collections = db.list_collection_names()
+        # Filter out system collections if any
+        collections = [c for c in collections if not c.startswith('system.')]
+        return jsonify({'success': True, 'collections': collections})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     print(f"=====================================")

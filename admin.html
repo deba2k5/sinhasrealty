@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Sinha Realty — Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0f1e;
+      --surface: #101728;
+      --surface2: #151d30;
+      --surface3: #1a2540;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.12);
+      --primary: #6366f1;
+      --primary-lt: #818cf8;
+      --accent: #22d3ee;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --purple: #a78bfa;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+      --sidebar-w: 240px;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
+    body { display: flex; }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+      padding: 1.4rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 1rem; font-weight: 800; letter-spacing: -0.3px;
+    }
+    .sidebar-logo .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+    .sidebar-logo .badge { margin-left: auto; font-size: 0.7rem; background: rgba(99,102,241,0.15); color: var(--primary-lt); padding: 3px 8px; border-radius: 999px; font-weight: 600; border: 1px solid rgba(99,102,241,0.3); }
+    .sidebar-section { padding: 1.2rem 1rem 0.5rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .nav-item {
+      margin: 2px 8px;
+      padding: 10px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.875rem; font-weight: 600; color: var(--muted2);
+      transition: all 0.18s;
+      text-decoration: none;
+    }
+    .nav-item .icon { width: 20px; text-align: center; font-size: 1rem; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(99,102,241,0.14); color: var(--primary-lt); border: 1px solid rgba(99,102,241,0.22); }
+    .nav-item.active .icon { color: var(--primary); }
+    .sidebar-spacer { flex: 1; }
+    .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); }
+    .sidebar-footer a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; color: var(--muted2);
+      background: var(--surface2); border: 1px solid var(--border);
+      text-decoration: none; transition: all 0.18s;
+    }
+    .sidebar-footer a:hover { color: var(--text); border-color: var(--border2); }
+
+    /* ─── COLLECTIONS LIST ─── */
+    #col-list { overflow-y: auto; max-height: 200px; }
+    #col-list::-webkit-scrollbar { width: 4px; }
+    #col-list::-webkit-scrollbar-track { background: transparent; }
+    #col-list::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+
+    /* ─── MAIN ─── */
+    .main {
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 2rem 2.5rem;
+    }
+    .main::-webkit-scrollbar { width: 6px; }
+    .main::-webkit-scrollbar-track { background: transparent; }
+    .main::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+
+    /* ─── TOP BAR ─── */
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .topbar-left h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; }
+    .topbar-left p { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .stat-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border2);
+      font-size: 0.82rem; font-weight: 600; color: var(--muted2);
+    }
+    .stat-pill strong { color: var(--text); }
+
+    /* ─── LOADING ─── */
+    .loading-strip {
+      display: none;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent), var(--purple));
+      background-size: 200%; animation: shimmer 1.2s linear infinite;
+      border-radius: 2px; margin-bottom: 1.5rem;
+    }
+    @keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+
+    /* ─── KPI CARDS ─── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2rem; }
+    @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.4rem 1.5rem;
+      display: flex; flex-direction: column; gap: 0.5rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .kpi-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .kpi-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); }
+    .kpi-value { font-size: 2rem; font-weight: 800; letter-spacing: -1px; }
+    .kpi-sub { font-size: 0.78rem; color: var(--muted); }
+    .kpi-blue { border-left: 3px solid var(--primary); }
+    .kpi-green { border-left: 3px solid var(--green); }
+    .kpi-yellow { border-left: 3px solid var(--yellow); }
+    .kpi-red { border-left: 3px solid var(--red); }
+
+    /* ─── CHART GRID ─── */
+    .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+    .chart-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+    .chart-card-header h3 { font-size: 0.92rem; font-weight: 700; }
+    .chart-card-header p { font-size: 0.77rem; color: var(--muted); margin-top: 3px; }
+    .chart-wrap { height: 210px; position: relative; }
+
+    /* ─── TABLE SECTION ─── */
+    .table-section { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 2rem; }
+    .table-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.3rem 1.8rem; border-bottom: 1px solid var(--border);
+    }
+    .table-header-left h2 { font-size: 0.95rem; font-weight: 700; }
+    .table-header-left p { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+    .table-header-right { display: flex; gap: 10px; align-items: center; }
+    .search-wrap { position: relative; }
+    .search-wrap input {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 9px;
+      padding: 9px 14px 9px 36px;
+      font-family: inherit; font-size: 0.875rem;
+      width: 240px; transition: all 0.2s;
+    }
+    .search-wrap input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+    .search-wrap .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.9rem; pointer-events: none; }
+    .tbl-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted2); font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      transition: all 0.18s;
+    }
+    .tbl-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border2); }
+    .tbl-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .tbl-btn.primary:hover { opacity: 0.9; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead { background: var(--surface2); }
+    th {
+      padding: 12px 18px; text-align: left;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    td { padding: 13px 18px; border-bottom: 1px solid var(--border); color: var(--muted2); vertical-align: middle; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:hover td { background: rgba(255,255,255,0.018); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    td.val { color: var(--text); font-weight: 500; }
+
+    .badge-ok { background: rgba(52,211,153,0.12); color: var(--green); padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(52,211,153,0.25); }
+    .badge-err { background: rgba(248,113,113,0.12); color: var(--red); padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(248,113,113,0.25); }
+    .edit-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 7px;
+      background: transparent; border: 1px solid var(--border2);
+      color: var(--muted2); font-family: inherit; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.18s;
+    }
+    .edit-btn:hover { background: var(--surface3); color: var(--primary-lt); border-color: rgba(99,102,241,0.35); }
+
+    .table-footer { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.8rem; border-top: 1px solid var(--border); }
+    .page-info { font-size: 0.8rem; color: var(--muted); }
+    .page-btns { display: flex; gap: 8px; }
+    .page-btn { padding: 6px 14px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted2); font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .page-btn:hover:not(:disabled) { background: var(--surface3); color: var(--text); }
+    .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ─── MODAL ─── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 999; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 16px; width: 540px; max-width: 96vw; max-height: 90vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    }
+    .modal-hd { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-hd h2 { font-size: 1.1rem; font-weight: 700; }
+    .modal-hd p { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+    .modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--muted2); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.18s; }
+    .modal-close:hover { background: var(--surface3); color: var(--text); }
+    .modal-body { padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+    .modal-body::-webkit-scrollbar { width: 4px; }
+    .modal-body::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+    .field-row { display: flex; flex-direction: column; gap: 6px; }
+    .field-row label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+    .field-row input { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: 10px 13px; font-family: inherit; font-size: 0.9rem; width: 100%; transition: all 0.2s; }
+    .field-row input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+    .modal-ft { padding: 1.5rem 2rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-cancel { padding: 9px 20px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted2); font-family: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-cancel:hover { background: var(--surface3); color: var(--text); }
+    .btn-save { padding: 9px 22px; border-radius: 8px; background: var(--primary); border: none; color: #fff; font-family: inherit; font-size: 0.875rem; font-weight: 700; cursor: pointer; box-shadow: 0 0 18px rgba(99,102,241,0.4); transition: all 0.2s; }
+    .btn-save:hover { opacity: 0.9; box-shadow: 0 0 24px rgba(99,102,241,0.55); }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state {
+      padding: 4rem; text-align: center; color: var(--muted);
+    }
+    .empty-state .emj { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+    .empty-state p { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span class="dot"></span>
+    Sinha Realty
+    <span class="badge">ADMIN</span>
+  </div>
+
+  <div class="sidebar-section">Overview</div>
+  <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard',this)">
+    <span class="icon">📊</span> Dashboard
+  </div>
+
+  <div class="sidebar-section">Collections</div>
+  <div id="col-list">
+    <!-- dynamically filled -->
+  </div>
+
+  <div class="sidebar-spacer"></div>
+  <div class="sidebar-footer">
+    <a href="/"><span>←</span> Back to Portal</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main" id="main">
+  <div class="loading-strip" id="loader-bar"></div>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1 id="page-title">Dashboard</h1>
+      <p id="page-sub">Real-time data from MongoDB</p>
+    </div>
+    <div class="topbar-right" id="stat-pills">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="view-dashboard">
+
+    <!-- KPI ROW -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card kpi-blue">
+        <span class="kpi-label">Total Properties</span>
+        <span class="kpi-value" id="k-total">—</span>
+        <span class="kpi-sub">in sinhasrealty data</span>
+      </div>
+      <div class="kpi-card kpi-red">
+        <span class="kpi-label">Occupied</span>
+        <span class="kpi-value" id="k-occ">—</span>
+        <span class="kpi-sub">apartment units</span>
+      </div>
+      <div class="kpi-card kpi-green">
+        <span class="kpi-label">Available</span>
+        <span class="kpi-value" id="k-avail">—</span>
+        <span class="kpi-sub">apartment units</span>
+      </div>
+      <div class="kpi-card kpi-yellow">
+        <span class="kpi-label">Buildings</span>
+        <span class="kpi-value" id="k-bldg">—</span>
+        <span class="kpi-sub">registered buildings</span>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <h3>Occupancy Breakdown</h3>
+            <p>Occupied vs Available — sinhasrealty data</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="occChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <h3>Properties by City</h3>
+            <p>Top cities — sinhasrealty data</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="cityChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <h3>System Overview</h3>
+            <p>Total entities in database</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="sysChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <h3>Overall Apt Occupancy</h3>
+            <p>Structured apartments collection</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="aptChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE VIEW -->
+  <div class="table-section" id="view-table">
+    <div class="table-header">
+      <div class="table-header-left">
+        <h2 id="table-title">Records</h2>
+        <p id="table-sub">Loading...</p>
+      </div>
+      <div class="table-header-right">
+        <button class="tbl-btn primary" onclick="loadData(9999)">Load All</button>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input id="searchInput" placeholder="Search records..." oninput="debounce()">
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x: auto;">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span class="page-info" id="page-info">—</span>
+      <div class="page-btns">
+        <button class="page-btn" id="prev-btn" onclick="pg(-1)">← Prev</button>
+        <button class="page-btn" id="next-btn" onclick="pg(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- EDIT MODAL -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <div>
+        <h2>Edit Record</h2>
+        <p>Updating MongoDB document</p>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveRecord()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.font.weight = "600";
+  Chart.defaults.color = "#64748b";
+
+  let curCol = 'sinhasrealty data';
+  let curPage = 1;
+  let curLimit = 50;
+  let editId = null;
+  let dTimer = null;
+  let charts = {};
+
+  const loader = document.getElementById('loader-bar');
+  const showLoader = () => loader.style.display = 'block';
+  const hideLoader = () => loader.style.display = 'none';
+
+  // ─── INIT ───
+  window.onload = async () => { await loadCollections(); await loadStats(); loadData(); };
+
+  // ─── COLLECTIONS ───
+  async function loadCollections() {
+    const res = await fetch('/api/collections').then(r => r.json());
+    if (!res.success) return;
+    const list = document.getElementById('col-list');
+    list.innerHTML = '';
+    res.collections.sort().forEach(col => {
+      const a = document.createElement('div');
+      a.className = 'nav-item';
+      a.dataset.tab = col;
+      a.innerHTML = `<span class="icon">📋</span> ${col}`;
+      a.onclick = () => switchTab(col, a);
+      list.appendChild(a);
+      if (col === curCol) a.classList.add('active');
+    });
+  }
+
+  // ─── TAB SWITCH ───
+  function switchTab(tab, el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if(el) el.classList.add('active');
+
+    if (tab === 'dashboard') {
+      document.getElementById('view-dashboard').style.display = 'block';
+      document.getElementById('page-title').innerText = 'Dashboard';
+      document.getElementById('page-sub').innerText = 'Real-time data from MongoDB';
+      return;
+    }
+
+    document.getElementById('view-dashboard').style.display = 'none';
+    curCol = tab;
+    curPage = 1;
+    document.getElementById('searchInput').value = '';
+    document.getElementById('page-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
+    document.getElementById('page-sub').innerText = `Browsing collection: ${tab}`;
+    loadData();
+  }
+
+  // ─── STATS ───
+  async function loadStats() {
+    showLoader();
+    const d = await fetch('/api/stats').then(r => r.json());
+    hideLoader();
+    if (!d.success) return;
+
+    document.getElementById('k-total').innerText = d.sinhasrealty_data?.total ?? '—';
+    document.getElementById('k-occ').innerText = d.sinhasrealty_data?.occupied ?? '—';
+    document.getElementById('k-avail').innerText = d.sinhasrealty_data?.available ?? '—';
+    document.getElementById('k-bldg').innerText = d.buildings ?? '—';
+
+    const pills = document.getElementById('stat-pills');
+    pills.innerHTML = `
+      <div class="stat-pill"><strong>${d.apartments?.total ?? 0}</strong> Apartments</div>
+      <div class="stat-pill"><strong>${d.buildings ?? 0}</strong> Buildings</div>
+      <div class="stat-pill"><strong>${d.cities ?? 0}</strong> Cities</div>`;
+
+    renderCharts(d);
+  }
+
+  function mkChart(id, type, labels, data, colors) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
+      type,
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: colors,
+          borderColor: type === 'bar' ? colors : '#0a0f1e',
+          borderWidth: type === 'bar' ? 0 : 2,
+          borderRadius: type === 'bar' ? 6 : 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: type !== 'bar',
+            position: 'right',
+            labels: { color: '#94a3b8', font: { size: 12, weight: '600' }, padding: 12 }
+          },
+          tooltip: { bodyFont: { weight: '600' } }
+        },
+        scales: type === 'bar' ? {
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b' }, border: { color: 'rgba(255,255,255,0.04)' } },
+          x: { grid: { display: false }, ticks: { color: '#64748b' }, border: { color: 'rgba(255,255,255,0.04)' } }
+        } : undefined
+      }
+    });
+  }
+
+  function renderCharts(d) {
+    mkChart('occChart', 'doughnut',
+      ['Occupied', 'Available'],
+      [d.sinhasrealty_data?.occupied ?? 0, d.sinhasrealty_data?.available ?? 0],
+      ['#6366f1', '#34d399']);
+
+    const cities = d.sinhasrealty_data?.city_distribution ?? {};
+    const topCities = Object.entries(cities).sort((a,b) => b[1]-a[1]).slice(0,7);
+    mkChart('cityChart', 'bar', topCities.map(c=>c[0]), topCities.map(c=>c[1]),
+      ['#6366f1','#22d3ee','#a78bfa','#fbbf24','#34d399','#f87171','#818cf8']);
+
+    mkChart('sysChart', 'bar',
+      ['Cities', 'Buildings', 'Apartments'],
+      [d.cities ?? 0, d.buildings ?? 0, d.apartments?.total ?? 0],
+      ['#22d3ee','#a78bfa','#6366f1']);
+
+    mkChart('aptChart', 'pie',
+      ['Occupied', 'Available'],
+      [d.apartments?.occupied ?? 0, d.apartments?.available ?? 0],
+      ['#f87171','#34d399']);
+  }
+
+  // ─── TABLE DATA ───
+  function debounce() {
+    clearTimeout(dTimer);
+    dTimer = setTimeout(() => { curPage = 1; loadData(); }, 450);
+  }
+
+  async function loadData(force = null) {
+    showLoader();
+    const q = document.getElementById('searchInput').value;
+    const limit = force ?? curLimit;
+    const res = await fetch(`/api/data/${encodeURIComponent(curCol)}?page=${curPage}&limit=${limit}&search=${encodeURIComponent(q)}`).then(r => r.json());
+    hideLoader();
+
+    document.getElementById('table-title').innerText = curCol.charAt(0).toUpperCase() + curCol.slice(1);
+    document.getElementById('table-sub').innerText = `${res.total} total records`;
+    document.getElementById('page-info').innerText = `Page ${res.page} of ${res.totalPages}  ·  ${res.total} records`;
+    document.getElementById('prev-btn').disabled = res.page <= 1;
+    document.getElementById('next-btn').disabled = res.page >= res.totalPages;
+    renderTable(res.data);
+  }
+
+  function renderTable(rows) {
+    const thead = document.getElementById('thead');
+    const tbody = document.getElementById('tbody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td colspan="999"><div class="empty-state"><span class="emj">📭</span><p>No records found.</p></div></td></tr>';
+      return;
+    }
+    const keys = Object.keys(rows[0]).filter(k => k !== '_id');
+    keys.forEach(k => {
+      const th = document.createElement('th');
+      th.innerText = k.replace(/_/g,' ').toUpperCase();
+      thead.appendChild(th);
+    });
+    const actTh = document.createElement('th');
+    actTh.innerText = 'ACTIONS';
+    thead.appendChild(actTh);
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      keys.forEach(k => {
+        const td = document.createElement('td');
+        let v = row[k];
+        if (typeof v === 'object' && v !== null) v = JSON.stringify(v);
+        if (v === null || v === undefined) v = '—';
+        if (k.toLowerCase().includes('status') || k.toLowerCase().includes('active')) {
+          const isOk = String(v).toLowerCase().includes('available') || String(v).toLowerCase() === 'true';
+          td.innerHTML = `<span class="${isOk ? 'badge-ok' : 'badge-err'}">${v}</span>`;
+        } else {
+          td.innerText = v;
+          td.className = 'val';
+        }
+        tr.appendChild(td);
+      });
+      const actTd = document.createElement('td');
+      actTd.innerHTML = `<button class="edit-btn" onclick='openModal(${JSON.stringify(row).replace(/'/g,"&#39;")})'>✏️ Edit</button>`;
+      tr.appendChild(actTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function pg(d) { curPage += d; loadData(); }
+
+  // ─── MODAL ───
+  function openModal(row) {
+    editId = row._id;
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '';
+    Object.entries(row).forEach(([k, v]) => {
+      if (k === '_id' || typeof v === 'object') return;
+      const div = document.createElement('div');
+      div.className = 'field-row';
+      div.innerHTML = `<label>${k.replace(/_/g,' ')}</label><input id="ef_${k}" data-key="${k}" value="${v !== null ? String(v).replace(/"/g,'&quot;') : ''}">`;
+      body.appendChild(div);
+    });
+    document.getElementById('editOverlay').style.display = 'flex';
+  }
+  function closeModal() { document.getElementById('editOverlay').style.display = 'none'; editId = null; }
+
+  async function saveRecord() {
+    if (!editId) return;
+    const data = {};
+    document.querySelectorAll('#modal-body input').forEach(inp => {
+      let v = inp.value;
+      if (!isNaN(v) && v !== '') v = v.includes('.') ? parseFloat(v) : parseInt(v);
+      if (v === 'true') v = true;
+      if (v === 'false') v = false;
+      data[inp.dataset.key] = v;
+    });
+    const r = await fetch(`/api/update/${encodeURIComponent(curCol)}/${editId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+    }).then(r => r.json());
+    if (r.success) { closeModal(); loadData(); loadStats(); }
+    else alert('Error: ' + r.message);
+  }
+</script>
+</body>
+</html>
