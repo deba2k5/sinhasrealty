@@ -13,11 +13,19 @@ app = Flask(__name__, static_folder=".")
 
 # ==========================================
 # CONFIGURATION
-# Update this with your actual MongoDB connection string
 # ==========================================
 MONGO_URI = os.getenv("MONGO_URI", 'mongodb+srv://sinhasrealty:sinhasrealty@sinhasrealty.cqt4cec.mongodb.net/?appName=sinhasrealty')
-client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-db = client['sinharealty']
+
+# Lazy MongoDB connection — avoids crash-on-import during Render build
+_client = None
+_db = None
+
+def get_db():
+    global _client, _db
+    if _db is None:
+        _client = MongoClient(MONGO_URI, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
+        _db = _client['sinharealty']
+    return _db
 
 @app.route('/')
 def index():
@@ -93,9 +101,9 @@ def handle_upload_occupancy():
         city_map = {}
         for city in unique_cities:
             city_name = str(city).strip()
-            city_doc = db.cities.find_one({"city_name_en": city_name})
+            city_doc = get_db().cities.find_one({"city_name_en": city_name})
             if not city_doc:
-                result = db.cities.insert_one({
+                result = get_db().cities.insert_one({
                     "city_code": city_name[:2].upper(),
                     "city_name_en": city_name,
                     "canton": "",
@@ -121,9 +129,9 @@ def handle_upload_occupancy():
             
             # Find or create building
             if full_address not in building_map:
-                bldg_doc = db.buildings.find_one({"street_address": full_address})
+                bldg_doc = get_db().buildings.find_one({"street_address": full_address})
                 if not bldg_doc:
-                    b_id = db.buildings.insert_one({
+                    b_id = get_db().buildings.insert_one({
                         "city_id": city_map[city_name],
                         "building_code": f"BLDG-{len(building_map)+1000}",
                         "street_address": full_address,
@@ -138,7 +146,7 @@ def handle_upload_occupancy():
                     
             # Insert apartment if it doesn't already exist
             prop_id = str(row['Property Id']).strip() if pd.notna(row['Property Id']) else f"APT-{idx}"
-            apt_doc = db.apartments.find_one({"apt_code": prop_id})
+            apt_doc = get_db().apartments.find_one({"apt_code": prop_id})
             if not apt_doc:
                 try:
                     bedrooms = int(float(row['NO. OF ROOMS'])) if pd.notna(row['NO. OF ROOMS']) else 1
@@ -155,7 +163,7 @@ def handle_upload_occupancy():
                 floor = str(row['FLOOR']).strip() if pd.notna(row['FLOOR']) else "0"
                 unit = str(row.get(' POSITION', '')).strip() if pd.notna(row.get(' POSITION', '')) else ""
                 
-                db.apartments.insert_one({
+                get_db().apartments.insert_one({
                     "building_id": building_map[full_address],
                     "apt_code": prop_id,
                     "unit_number": unit,
@@ -183,7 +191,7 @@ def add_city():
     """Manual endpoint example for adding a single city to the cities table"""
     data = request.json
     try:
-        db.cities.insert_one(data)
+        get_db().cities.insert_one(data)
         return jsonify({"success": True, "message": f"Successfully added city: {data.get('city_name')}"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -306,12 +314,12 @@ def update_data(collection, doc_id):
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     try:
-        total_apartments = db.apartments.count_documents({})
-        occupied_apartments = db.apartments.count_documents({'apartment_status': 'occupied'})
-        available_apartments = db.apartments.count_documents({'apartment_status': 'available'})
+        total_apartments = get_db().apartments.count_documents({})
+        occupied_apartments = get_db().apartments.count_documents({'apartment_status': 'occupied'})
+        available_apartments = get_db().apartments.count_documents({'apartment_status': 'available'})
         
-        total_buildings = db.buildings.count_documents({})
-        total_cities = db.cities.count_documents({})
+        total_buildings = get_db().buildings.count_documents({})
+        total_cities = get_db().cities.count_documents({})
         
         # Specific stats for sinhasrealty data
         sinhas_total = db['sinhasrealty data'].count_documents({})
@@ -348,7 +356,7 @@ def get_stats():
 def get_collections():
     try:
         # Get all collection names, filtering out system collections if necessary
-        collections = db.list_collection_names()
+        collections = get_db().list_collection_names()
         # Filter out system collections if any
         collections = [c for c in collections if not c.startswith('system.')]
         return jsonify({'success': True, 'collections': collections})
