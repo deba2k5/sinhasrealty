@@ -185,7 +185,9 @@
     Sinha Realty Portal
   </a>
   <div class="nav-actions">
-    <a href="/admin" class="btn btn-ghost">Admin Dashboard →</a>
+    <span id="nav-user-email" style="color:var(--muted2);font-size:0.85rem;font-weight:500;"></span>
+    <a href="/admin" id="nav-admin-link" class="btn btn-ghost">Admin Dashboard →</a>
+    <button id="nav-logout" onclick="doSignOut()" style="display:none;" class="btn btn-ghost">Sign Out</button>
   </div>
 </nav>
 
@@ -399,6 +401,50 @@
     } catch { showStatus('s3', 'Request failed — is the server running?', false); }
     stopBtn('b3','b3t','b3l');
   }
+</script>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8',
+    authDomain: 'sinhasgmbh-da880.firebaseapp.com',
+    projectId: 'sinhasgmbh-da880',
+    storageBucket: 'sinhasgmbh-da880.firebasestorage.app',
+    messagingSenderId: '103734138273',
+    appId: '1:103734138273:web:be383933f0fad2c55767e0'
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+
+  const ADMIN_EMAIL = 'admin@gmail.com';
+  const DB_ADMIN_EMAIL = 'databaseadmin@gmail.com';
+
+  onAuthStateChanged(auth, user => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+    // Show email in nav
+    const emailEl = document.getElementById('nav-user-email');
+    if (emailEl) emailEl.textContent = user.email;
+
+    // Hide Admin Dashboard link for databaseadmin users
+    if (user.email === DB_ADMIN_EMAIL) {
+      const adminBtn = document.getElementById('nav-admin-link');
+      if (adminBtn) adminBtn.style.display = 'none';
+    }
+
+    // Show logout button
+    const logoutBtn = document.getElementById('nav-logout');
+    if (logoutBtn) logoutBtn.style.display = '';
+  });
+
+  window.doSignOut = async function() {
+    await signOut(auth);
+    window.location.href = '/login';
+  };
 </script>
 </body>
 </html>

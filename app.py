@@ -27,6 +27,10 @@ def get_db():
         _db = _client['sinharealty']
     return _db
 
+@app.route('/login')
+def login():
+    return send_from_directory('.', 'login.html')
+
 @app.route('/')
 def index():
     # Serves the HTML frontend

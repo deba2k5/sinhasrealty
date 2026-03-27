@@ -256,8 +256,10 @@
   </div>
 
   <div class="sidebar-spacer"></div>
-  <div class="sidebar-footer">
+  <div class="sidebar-footer" style="display:flex;flex-direction:column;gap:8px;">
+    <div style="font-size:0.75rem;color:var(--muted);padding:0 6px;" id="user-email-display">Loading...</div>
     <a href="/"><span>←</span> Back to Portal</a>
+    <button onclick="doSignOut()" style="width:100%;padding:9px 14px;border-radius:8px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:#f87171;font-family:inherit;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.18s;" onmouseover="this.style.background='rgba(248,113,113,0.2)'" onmouseout="this.style.background='rgba(248,113,113,0.1)'">Sign Out</button>
   </div>
 </aside>
 
@@ -626,6 +628,51 @@
     if (r.success) { closeModal(); loadData(); loadStats(); }
     else alert('Error: ' + r.message);
   }
+</script>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8',
+    authDomain: 'sinhasgmbh-da880.firebaseapp.com',
+    projectId: 'sinhasgmbh-da880',
+    storageBucket: 'sinhasgmbh-da880.firebasestorage.app',
+    messagingSenderId: '103734138273',
+    appId: '1:103734138273:web:be383933f0fad2c55767e0'
+  };
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+
+  const ADMIN_EMAIL = 'admin@gmail.com';
+  const DB_ADMIN_EMAIL = 'databaseadmin@gmail.com';
+
+  onAuthStateChanged(auth, user => {
+    if (!user) {
+      // Not logged in → go to login
+      window.location.href = '/login';
+      return;
+    }
+    if (user.email === DB_ADMIN_EMAIL) {
+      // databaseadmin has NO access to this admin panel
+      window.location.href = '/';
+      return;
+    }
+    if (user.email !== ADMIN_EMAIL) {
+      // Unknown user
+      signOut(auth).then(() => window.location.href = '/login');
+      return;
+    }
+    // Admin authenticated — show email
+    const el = document.getElementById('user-email-display');
+    if (el) el.textContent = '👤 ' + user.email;
+  });
+
+  window.doSignOut = async function() {
+    await signOut(auth);
+    window.location.href = '/login';
+  };
 </script>
 </body>
 </html>
