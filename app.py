@@ -253,50 +253,75 @@ def admin():
 
 @app.route('/api/data/<collection>', methods=['GET'])
 def get_data(collection):
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 10))
-    search = request.args.get('search', '').strip()
-    skip = (page - 1) * limit
-    
-    query = {}
-    
-    if search:
-        regex = re.compile(search, re.IGNORECASE)
-        sample = get_db()[collection].find_one()
-        if sample:
-            or_clauses = []
-            for key, val in sample.items():
-                if key != '_id':
-                    if isinstance(val, str):
-                        or_clauses.append({key: {"$regex": regex}})
-                    elif isinstance(val, (int, float)) and search.replace('.', '', 1).isdigit():
-                        if '.' in search:
-                            or_clauses.append({key: float(search)})
-                        else:
-                            or_clauses.append({key: int(search)})
-            if or_clauses:
-                query = {'$or': or_clauses}
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        search = request.args.get('search', '').strip()
+        skip = (page - 1) * limit
 
-    cursor = get_db()[collection].find(query)
-    total = get_db()[collection].count_documents(query)
-    
-    docs = list(cursor.skip(skip).limit(limit))
-    for doc in docs:
-        doc['_id'] = str(doc['_id'])
-        # Handle JSON parse errors for UI: JS cannot parse NaN, so map math.nan to None (null)
-        for k, v in doc.items():
-            if isinstance(v, ObjectId):
-                doc[k] = str(v)
-            elif isinstance(v, float) and math.isnan(v):
-                doc[k] = None
-        
-    return jsonify({
-        'data': docs,
-        'total': total,
-        'page': page,
-        'limit': limit,
-        'totalPages': math.ceil(total / limit) if limit > 0 else 1
-    })
+        query = {}
+
+        if search:
+            regex = re.compile(search, re.IGNORECASE)
+            sample = get_db()[collection].find_one()
+            if sample:
+                or_clauses = []
+                for key, val in sample.items():
+                    if key != '_id':
+                        if isinstance(val, str):
+                            or_clauses.append({key: {"$regex": regex}})
+                        elif isinstance(val, (int, float)) and search.replace('.', '', 1).isdigit():
+                            if '.' in search:
+                                or_clauses.append({key: float(search)})
+                            else:
+                                or_clauses.append({key: int(search)})
+                if or_clauses:
+                    query = {'$or': or_clauses}
+
+        db_inst = get_db()
+        cursor = db_inst[collection].find(query)
+        total = db_inst[collection].count_documents(query)
+
+        docs = list(cursor.skip(skip).limit(limit))
+        for doc in docs:
+            doc['_id'] = str(doc['_id'])
+            for k, v in doc.items():
+                if isinstance(v, ObjectId):
+                    doc[k] = str(v)
+                elif isinstance(v, float) and math.isnan(v):
+                    doc[k] = None
+
+        return jsonify({
+            'data': docs,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'totalPages': math.ceil(total / limit) if limit > 0 else 1
+        })
+    except Exception as e:
+        return jsonify({'data': [], 'total': 0, 'page': 1, 'limit': 10, 'totalPages': 0, 'error': str(e)}), 200
+
+@app.route('/api/debug', methods=['GET'])
+def debug_connection():
+    """Debug endpoint to check MongoDB connectivity and collection state on Vercel"""
+    try:
+        db_inst = get_db()
+        collections = db_inst.list_collection_names()
+        counts = {}
+        for col in collections:
+            try:
+                counts[col] = db_inst[col].count_documents({})
+            except Exception as ce:
+                counts[col] = f"ERROR: {ce}"
+        return jsonify({
+            'success': True,
+            'mongo_uri_set': bool(os.getenv('MONGO_URI')),
+            'collections': collections,
+            'counts': counts
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e), 'mongo_uri_set': bool(os.getenv('MONGO_URI'))}), 500
+
 
 @app.route('/api/update/<collection>/<doc_id>', methods=['POST'])
 def update_data(collection, doc_id):
