@@ -8,6 +8,7 @@ import csv
 from bson.objectid import ObjectId
 import math
 import re
+from urllib.parse import unquote
 
 app = Flask(__name__, static_folder=".")
 
@@ -251,8 +252,9 @@ def admin():
     # Serves the Admin HTML frontend
     return send_from_directory('.', 'admin.html')
 
-@app.route('/api/data/<collection>', methods=['GET'])
+@app.route('/api/data/<path:collection>', methods=['GET'])
 def get_data(collection):
+    collection = unquote(collection)  # Fix Vercel not decoding %20 in path params
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
@@ -323,8 +325,9 @@ def debug_connection():
         return jsonify({'success': False, 'error': str(e), 'mongo_uri_set': bool(os.getenv('MONGO_URI'))}), 500
 
 
-@app.route('/api/update/<collection>/<doc_id>', methods=['POST'])
+@app.route('/api/update/<path:collection>/<doc_id>', methods=['POST'])
 def update_data(collection, doc_id):
+    collection = unquote(collection)  # Fix Vercel URL encoding
     try:
         data = request.json
         if '_id' in data:
