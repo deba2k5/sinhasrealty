@@ -3,45 +3,16 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "app.py"
-    },
-    {
-      "src": "/login",
-      "dest": "app.py"
-    },
-    {
-      "src": "/admin",
-      "dest": "app.py"
-    },
-    {
-      "src": "/upload",
-      "dest": "app.py"
-    },
-    {
-      "src": "/upload_occupancy",
-      "dest": "app.py"
-    },
-    {
-      "src": "/add_city",
-      "dest": "app.py"
-    },
-    {
-      "src": "/add_property",
-      "dest": "app.py"
-    },
-    {
-      "src": "/download_csv",
-      "dest": "app.py"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "app.py"
     }
   ]
 }
