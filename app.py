@@ -54,7 +54,7 @@ def handle_upload():
             collection_name = file.filename.rsplit('.', 1)[0]
             records = df.to_dict('records')
             if records:
-                db[collection_name].insert_many(records)
+                get_db()[collection_name].insert_many(records)
                 return jsonify({"success": True, "message": f"Success! {len(records)} rows -> '{collection_name}'"})
             return jsonify({"success": True, "message": "CSV file was empty."})
             
@@ -67,7 +67,7 @@ def handle_upload():
             df = df.dropna(how='all')
             if not df.empty:
                 records = df.to_dict('records')
-                db[sheet].insert_many(records)
+                get_db()[sheet].insert_many(records)
                 sheets_inserted[sheet] = len(records)
                 
         msg = ", ".join([f"{count} rows -> '{sheet}'" for sheet, count in sheets_inserted.items()])
@@ -205,7 +205,7 @@ def add_property():
     """Manually insert a single record into the 'sinhasrealty data' collection"""
     data = request.json
     try:
-        db['sinhasrealty data'].insert_one(data)
+        get_db()['sinhasrealty data'].insert_one(data)
         addr = data.get('Apartment address', 'record')
         city = data.get('City', '')
         return jsonify({"success": True, "message": f"Successfully added property '{addr}' in {city}."})
@@ -216,7 +216,7 @@ def add_property():
 def download_csv():
     collection_name = request.args.get('collection', 'sinhasrealty data')
     try:
-        cursor = db[collection_name].find({})
+        cursor = get_db()[collection_name].find({})
         docs = list(cursor)
         if not docs:
             return "No data found for collection.", 404
@@ -262,7 +262,7 @@ def get_data(collection):
     
     if search:
         regex = re.compile(search, re.IGNORECASE)
-        sample = db[collection].find_one()
+        sample = get_db()[collection].find_one()
         if sample:
             or_clauses = []
             for key, val in sample.items():
@@ -277,8 +277,8 @@ def get_data(collection):
             if or_clauses:
                 query = {'$or': or_clauses}
 
-    cursor = db[collection].find(query)
-    total = db[collection].count_documents(query)
+    cursor = get_db()[collection].find(query)
+    total = get_db()[collection].count_documents(query)
     
     docs = list(cursor.skip(skip).limit(limit))
     for doc in docs:
@@ -307,7 +307,7 @@ def update_data(collection, doc_id):
             
         # Optional: Handle strings that might actually be ObjectId references (like city_id, building_id)
         # Here we do a simple generic update
-        result = db[collection].update_one({'_id': ObjectId(doc_id)}, {'$set': data})
+        result = get_db()[collection].update_one({'_id': ObjectId(doc_id)}, {'$set': data})
         
         if result.modified_count > 0:
             return jsonify({'success': True, 'message': 'Record updated successfully.'})
@@ -326,15 +326,15 @@ def get_stats():
         total_cities = get_db().cities.count_documents({})
         
         # Specific stats for sinhasrealty data
-        sinhas_total = db['sinhasrealty data'].count_documents({})
-        sinhas_occupied = db['sinhasrealty data'].count_documents({'Unnamed: 12': {'$regex': 'OCCUPIED', '$options': 'i'}})
+        sinhas_total = get_db()['sinhasrealty data'].count_documents({})
+        sinhas_occupied = get_db()['sinhasrealty data'].count_documents({'Unnamed: 12': {'$regex': 'OCCUPIED', '$options': 'i'}})
         sinhas_available = sinhas_total - sinhas_occupied
         
         pipeline = [
             {"$group": {"_id": "$City", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}
         ]
-        city_stats = list(db['sinhasrealty data'].aggregate(pipeline))
+        city_stats = list(get_db()['sinhasrealty data'].aggregate(pipeline))
         sinhas_cities = {str(item['_id']): item['count'] for item in city_stats if item['_id']}
         
         return jsonify({
