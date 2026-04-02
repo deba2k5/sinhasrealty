@@ -98,14 +98,20 @@
 
     /* ─── LAYOUT ─── */
     .portal-grid {
-      max-width: 1180px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 0 2.5rem 80px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 1.5rem;
     }
-    @media (max-width: 900px) { .portal-grid { grid-template-columns: 1fr; } }
+    .manual-entry-card {
+      grid-column: span 2;
+    }
+    @media (max-width: 900px) { 
+      .portal-grid { grid-template-columns: 1fr; }
+      .manual-entry-card { grid-column: span 1; }
+    }
 
     /* ─── CARDS ─── */
     .card {
@@ -163,7 +169,11 @@
       box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
     }
     .form-row select option { background: var(--surface2); }
-    .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 700px) { 
+      .form-3col, .form-2col { grid-template-columns: 1fr; }
+    }
 
     /* ─── STATUS/TOAST ─── */
     .status-box {
@@ -244,26 +254,54 @@
   </div>
 
   <!-- ─── MANUAL ENTRY ─── -->
-  <div class="card">
+  <div class="card manual-entry-card">
     <div class="card-header">
       <div class="card-icon icon-purple">✏️</div>
       <div class="card-header-text">
-        <h3>Manual Entry</h3>
-        <p>Add a single property record</p>
+        <h3>Full Property Entry</h3>
+        <p>Manually add a detailed property record to MongoDB</p>
       </div>
     </div>
     <div class="divider"></div>
-    <div class="form-2col">
+    
+    <!-- Row 1: Core Identifiers -->
+    <div class="form-3col">
+      <div class="form-row">
+        <label>Property ID</label>
+        <input id="m_propid" type="text" placeholder="e.g. PROP-123">
+      </div>
+      <div class="form-row">
+        <label>AWN No</label>
+        <input id="m_awn" type="number" placeholder="e.g. 1024">
+      </div>
+      <div class="form-row">
+        <label>Object Number</label>
+        <input id="m_objno" type="number" placeholder="e.g. 505">
+      </div>
+    </div>
+
+    <!-- Row 2: Address & Location -->
+    <div class="form-3col">
       <div class="form-row">
         <label>Apartment Address *</label>
-        <input id="m_addr" type="text" placeholder="e.g. Seebacherstrasse">
+        <input id="m_addr" type="text" placeholder="Street Name">
+      </div>
+      <div class="form-row">
+        <label>Street Number</label>
+        <input id="m_streetno" type="number" placeholder="e.g. 15">
       </div>
       <div class="form-row">
         <label>City *</label>
         <input id="m_city" type="text" placeholder="e.g. Zürich">
       </div>
     </div>
-    <div class="form-2col">
+
+    <!-- Row 3: Building Details -->
+    <div class="form-3col">
+      <div class="form-row">
+        <label>Pincode</label>
+        <input id="m_pincode" type="number" placeholder="e.g. 8050">
+      </div>
       <div class="form-row">
         <label>Floor</label>
         <input id="m_floor" type="number" placeholder="e.g. 2">
@@ -280,7 +318,9 @@
         </select>
       </div>
     </div>
-    <div class="form-2col">
+
+    <!-- Row 4: Specs -->
+    <div class="form-3col">
       <div class="form-row">
         <label>Apt SQMT</label>
         <input id="m_sqmt" type="number" step="0.1" placeholder="e.g. 65">
@@ -289,14 +329,20 @@
         <label>No. of Rooms</label>
         <input id="m_rooms" type="number" step="0.5" placeholder="e.g. 3.5">
       </div>
-    </div>
-    <div class="form-2col">
       <div class="form-row">
-        <label>AWN No</label>
-        <input id="m_awn" type="number" placeholder="e.g. 12">
+        <label>Own / Rented</label>
+        <select id="m_ownrented">
+          <option value="">— Select —</option>
+          <option>OWN</option>
+          <option>RENTED</option>
+        </select>
       </div>
+    </div>
+
+    <!-- Row 5: Occupancy status -->
+    <div class="form-3col">
       <div class="form-row">
-        <label>Indiv. / Shr.</label>
+        <label>Indiv. / Shr. (Occupancy Type)</label>
         <select id="m_indiv">
           <option value="">— Select —</option>
           <option>Family</option>
@@ -306,9 +352,22 @@
           <option>Sharing (4)</option>
         </select>
       </div>
+      <div class="form-row">
+        <label>Status</label>
+        <select id="m_status">
+          <option value="">— Select —</option>
+          <option>OCCUPIED</option>
+          <option>AVAILABLE</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Will Surrender By</label>
+        <input id="m_surrender" type="text" placeholder="e.g. 31.12.2024">
+      </div>
     </div>
-    <div style="margin-top: 1.2rem;">
-      <button class="btn btn-purple" id="b3" onclick="doManual()">
+
+    <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+      <button class="btn btn-purple" id="b3" onclick="doManual()" style="width: auto; padding: 14px 40px;">
         <span id="b3t">Insert into Database</span>
         <div class="loader" id="b3l"></div>
       </button>
@@ -385,19 +444,29 @@
     if (!addr || !city) return showStatus('s3', 'Apartment Address and City are required.', false);
     startBtn('b3','b3t','b3l');
     const payload = {
+      'AWN NO': document.getElementById('m_awn').value !== '' ? parseInt(document.getElementById('m_awn').value) : null,
       'Apartment Address': addr,
       'City': city,
-      'Floor': document.getElementById('m_floor').value !== '' ? parseInt(document.getElementById('m_floor').value) : null,
-      'POSITION': document.getElementById('m_position').value,
-      'Apartment SQMT': document.getElementById('m_sqmt').value !== '' ? parseFloat(document.getElementById('m_sqmt').value) : null,
+      'INDIV / SHR': document.getElementById('m_indiv').value,
+      'Status': document.getElementById('m_status').value,
+      'WILL SURRENDER BY': document.getElementById('m_surrender').value,
       'NO OF ROOMS': document.getElementById('m_rooms').value !== '' ? parseFloat(document.getElementById('m_rooms').value) : null,
-      'AWN NO': document.getElementById('m_awn').value !== '' ? parseInt(document.getElementById('m_awn').value) : null,
-      'INDIV / SHR': document.getElementById('m_indiv').value
+      'Floor': document.getElementById('m_floor').value !== '' ? parseInt(document.getElementById('m_floor').value) : null,
+      'Apartment SQMT': document.getElementById('m_sqmt').value !== '' ? parseFloat(document.getElementById('m_sqmt').value) : null,
+      'Pincode': document.getElementById('m_pincode').value !== '' ? parseInt(document.getElementById('m_pincode').value) : null,
+      'Own / Rented': document.getElementById('m_ownrented').value,
+      'POSITION': document.getElementById('m_position').value,
+      'Object Number': document.getElementById('m_objno').value !== '' ? parseInt(document.getElementById('m_objno').value) : null,
+      'Street Number': document.getElementById('m_streetno').value !== '' ? parseInt(document.getElementById('m_streetno').value) : null,
+      'Property ID': document.getElementById('m_propid').value
     };
     try {
       const r = await (await fetch('/add_property', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).json();
       showStatus('s3', r.message, r.success);
-      if (r.success) { ['m_addr','m_city','m_floor','m_sqmt','m_rooms','m_awn'].forEach(id => document.getElementById(id).value = ''); }
+      if (r.success) { 
+        ['m_propid','m_awn','m_objno','m_addr','m_streetno','m_city','m_pincode','m_floor','m_sqmt','m_rooms','m_surrender'].forEach(id => document.getElementById(id).value = '');
+        ['m_position','m_ownrented','m_indiv','m_status'].forEach(id => document.getElementById(id).selectedIndex = 0);
+      }
     } catch { showStatus('s3', 'Request failed — is the server running?', false); }
     stopBtn('b3','b3t','b3l');
   }

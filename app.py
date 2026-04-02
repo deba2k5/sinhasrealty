@@ -378,9 +378,9 @@ def get_stats():
         total_buildings = get_db().buildings.count_documents({})
         total_cities = get_db().cities.count_documents({})
         
-        # Specific stats for sinhasrealty data
-        sinhas_total = get_db()['sinhasrealty data'].count_documents({})
-        sinhas_occupied = get_db()['sinhasrealty data'].count_documents({'Status': {'$regex': 'OCCUPIED', '$options': 'i'}})
+        # Specific stats for Sinhas GmbH
+        sinhas_total = get_db()['Sinhas GmbH'].count_documents({})
+        sinhas_occupied = get_db()['Sinhas GmbH'].count_documents({'Status': {'$regex': 'OCCUPIED', '$options': 'i'}})
         sinhas_available = sinhas_total - sinhas_occupied
         
         pipeline = [
@@ -422,7 +422,7 @@ def get_collections():
 
 if __name__ == '__main__':
     print(f"=====================================")
-    print(f" Sinha Realty Portal Backend Started ")
+    print(f" Sinhas GmbH Portal Backend Started ")
     print(f"=====================================")
     print(f" Connected DB: {MONGO_URI}")
     print(f" Dashboard is live at: http://localhost:5000")
