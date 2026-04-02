@@ -298,10 +298,12 @@ def get_data(collection):
             'total': total,
             'page': page,
             'limit': limit,
-            'totalPages': math.ceil(total / limit) if limit > 0 else 1
+            'totalPages': math.ceil(total / limit) if limit > 0 else 1,
+            '_col': collection,          # debug: what Flask received
+            '_col_repr': repr(collection)  # debug: show exact bytes
         })
     except Exception as e:
-        return jsonify({'data': [], 'total': 0, 'page': 1, 'limit': 10, 'totalPages': 0, 'error': str(e)}), 200
+        return jsonify({'data': [], 'total': 0, 'page': 1, 'limit': 10, 'totalPages': 0, 'error': str(e), '_col': collection}), 200
 
 @app.route('/api/debug', methods=['GET'])
 def debug_connection():
@@ -333,13 +335,36 @@ def update_data(collection, doc_id):
         if '_id' in data:
             del data['_id']
             
-        # Optional: Handle strings that might actually be ObjectId references (like city_id, building_id)
-        # Here we do a simple generic update
-        result = get_db()[collection].update_one({'_id': ObjectId(doc_id)}, {'$set': data})
+        # Use fetch-merge-replace to allow field names with dots/special characters
+        existing = get_db()[collection].find_one({'_id': ObjectId(doc_id)})
+        if not existing:
+            return jsonify({'success': False, 'message': 'Record not found.'}), 404
+            
+        existing.update(data)
+        # Ensure _id is handled correctly (pymongo insert/replace will error if _id is in the doc and different, 
+        # but here it's the same so it's fine, or we can ensure it's removed if needed)
+        # but ObjectId is fine.
+        result = get_db()[collection].replace_one({'_id': ObjectId(doc_id)}, existing)
         
         if result.modified_count > 0:
             return jsonify({'success': True, 'message': 'Record updated successfully.'})
         return jsonify({'success': True, 'message': 'No changes were made.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/api/create/<path:collection>', methods=['POST'])
+def create_data(collection):
+    collection = unquote(collection)  # Fix Vercel URL encoding
+    try:
+        data = request.json
+        if '_id' in data:
+            del data['_id']
+            
+        result = get_db()[collection].insert_one(data)
+        
+        if result.inserted_id:
+            return jsonify({'success': True, 'message': 'Record created successfully.', 'id': str(result.inserted_id)})
+        return jsonify({'success': False, 'message': 'Failed to create record.'}), 400
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 
@@ -355,7 +380,7 @@ def get_stats():
         
         # Specific stats for sinhasrealty data
         sinhas_total = get_db()['sinhasrealty data'].count_documents({})
-        sinhas_occupied = get_db()['sinhasrealty data'].count_documents({'Unnamed: 12': {'$regex': 'OCCUPIED', '$options': 'i'}})
+        sinhas_occupied = get_db()['sinhasrealty data'].count_documents({'Status': {'$regex': 'OCCUPIED', '$options': 'i'}})
         sinhas_available = sinhas_total - sinhas_occupied
         
         pipeline = [

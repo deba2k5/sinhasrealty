@@ -214,13 +214,16 @@
   const firebaseApp = initializeApp(firebaseConfig);
   const auth = getAuth(firebaseApp);
 
-  const ADMIN_EMAIL = 'admin@gmail.com';
-  const DB_ADMIN_EMAIL = 'databaseadmin@gmail.com';
+  const AUTHORIZED_EMAILS = [
+    'rajeev@sinhas.ch',
+    'soumika@sinhas.ch',
+    'megha@sinhas.ch'
+  ];
 
   // If already signed in, redirect immediately
   onAuthStateChanged(auth, user => {
     if (user) {
-      if (user.email === ADMIN_EMAIL || user.email === DB_ADMIN_EMAIL) {
+      if (AUTHORIZED_EMAILS.includes(user.email)) {
         window.location.href = '/';
       }
     }
@@ -249,12 +252,12 @@
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const user = cred.user;
 
-      if (user.email !== ADMIN_EMAIL && user.email !== DB_ADMIN_EMAIL) {
+      if (!AUTHORIZED_EMAILS.includes(user.email)) {
         await auth.signOut();
         throw new Error('Access denied. You are not authorized to use this portal.');
       }
 
-      // Redirect based on role
+      // Redirect to portal
       window.location.href = '/';
 
     } catch (e) {

@@ -385,14 +385,14 @@
     if (!addr || !city) return showStatus('s3', 'Apartment Address and City are required.', false);
     startBtn('b3','b3t','b3l');
     const payload = {
-      'Apartment address': addr,
+      'Apartment Address': addr,
       'City': city,
-      'FLOOR': document.getElementById('m_floor').value !== '' ? parseInt(document.getElementById('m_floor').value) : null,
-      ' POSITION': document.getElementById('m_position').value,
+      'Floor': document.getElementById('m_floor').value !== '' ? parseInt(document.getElementById('m_floor').value) : null,
+      'POSITION': document.getElementById('m_position').value,
       'Apartment SQMT': document.getElementById('m_sqmt').value !== '' ? parseFloat(document.getElementById('m_sqmt').value) : null,
-      'NO. OF ROOMS': document.getElementById('m_rooms').value !== '' ? parseFloat(document.getElementById('m_rooms').value) : null,
+      'NO OF ROOMS': document.getElementById('m_rooms').value !== '' ? parseFloat(document.getElementById('m_rooms').value) : null,
       'AWN NO': document.getElementById('m_awn').value !== '' ? parseInt(document.getElementById('m_awn').value) : null,
-      'INDIV. / SHR.': document.getElementById('m_indiv').value
+      'INDIV / SHR': document.getElementById('m_indiv').value
     };
     try {
       const r = await (await fetch('/add_property', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).json();
@@ -418,11 +418,15 @@
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
 
-  const ADMIN_EMAIL = 'admin@gmail.com';
-  const DB_ADMIN_EMAIL = 'databaseadmin@gmail.com';
+  const ADMIN_EMAIL = 'rajeev@sinhas.ch';
+  const AUTHORIZED_EMAILS = [
+    'rajeev@sinhas.ch',
+    'soumika@sinhas.ch',
+    'megha@sinhas.ch'
+  ];
 
   onAuthStateChanged(auth, user => {
-    if (!user) {
+    if (!user || !AUTHORIZED_EMAILS.includes(user.email)) {
       window.location.href = '/login';
       return;
     }
@@ -430,8 +434,8 @@
     const emailEl = document.getElementById('nav-user-email');
     if (emailEl) emailEl.textContent = user.email;
 
-    // Hide Admin Dashboard link for databaseadmin users
-    if (user.email === DB_ADMIN_EMAIL) {
+    // Hide Admin Dashboard link for non-admin users
+    if (user.email !== ADMIN_EMAIL) {
       const adminBtn = document.getElementById('nav-admin-link');
       if (adminBtn) adminBtn.style.display = 'none';
     }

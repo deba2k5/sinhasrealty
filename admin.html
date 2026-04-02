@@ -325,24 +325,6 @@
         </div>
         <div class="chart-wrap"><canvas id="cityChart"></canvas></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-card-header">
-          <div>
-            <h3>System Overview</h3>
-            <p>Total entities in database</p>
-          </div>
-        </div>
-        <div class="chart-wrap"><canvas id="sysChart"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-card-header">
-          <div>
-            <h3>Overall Apt Occupancy</h3>
-            <p>Structured apartments collection</p>
-          </div>
-        </div>
-        <div class="chart-wrap"><canvas id="aptChart"></canvas></div>
-      </div>
     </div>
   </div>
 
@@ -354,7 +336,8 @@
         <p id="table-sub">Loading...</p>
       </div>
       <div class="table-header-right">
-        <button class="tbl-btn primary" onclick="loadData(9999)">Load All</button>
+        <button class="tbl-btn primary" onclick="openAddModal()">+ Add New Record</button>
+        <button class="tbl-btn" onclick="loadData(9999)">Load All</button>
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
           <input id="searchInput" placeholder="Search records..." oninput="debounce()">
@@ -383,15 +366,15 @@
   <div class="modal">
     <div class="modal-hd">
       <div>
-        <h2>Edit Record</h2>
-        <p>Updating MongoDB document</p>
+        <h2 id="modal-title">Edit Record</h2>
+        <p id="modal-sub">Updating MongoDB document</p>
       </div>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modal-body"></div>
     <div class="modal-ft">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="saveRecord()">Save Changes</button>
+      <button class="btn-save" id="saveBtn" onclick="saveRecord()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -518,16 +501,6 @@
     const topCities = Object.entries(cities).sort((a,b) => b[1]-a[1]).slice(0,7);
     mkChart('cityChart', 'bar', topCities.map(c=>c[0]), topCities.map(c=>c[1]),
       ['#6366f1','#22d3ee','#a78bfa','#fbbf24','#34d399','#f87171','#818cf8']);
-
-    mkChart('sysChart', 'bar',
-      ['Cities', 'Buildings', 'Apartments'],
-      [d.cities ?? 0, d.buildings ?? 0, d.apartments?.total ?? 0],
-      ['#22d3ee','#a78bfa','#6366f1']);
-
-    mkChart('aptChart', 'pie',
-      ['Occupied', 'Available'],
-      [d.apartments?.occupied ?? 0, d.apartments?.available ?? 0],
-      ['#f87171','#34d399']);
   }
 
   // ─── TABLE DATA ───
@@ -557,14 +530,34 @@
     thead.innerHTML = '';
     tbody.innerHTML = '';
     if (!rows.length) {
-      thead.innerHTML = '';
       tbody.innerHTML = '<tr><td colspan="999"><div class="empty-state"><span class="emj">📭</span><p>No records found.</p></div></td></tr>';
       return;
     }
-    const keys = Object.keys(rows[0]).filter(k => k !== '_id');
-    keys.forEach(k => {
+
+    // Define fixed column mapping and order
+    const colMap = [
+      { id: 'AWN NO', label: 'AWN NO' },
+      { id: 'Apartment Address', label: 'Apartment Address' },
+      { id: 'City', label: 'City' },
+      { id: 'INDIV / SHR', label: 'Individual/Sharing' },
+      { id: 'Status', label: 'Status' },
+      { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
+      { id: 'NO OF ROOMS', label: 'No. of Rooms' },
+      { id: 'Floor', label: 'Floor' },
+      { id: 'Apartment SQMT', label: 'Apartment SQMT' },
+      { id: 'Pincode', label: 'Pincode' },
+      { id: 'Own/Rented', label: 'Own/Rented' },
+      { id: 'POSITION', label: 'Position' },
+      { id: 'Object Number', label: 'Object Number' },
+      { id: 'Street Number', label: 'Street Number' },
+      { id: 'Property ID', label: 'Property ID' }
+    ];
+
+    // Filter mapping by checking if keys exist in rows (optional, but safer)
+    // Here we use the map as-is but handle missing data with —
+    colMap.forEach(col => {
       const th = document.createElement('th');
-      th.innerText = k.replace(/_/g,' ').toUpperCase();
+      th.innerText = col.label.toUpperCase();
       thead.appendChild(th);
     });
     const actTh = document.createElement('th');
@@ -573,12 +566,20 @@
 
     rows.forEach(row => {
       const tr = document.createElement('tr');
-      keys.forEach(k => {
+      colMap.forEach(col => {
         const td = document.createElement('td');
-        let v = row[k];
+        let v = row[col.id];
+        // Handle variations in casing or spacing if any
+        if (v === undefined) {
+             // Fallback searches for case-insensitive matches if needed
+             const actualKey = Object.keys(row).find(k => k.toLowerCase() === col.id.toLowerCase());
+             if (actualKey) v = row[actualKey];
+        }
+
         if (typeof v === 'object' && v !== null) v = JSON.stringify(v);
-        if (v === null || v === undefined) v = '—';
-        if (k.toLowerCase().includes('status') || k.toLowerCase().includes('active')) {
+        if (v === null || v === undefined || v === '') v = '—';
+
+        if (col.id === 'Status' || col.id.toLowerCase().includes('status')) {
           const isOk = String(v).toLowerCase().includes('available') || String(v).toLowerCase() === 'true';
           td.innerHTML = `<span class="${isOk ? 'badge-ok' : 'badge-err'}">${v}</span>`;
         } else {
@@ -599,34 +600,124 @@
   // ─── MODAL ───
   function openModal(row) {
     editId = row._id;
+    document.getElementById('modal-title').innerText = 'Edit Record';
+    document.getElementById('modal-sub').innerText = `Updating document in ${curCol}`;
+    document.getElementById('saveBtn').innerText = 'Save Changes';
+    
     const body = document.getElementById('modal-body');
     body.innerHTML = '';
-    Object.entries(row).forEach(([k, v]) => {
-      if (k === '_id' || typeof v === 'object') return;
+    
+    // We use the colMap to ensure we show the expected fields even if they are missing in the row
+    const colMap = [
+      { id: 'AWN NO', label: 'AWN NO' },
+      { id: 'Apartment Address', label: 'Apartment Address' },
+      { id: 'City', label: 'City' },
+      { id: 'INDIV / SHR', label: 'Individual/Sharing' },
+      { id: 'Status', label: 'Status' },
+      { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
+      { id: 'NO OF ROOMS', label: 'No. of Rooms' },
+      { id: 'Floor', label: 'Floor' },
+      { id: 'Apartment SQMT', label: 'Apartment SQMT' },
+      { id: 'Pincode', label: 'Pincode' },
+      { id: 'Own/Rented', label: 'Own/Rented' },
+      { id: 'POSITION', label: 'Position' },
+      { id: 'Object Number', label: 'Object Number' },
+      { id: 'Street Number', label: 'Street Number' },
+      { id: 'Property ID', label: 'Property ID' }
+    ];
+
+    colMap.forEach(col => {
+      let v = row[col.id];
+      if (v === undefined) {
+         const actualKey = Object.keys(row).find(k => k.toLowerCase() === col.id.toLowerCase());
+         if (actualKey) v = row[actualKey];
+      }
       const div = document.createElement('div');
       div.className = 'field-row';
-      div.innerHTML = `<label>${k.replace(/_/g,' ')}</label><input id="ef_${k}" data-key="${k}" value="${v !== null ? String(v).replace(/"/g,'&quot;') : ''}">`;
+      div.innerHTML = `<label>${col.label}</label><input id="ef_${col.id}" data-key="${col.id}" value="${v !== null && v !== undefined ? String(v).replace(/"/g,'&quot;') : ''}">`;
       body.appendChild(div);
     });
+    
     document.getElementById('editOverlay').style.display = 'flex';
   }
+
+  function openAddModal() {
+    editId = null;
+    document.getElementById('modal-title').innerText = 'Add New Record';
+    document.getElementById('modal-sub').innerText = `Creating new document in ${curCol}`;
+    document.getElementById('saveBtn').innerText = 'Create Record';
+    
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '';
+    
+    const colMap = [
+      { id: 'AWN NO', label: 'AWN NO' },
+      { id: 'Apartment address', label: 'Apartment Address' },
+      { id: 'City', label: 'City' },
+      { id: 'INDIV. / SHR.', label: 'Individual/Sharing' },
+      { id: 'Unnamed: 12', label: 'Status' },
+      { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
+      { id: 'NO. OF ROOMS', label: 'No. of Rooms' },
+      { id: 'FLOOR', label: 'Floor' },
+      { id: 'Apartment SQMT', label: 'Apartment SQMT' },
+      { id: 'pin code', label: 'Pincode' },
+      { id: 'own/rented', label: 'Own/Rented' },
+      { id: ' POSITION', label: 'Position' },
+      { id: 'OBJECT NO', label: 'Object Number' },
+      { id: 'street no', label: 'Street Number' },
+      { id: 'Property Id', label: 'Property ID' }
+    ];
+
+    colMap.forEach(col => {
+      const div = document.createElement('div');
+      div.className = 'field-row';
+      div.innerHTML = `<label>${col.label}</label><input id="ef_${col.id}" data-key="${col.id}" value="" placeholder="Enter ${col.label.toLowerCase()}...">`;
+      body.appendChild(div);
+    });
+    
+    document.getElementById('editOverlay').style.display = 'flex';
+  }
+
   function closeModal() { document.getElementById('editOverlay').style.display = 'none'; editId = null; }
 
   async function saveRecord() {
-    if (!editId) return;
     const data = {};
     document.querySelectorAll('#modal-body input').forEach(inp => {
-      let v = inp.value;
-      if (!isNaN(v) && v !== '') v = v.includes('.') ? parseFloat(v) : parseInt(v);
-      if (v === 'true') v = true;
-      if (v === 'false') v = false;
-      data[inp.dataset.key] = v;
+      let v = inp.value.trim();
+      if (v === '') {
+          data[inp.dataset.key] = null;
+          return;
+      }
+      // Improved type detection
+      if (!isNaN(v) && v !== '') {
+          if (v.includes('.')) data[inp.dataset.key] = parseFloat(v);
+          else data[inp.dataset.key] = parseInt(v);
+      } else if (v.toLowerCase() === 'true') {
+          data[inp.dataset.key] = true;
+      } else if (v.toLowerCase() === 'false') {
+          data[inp.dataset.key] = false;
+      } else {
+          data[inp.dataset.key] = v;
+      }
     });
-    const r = await fetch(`/api/update/${encodeURIComponent(curCol)}/${editId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-    }).then(r => r.json());
-    if (r.success) { closeModal(); loadData(); loadStats(); }
-    else alert('Error: ' + r.message);
+
+    const url = editId ? `/api/update/${encodeURIComponent(curCol)}/${editId}` : `/api/create/${encodeURIComponent(curCol)}`;
+    
+    try {
+        const r = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        }).then(r => r.json());
+        
+        if (r.success) { 
+            closeModal(); 
+            await loadData(); 
+            await loadStats(); 
+        } else {
+            alert('Error: ' + r.message);
+        }
+    } catch (e) {
+        alert('Fetch Error: ' + e.message);
+    }
   }
 </script>
 
@@ -645,8 +736,7 @@
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
 
-  const ADMIN_EMAIL = 'admin@gmail.com';
-  const DB_ADMIN_EMAIL = 'databaseadmin@gmail.com';
+  const ADMIN_EMAIL = 'rajeev@sinhas.ch';
 
   onAuthStateChanged(auth, user => {
     if (!user) {
@@ -654,14 +744,9 @@
       window.location.href = '/login';
       return;
     }
-    if (user.email === DB_ADMIN_EMAIL) {
-      // databaseadmin has NO access to this admin panel
-      window.location.href = '/';
-      return;
-    }
     if (user.email !== ADMIN_EMAIL) {
-      // Unknown user
-      signOut(auth).then(() => window.location.href = '/login');
+      // Not an admin → back to portal
+      window.location.href = '/';
       return;
     }
     // Admin authenticated — show email
