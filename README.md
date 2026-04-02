@@ -1,4 +1,4 @@
-# 🏢 Sinha Realty — Property Data Management Portal
+# 🏢 Sinhas GmbH — Property Data Management Portal
 
 <div align="center">
 
@@ -32,7 +32,7 @@
 
 ## 🌐 Overview
 
-Sinha Realty is a web-based data management platform built for managing Swiss property (apartment) records. It provides two distinct interfaces:
+**Sinhas GmbH** is a web-based data management platform built for managing Swiss property (apartment) records. It provides two distinct interfaces:
 
 1. **User Portal** (`/`) — A clean, professional SaaS-style interface for data entry teams to upload Excel/CSV files in bulk, run structured ETL jobs, or manually enter individual property records directly into MongoDB.
 
@@ -80,7 +80,7 @@ Sinha Realty is a web-based data management platform built for managing Swiss pr
 ## 📁 Project Structure
 
 ```
-sinharealty/
+sinhasgmbh/
 │
 ├── app.py                  # Flask application & all API routes
 ├── index.html              # User Portal — upload & manual entry UI
@@ -91,6 +91,7 @@ sinharealty/
 ├── .env                    # Local environment variables (git-ignored)
 ├── .gitignore
 │
+├── migrate_keys.py         # DB migration script (sanitizes field names)
 ├── import_from_excel.py    # Standalone ETL script (CLI)
 ├── upload_apartments.py    # CLI uploader for apartment records
 ├── upload_flat.py          # CLI uploader for flat records
@@ -177,7 +178,7 @@ All API endpoints return JSON.
 | `POST` | `/upload` | Bulk upload any Excel or CSV file to MongoDB |
 | `POST` | `/upload_occupancy` | ETL upload — parses Occupancy Excel into Cities/Buildings/Apartments |
 | `POST` | `/add_city` | Insert a single city record into the `cities` collection |
-| `POST` | `/add_property` | Insert a single record into the `sinhasrealty data` collection |
+| `POST` | `/add_property` | Insert a single record into the database |
 
 ### Admin / Data Endpoints
 
@@ -198,23 +199,6 @@ All API endpoints return JSON.
 | `limit` | int | `50` | Records per page (`9999` = load all) |
 | `search` | string | `""` | Case-insensitive search across all string fields |
 
-### `/api/stats` Response Shape
-
-```json
-{
-  "success": true,
-  "apartments": { "total": 0, "occupied": 0, "available": 0 },
-  "buildings": 0,
-  "cities": 0,
-  "sinhasrealty_data": {
-    "total": 143,
-    "occupied": 110,
-    "available": 33,
-    "city_distribution": { "Zürich": 80, "Basel": 30, "..." : "..." }
-  }
-}
-```
-
 ---
 
 ## ☁️ Deployment (Render)
@@ -223,7 +207,7 @@ The project is pre-configured for [Render](https://render.com) via `render.yaml`
 
 ### Steps
 
-1. **Push to GitHub** (already done if you're reading this)
+1. **Push to GitHub**
 
 2. **Create a Render Account** at [render.com](https://render.com)
 
@@ -233,7 +217,6 @@ The project is pre-configured for [Render](https://render.com) via `render.yaml`
    - **Environment:** Python
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `gunicorn app:app`
-   - **Python Version:** `3.11.8`
 
 5. **Add Environment Variable** in the Render dashboard:
    - Key: `MONGO_URI`
@@ -241,61 +224,26 @@ The project is pre-configured for [Render](https://render.com) via `render.yaml`
 
 6. Click **"Deploy"** — your app will be live at:
    ```
-   https://sinharealty-portal.onrender.com
+   https://sinhasgmbh.onrender.com
    ```
-
-> ⚠️ **Free Tier Note:** Render's free tier spins down apps after 15 minutes of inactivity. The first request after sleep may take ~30 seconds. Upgrade to the $7/month Starter plan for always-on hosting.
 
 ---
 
 ## 📊 Data Schema
 
-### `sinhasrealty data` Collection (uploaded via Excel)
+### Shared Records (migrated)
 
 | Field | Type | Description |
 |---|---|---|
-| `Apartment address` | String | Street name of the apartment |
+| `Apartment Address` | String | Street name of the apartment |
 | `City` | String | City name |
-| `FLOOR` | Number | Floor number |
-| ` POSITION` | String | Unit position (Left / Right / Center) |
+| `Floor` | Number | Floor number |
+| `POSITION` | String | Unit position (Left / Right / Center) |
 | `Apartment SQMT` | Number | Apartment size in square meters |
-| `NO. OF ROOMS` | Number | Number of rooms (e.g. 3.5) |
+| `NO OF ROOMS` | Number | Number of rooms (e.g. 3.5) |
 | `AWN NO` | Number | Internal AWN reference number |
-| `INDIV. / SHR.` | String | Occupancy type (Family / Sharing / Individual) |
-| `Unnamed: 12` | String | Occupancy status (OCCUPIED / AVAILABLE) |
-
-### `cities` Collection
-
-| Field | Type | Description |
-|---|---|---|
-| `city_code` | String | 2-letter city code |
-| `city_name_en` | String | City name in English |
-| `canton` | String | Swiss canton |
-| `country_code` | String | ISO country code (default: `CH`) |
-| `is_active` | Boolean | Whether the city is active |
-
-### `buildings` Collection
-
-| Field | Type | Description |
-|---|---|---|
-| `city_id` | ObjectId | Reference to `cities._id` |
-| `building_code` | String | Auto-generated building code |
-| `street_address` | String | Full street address |
-| `has_elevator` | Boolean | Elevator availability |
-| `has_parking` | Boolean | Parking availability |
-| `building_status` | String | Status of the building |
-
-### `apartments` Collection
-
-| Field | Type | Description |
-|---|---|---|
-| `building_id` | ObjectId | Reference to `buildings._id` |
-| `apt_code` | String | Apartment / property ID |
-| `unit_number` | String | Unit number or position |
-| `floor_number` | String | Floor level |
-| `area_sqm` | Number | Area in square meters |
-| `bedrooms` | Number | Number of bedrooms |
-| `apartment_status` | String | `occupied` or `available` |
+| `INDIV / SHR` | String | Occupancy type (Family / Sharing / Individual) |
+| `Status` | String | Occupancy status (OCCUPIED / AVAILABLE) |
 
 ---
 
@@ -307,10 +255,10 @@ The project is pre-configured for [Render](https://render.com) via `render.yaml`
 
 ## 📄 License
 
-This project is proprietary software developed for Sinha's GmbH. All rights reserved.
+This project is proprietary software developed for **Sinhas GmbH**. All rights reserved.
 
 ---
 
 <div align="center">
-  Built with ❤️ using Flask, MongoDB Atlas, and Chart.js
+  Built with ❤️ for Sinhas GmbH using Flask, MongoDB Atlas, and Chart.js
 </div>
