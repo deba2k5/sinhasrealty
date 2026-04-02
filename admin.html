@@ -938,6 +938,25 @@
     let dTimer = null;
     let charts = {};
 
+    // Standardized key mapping for property records (shared between Manual Entry and Admin)
+    const PROPERTY_COL_MAP = [
+      { id: 'AWN NO', label: 'AWN NO' },
+      { id: 'Apartment Address', label: 'Apartment Address' },
+      { id: 'City', label: 'City' },
+      { id: 'INDIV / SHR', label: 'Individual/Sharing' },
+      { id: 'Status', label: 'Status' },
+      { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
+      { id: 'NO OF ROOMS', label: 'No. of Rooms' },
+      { id: 'Floor', label: 'Floor' },
+      { id: 'Apartment SQMT', label: 'Apartment SQMT' },
+      { id: 'Pincode', label: 'Pincode' },
+      { id: 'Own/Rented', label: 'Own/Rented' },
+      { id: 'POSITION', label: 'Position' },
+      { id: 'Object Number', label: 'Object Number' },
+      { id: 'Street Number', label: 'Street Number' },
+      { id: 'Property ID', label: 'Property ID' }
+    ];
+
     const loader = document.getElementById('loader-bar');
     const showLoader = () => loader.style.display = 'block';
     const hideLoader = () => loader.style.display = 'none';
@@ -1082,27 +1101,14 @@
       }
 
       // Define fixed column mapping and order
-      const colMap = [
-        { id: 'AWN NO', label: 'AWN NO' },
-        { id: 'Apartment Address', label: 'Apartment Address' },
-        { id: 'City', label: 'City' },
-        { id: 'INDIV / SHR', label: 'Individual/Sharing' },
-        { id: 'Status', label: 'Status' },
-        { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
-        { id: 'NO OF ROOMS', label: 'No. of Rooms' },
-        { id: 'Floor', label: 'Floor' },
-        { id: 'Apartment SQMT', label: 'Apartment SQMT' },
-        { id: 'Pincode', label: 'Pincode' },
-        { id: 'Own/Rented', label: 'Own/Rented' },
-        { id: 'POSITION', label: 'Position' },
-        { id: 'Object Number', label: 'Object Number' },
-        { id: 'Street Number', label: 'Street Number' },
-        { id: 'Property ID', label: 'Property ID' }
-      ];
+      const colMap = (curCol === 'sinhasrealty data' || curCol === 'apartments') ? PROPERTY_COL_MAP : [];
+      
+      // If no fixed map (unknown collection), generate from data keys
+      const displayCols = colMap.length > 0 ? colMap : Object.keys(rows[0]).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
 
       // Filter mapping by checking if keys exist in rows (optional, but safer)
       // Here we use the map as-is but handle missing data with —
-      colMap.forEach(col => {
+      displayCols.forEach(col => {
         const th = document.createElement('th');
         th.innerText = col.label.toUpperCase();
         thead.appendChild(th);
@@ -1113,7 +1119,7 @@
 
       rows.forEach(row => {
         const tr = document.createElement('tr');
-        colMap.forEach(col => {
+        displayCols.forEach(col => {
           const td = document.createElement('td');
           let v = row[col.id];
           // Handle variations in casing or spacing if any
@@ -1154,24 +1160,9 @@
       const body = document.getElementById('modal-body');
       body.innerHTML = '';
 
-      // We use the colMap to ensure we show the expected fields even if they are missing in the row
-      const colMap = [
-        { id: 'AWN NO', label: 'AWN NO' },
-        { id: 'Apartment Address', label: 'Apartment Address' },
-        { id: 'City', label: 'City' },
-        { id: 'INDIV / SHR', label: 'Individual/Sharing' },
-        { id: 'Status', label: 'Status' },
-        { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
-        { id: 'NO OF ROOMS', label: 'No. of Rooms' },
-        { id: 'Floor', label: 'Floor' },
-        { id: 'Apartment SQMT', label: 'Apartment SQMT' },
-        { id: 'Pincode', label: 'Pincode' },
-        { id: 'Own/Rented', label: 'Own/Rented' },
-        { id: 'POSITION', label: 'Position' },
-        { id: 'Object Number', label: 'Object Number' },
-        { id: 'Street Number', label: 'Street Number' },
-        { id: 'Property ID', label: 'Property ID' }
-      ];
+      // Use standardized keys for all property-like collections
+      const colMap = (curCol === 'sinhasrealty data' || curCol === 'apartments') ? PROPERTY_COL_MAP : 
+                     Object.keys(row).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
 
       colMap.forEach(col => {
         let v = row[col.id];
@@ -1197,23 +1188,7 @@
       const body = document.getElementById('modal-body');
       body.innerHTML = '';
 
-      const colMap = [
-        { id: 'AWN NO', label: 'AWN NO' },
-        { id: 'Apartment address', label: 'Apartment Address' },
-        { id: 'City', label: 'City' },
-        { id: 'INDIV. / SHR.', label: 'Individual/Sharing' },
-        { id: 'Unnamed: 12', label: 'Status' },
-        { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
-        { id: 'NO. OF ROOMS', label: 'No. of Rooms' },
-        { id: 'FLOOR', label: 'Floor' },
-        { id: 'Apartment SQMT', label: 'Apartment SQMT' },
-        { id: 'pin code', label: 'Pincode' },
-        { id: 'own/rented', label: 'Own/Rented' },
-        { id: ' POSITION', label: 'Position' },
-        { id: 'OBJECT NO', label: 'Object Number' },
-        { id: 'street no', label: 'Street Number' },
-        { id: 'Property Id', label: 'Property ID' }
-      ];
+      const colMap = PROPERTY_COL_MAP;
 
       colMap.forEach(col => {
         const div = document.createElement('div');

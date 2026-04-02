@@ -61,12 +61,25 @@ def handle_upload():
             
         # If it's an Excel file
         xls = pd.ExcelFile(file.stream, engine='openpyxl')
+        # Standardize column names to be MongoDB safe (remove dots, trim spaces)
+        def clean_headers(df):
+            new_cols = {}
+            for col in df.columns:
+                clean_col = str(col).replace('.', '').strip()
+                new_cols[col] = clean_col
+            return df.rename(columns=new_cols)
+
+        # Replace NaN with None (null) for MongoDB compatibility
+        def clean_data(df):
+            return df.where(pd.notnull(df), None)
+
         sheets_inserted = {}
-        
         for sheet in xls.sheet_names:
             df = pd.read_excel(xls, sheet_name=sheet)
             df = df.dropna(how='all')
             if not df.empty:
+                df = clean_headers(df)
+                df = clean_data(df)
                 records = df.to_dict('records')
                 get_db()[sheet].insert_many(records)
                 sheets_inserted[sheet] = len(records)
@@ -96,8 +109,13 @@ def handle_upload_occupancy():
             return jsonify({"success": False, "message": "Missing 'OCCUPANCY -Apartment' sheet."}), 400
             
         df = pd.read_excel(xls, sheet_name='OCCUPANCY -Apartment', header=1)
+        # Standardize column names (casing, spaces, dots) for robust mapping
+        df.columns = [str(c).replace('.', '').strip() for c in df.columns]
+        
         # Drop rows where 'Apartment address' is definitely NaN
         df = df.dropna(subset=['Apartment address'])
+        # Replace NaN with None for all other fields
+        df = df.where(pd.notnull(df), None)
         
         counts = {"cities": 0, "buildings": 0, "apartments": 0}
         
