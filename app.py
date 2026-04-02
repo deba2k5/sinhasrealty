@@ -397,9 +397,9 @@ def get_stats():
         total_cities = get_db().cities.count_documents({})
         
         # Specific stats for Sinhas GmbH
-        sinhas_total = get_db()['Sinhas GmbH'].count_documents({})
-        sinhas_occupied = get_db()['Sinhas GmbH'].count_documents({'Status': {'$regex': 'OCCUPIED', '$options': 'i'}})
-        sinhas_available = sinhas_total - sinhas_occupied
+        sinhas_total = get_db()['sinhasrealty data'].count_documents({})
+        sinhas_occupied = get_db()['sinhasrealty data'].count_documents({'Status': {'$regex': 'occupied', '$options': 'i'}})
+        sinhas_available = get_db()['sinhasrealty data'].count_documents({'Status': {'$regex': 'available|vacant', '$options': 'i'}})
         
         pipeline = [
             {"$group": {"_id": "$City", "count": {"$sum": 1}}},
