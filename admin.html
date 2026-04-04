@@ -256,6 +256,11 @@
       color: var(--text);
     }
 
+    /* ─── INTERACTIVE CHARTS ─── */
+    .chart-wrap canvas {
+      cursor: pointer;
+    }
+
     /* ─── LOADING ─── */
     .loading-strip {
       display: none;
@@ -1307,6 +1312,24 @@
         },
         options: {
           responsive: true, maintainAspectRatio: false,
+          onHover: (event, chartElement) => {
+            event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+          },
+          onClick: (e, els) => {
+            if (els && els.length > 0) {
+              const idx = els[0].index;
+              const label = labels[idx];
+              if (label) {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                  searchInput.value = label;
+                  // Trigger redirect to table
+                  switchTab('property details data');
+                  // We don't need to manually call loadData as switchTab does it
+                }
+              }
+            }
+          },
           plugins: {
             legend: {
               display: type !== 'bar',
