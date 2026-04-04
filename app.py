@@ -258,11 +258,13 @@ def get_data(collection):
 
         # 2. Precision Column Filter (Overrides or ANDs with search)
         if f_col and f_val:
+            # Use case-insensitive regex for robustness against Title/Upper case labels
+            filter_clause = {f_col: {"$regex": f"^{f_val}$", "$options": "i"}}
             if query:
                 # If we have a general search, we AND it with the column filter
-                query = {"$and": [query, {f_col: f_val}]}
+                query = {"$and": [query, filter_clause]}
             else:
-                query = {f_col: f_val}
+                query = filter_clause
 
         db_inst = get_db()
         cursor = db_inst[collection].find(query).sort(sort_field, sort_order)
