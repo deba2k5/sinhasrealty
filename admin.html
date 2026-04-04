@@ -48,6 +48,8 @@
 
     body {
       display: flex;
+      background-image: radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(34, 211, 238, 0.06) 0%, transparent 60%);
     }
 
     /* ─── SIDEBAR ─── */
@@ -78,7 +80,7 @@
       height: 9px;
       border-radius: 50%;
       background: var(--primary);
-      box-shadow: 0 0 10px var(--primary);
+      box-shadow: 0 0 16px var(--primary);
     }
 
     .sidebar-logo .badge {
@@ -380,9 +382,11 @@
       margin-top: 1rem;
       font-size: 0.78rem;
     }
+
     .chart-legend-table thead tr {
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
     }
+
     .chart-legend-table th {
       padding: 6px 10px;
       text-align: left;
@@ -393,19 +397,36 @@
       font-size: 0.7rem;
       border-bottom: 1px solid var(--border);
     }
-    .chart-legend-table th:last-child { text-align: right; }
+
+    .chart-legend-table th:last-child {
+      text-align: right;
+    }
+
     .chart-legend-table td {
       padding: 5px 10px;
       color: var(--text);
-      border-bottom: 1px solid rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
       vertical-align: middle;
     }
-    .chart-legend-table td:last-child { text-align: right; font-weight: 700; color: var(--primary-lt); }
-    .chart-legend-table tr:last-child td { border-bottom: none; }
-    .chart-legend-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+    .chart-legend-table td:last-child {
+      text-align: right;
+      font-weight: 700;
+      color: var(--primary-lt);
+    }
+
+    .chart-legend-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .chart-legend-table tr:hover td {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
     .legend-swatch {
       display: inline-block;
-      width: 10px; height: 10px;
+      width: 10px;
+      height: 10px;
       border-radius: 3px;
       margin-right: 7px;
       vertical-align: middle;
@@ -530,13 +551,37 @@
       color: var(--muted);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
-      cursor: pointer; position: relative; user-select: none; white-space: nowrap; transition: background 0.2s;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      white-space: nowrap;
+      transition: background 0.2s;
     }
-    th:hover { background: rgba(255,255,255,0.05); }
-    .sort-icon { display: inline-block; margin-left: 8px; font-size: 0.7rem; opacity: 0.5; transition: opacity 0.2s; }
-    th:hover .sort-icon { opacity: 1; }
-    .sort-active { color: var(--primary); }
-    .sort-active .sort-icon { opacity: 1; color: var(--primary); }
+
+    th:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .sort-icon {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 0.7rem;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    th:hover .sort-icon {
+      opacity: 1;
+    }
+
+    .sort-active {
+      color: var(--primary);
+    }
+
+    .sort-active .sort-icon {
+      opacity: 1;
+      color: var(--primary);
+    }
 
     td {
       padding: 13px 18px;
@@ -861,15 +906,20 @@
     <div class="topbar" style="flex-direction: column; align-items: stretch; gap: 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
-          <div id="page-sub" style="color: var(--muted2); font-size: 0.9rem; margin-bottom: 4px;">Direct data management for Sinha's GmbH</div>
+          <div id="page-sub" style="color: var(--muted2); font-size: 0.9rem; margin-bottom: 4px;">Direct data management
+            for Sinha's GmbH</div>
           <h1 id="page-title" style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;">Dashboard</h1>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);">
+        <div
+          style="display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);">
           <div style="text-align: right;">
-            <div style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Last Sync</div>
+            <div
+              style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+              Last Sync</div>
             <div id="last-updated" style="font-size: 0.85rem; font-weight: 600; color: var(--primary-lt);">Never</div>
           </div>
-          <button onclick="manualRefresh()" id="refresh-btn" style="background: rgba(99,102,241,0.1); border: 1px solid var(--primary); color: var(--primary-lt); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
+          <button onclick="manualRefresh()" id="refresh-btn"
+            style="background: rgba(99,102,241,0.1); border: 1px solid var(--primary); color: var(--primary-lt); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
             <span id="refresh-icon" style="font-size: 1.1rem; display:inline-block;">🔄</span>
           </button>
         </div>
@@ -1045,32 +1095,32 @@
 
     // Standardized key mapping for property records (shared between Manual Entry and Admin)
     const PROPERTY_COL_MAP = [
-      { id: 'PROPERTY ID', label: 'Prop ID' },
-      { id: 'PROPERTY NAME', label: 'Prop Name' },
-      { id: 'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE', label: 'Type' },
-      { id: 'PROPERTY CLASS (A/B/C)', label: 'Class' },
-      { id: 'AWN NO', label: 'AWN' },
-      { id: 'OBJECT NUMBER', label: 'Obj Nr' },
-      { id: 'PARKING / GARAGE Nr', label: 'Park Nr' },
+      { id: 'PROPERTY ID', label: 'Property ID' },
+      { id: 'PROPERTY NAME', label: 'Property Name' },
+      { id: 'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE', label: 'Property Type' },
+      { id: 'PROPERTY CLASS (A/B/C)', label: 'Property Class' },
+      { id: 'AWN NO', label: 'AWN No' },
+      { id: 'OBJECT NUMBER', label: 'Object Number' },
+      { id: 'PARKING / GARAGE Nr', label: 'Parking / Garage Nr' },
       { id: 'OTA/NON OTA', label: 'OTA' },
-      { id: 'OWN/SUBLET', label: 'Own/Sub' },
-      { id: 'STREET NAME', label: 'Street' },
-      { id: 'STREET NUMBER', label: 'Nr' },
-      { id: 'PINCODE', label: 'Zip' },
+      { id: 'OWN/SUBLET', label: 'Own/Sublet' },
+      { id: 'STREET NAME', label: 'Street Name' },
+      { id: 'STREET NUMBER', label: 'Street Number' },
+      { id: 'PINCODE', label: 'Pincode' },
       { id: 'CITY', label: 'City' },
       { id: 'CANTON', label: 'Canton' },
       { id: 'COUNTRY', label: 'Country' },
-      { id: 'Location - Coordinates (Lat/Long)', label: 'GPS' },
+      { id: 'Location - Coordinates (Lat/Long)', label: 'Location - Coordinates (Lat/Long)' },
       { id: 'FLOOR', label: 'Floor' },
-      { id: 'POSITION', label: 'Pos' },
-      { id: 'NO OF ROOMS', label: 'Rooms' },
-      { id: 'APARTMENT SIZE(SQM)', label: 'Size' },
-      { id: 'INDEPENDENT / SHARING', label: 'Ind/Shr' },
-      { id: 'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE', label: 'Status' },
-      { id: 'RENT START DATE', label: 'Rent Start' },
-      { id: 'RENT END DATE', label: 'Rent End' },
-      { id: 'KEYSAFE CODE', label: 'Key' },
-      { id: 'Blob for AI', label: 'AI Blob' },
+      { id: 'POSITION', label: 'Position' },
+      { id: 'NO OF ROOMS', label: 'No of Rooms' },
+      { id: 'APARTMENT SIZE(SQM)', label: 'Apartment Size' },
+      { id: 'INDEPENDENT / SHARING', label: 'Independent / Sharing' },
+      { id: 'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE', label: 'Occupied/Vacant/Partially Occupied/Maintenance' },
+      { id: 'RENT START DATE', label: 'Rent Start Date' },
+      { id: 'RENT END DATE', label: 'Rent End Date' },
+      { id: 'KEYSAFE CODE', label: 'Keysafe Code' },
+      { id: 'Blob for AI', label: 'Blob for AI' },
       { id: 'GDRIVE URL FOR IMAGES & VIDEOS', label: 'GDrive' },
       { id: 'REMARKS', label: 'Remarks' }
     ];
@@ -1133,8 +1183,8 @@
     // ─── STATS ───
     async function loadStats() {
       const btn = document.getElementById('refresh-btn');
-      if(btn) { btn.style.transition = 'transform 0.5s ease'; btn.style.transform = 'rotate(360deg)'; }
-      
+      if (btn) { btn.style.transition = 'transform 0.5s ease'; btn.style.transform = 'rotate(360deg)'; }
+
       try {
         const res = await fetch('/api/stats');
         const data = await res.json();
@@ -1149,10 +1199,10 @@
         } else {
           console.error('Stats API error:', data.message, data.trace);
         }
-      } catch (e) { 
-        console.error('Stats fetch error:', e); 
+      } catch (e) {
+        console.error('Stats fetch error:', e);
       } finally {
-        setTimeout(() => { if(btn) btn.style.transform = 'rotate(0deg)'; }, 600);
+        setTimeout(() => { if (btn) btn.style.transform = 'rotate(0deg)'; }, 600);
       }
     }
 
@@ -1160,7 +1210,7 @@
     setInterval(() => {
       console.log('Real-time sync triggered...');
       loadStats();
-      if(curCol) loadData(); 
+      if (curCol) loadData();
     }, 30000);
 
     window.manualRefresh = () => {
@@ -1220,7 +1270,7 @@
               titleFont: { size: 13, weight: '700' },
               bodyFont: { size: 12, weight: '600' },
               callbacks: {
-                label: function(ctx) {
+                label: function (ctx) {
                   const val = ctx.parsed.y !== undefined ? ctx.parsed.y : ctx.parsed;
                   const ds = ctx.dataset.data;
                   const total = ds.reduce((a, b) => a + b, 0);
@@ -1250,12 +1300,12 @@
     function renderCharts(data) {
       const c = data.charts || {};
       const COLORS = {
-        occ:    ['#6366f1','#34d399','#f87171','#fbbf24','#a78bfa'],
-        city:   ['#fbbf24','#f87171','#34d399','#22d3ee','#a78bfa','#6366f1','#fb923c','#e879f9','#4ade80','#38bdf8'],
-        type:   ['#a78bfa','#22d3ee','#6366f1','#34d399','#f87171','#fbbf24'],
-        cls:    ['#6366f1','#22d3ee','#34d399','#f87171'],
-        ota:    ['#a78bfa','#fbbf24','#34d399','#f87171'],
-        canton: ['#6366f1','#34d399','#fbbf24','#f87171','#22d3ee','#a78bfa','#fb923c','#e879f9']
+        occ: ['#6366f1', '#34d399', '#f87171', '#fbbf24', '#a78bfa'],
+        city: ['#fbbf24', '#f87171', '#34d399', '#22d3ee', '#a78bfa', '#6366f1', '#fb923c', '#e879f9', '#4ade80', '#38bdf8'],
+        type: ['#a78bfa', '#22d3ee', '#6366f1', '#34d399', '#f87171', '#fbbf24'],
+        cls: ['#6366f1', '#22d3ee', '#34d399', '#f87171'],
+        ota: ['#a78bfa', '#fbbf24', '#34d399', '#f87171'],
+        canton: ['#6366f1', '#34d399', '#fbbf24', '#f87171', '#22d3ee', '#a78bfa', '#fb923c', '#e879f9']
       };
 
       // Row 1: Occupancy doughnut + Cities bar
@@ -1492,16 +1542,16 @@
   </script>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
     const firebaseConfig = {
-      apiKey: 'AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8',
-      authDomain: 'sinhasgmbh-da880.firebaseapp.com',
-      projectId: 'sinhasgmbh-da880',
-      storageBucket: 'sinhasgmbh-da880.firebasestorage.app',
-      messagingSenderId: '103734138273',
-      appId: '1:103734138273:web:be383933f0fad2c55767e0'
+      apiKey: "AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8",
+      authDomain: "sinhasgmbh-da880.firebaseapp.com",
+      projectId: "sinhasgmbh-da880",
+      storageBucket: "sinhasgmbh-da880.firebasestorage.app",
+      messagingSenderId: "103734138273",
+      appId: "1:103734138273:web:be383933f0fad2c55767e0"
     };
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);

@@ -30,6 +30,8 @@
     body {
       min-height: 100vh;
       background: var(--bg);
+      background-image: radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(34, 211, 238, 0.06) 0%, transparent 60%);
     }
 
     /* ─── TOP NAV ─── */
@@ -51,7 +53,7 @@
       font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; color: var(--text);
       text-decoration: none;
     }
-    .nav-logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+    .nav-logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 16px var(--primary); }
     .nav-actions { display: flex; gap: 12px; align-items: center; }
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 8px; font-family: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
     .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
@@ -574,16 +576,16 @@
 </script>
 
 <script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
-  import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js';
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
   const firebaseConfig = {
-    apiKey: 'AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8',
-    authDomain: 'sinhasgmbh-da880.firebaseapp.com',
-    projectId: 'sinhasgmbh-da880',
-    storageBucket: 'sinhasgmbh-da880.firebasestorage.app',
-    messagingSenderId: '103734138273',
-    appId: '1:103734138273:web:be383933f0fad2c55767e0'
+    apiKey: "AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8",
+    authDomain: "sinhasgmbh-da880.firebaseapp.com",
+    projectId: "sinhasgmbh-da880",
+    storageBucket: "sinhasgmbh-da880.firebasestorage.app",
+    messagingSenderId: "103734138273",
+    appId: "1:103734138273:web:be383933f0fad2c55767e0"
   };
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
