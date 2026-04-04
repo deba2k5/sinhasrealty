@@ -188,6 +188,36 @@ def download_csv():
         )
     except Exception as e:
         return f"Error exporting CSV: {str(e)}", 500
+
+@app.route('/api/export-excel', methods=['GET'])
+def export_excel():
+    """Exports the entire property details collection to a real Excel (.xlsx) file."""
+    collection_name = request.args.get('collection', 'property details data')
+    try:
+        cursor = get_db()[collection_name].find({})
+        docs = list(cursor)
+        if not docs:
+            return "No data found for collection.", 404
+            
+        # Convert to DataFrame
+        df = pd.DataFrame(docs)
+        if '_id' in df.columns:
+            df.drop(columns=['_id'], inplace=True)
+            
+        # Output to BytesIO as Excel
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Data Export')
+        
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment;filename={collection_name.replace(' ', '_')}_export.xlsx"}
+        )
+    except Exception as e:
+        return f"Error exporting Excel: {str(e)}", 500
+
 @app.route('/admin')
 def admin():
     # Serves the Admin HTML frontend
@@ -328,20 +358,22 @@ def get_stats():
 
         # Core collection
         sinhas_col = get_db()['property details data']
-        sinhas_total = sinhas_col.count_documents({})
-
-        # Occupancy stats — actual values: OCCUPIED, VACANT, PARTIALLY OCCUPIED, SURRENDERED
+        
+        # ─── DASHBOARD STATS ───
+        # Filter: Exclude "SURRENDERED" from total counts and graphs
         status_field = 'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE'
-        sinhas_occupied = sinhas_col.count_documents({status_field: {'$regex': '^occupied$', '$options': 'i'}})
-        sinhas_partially = sinhas_col.count_documents({status_field: {'$regex': 'partially', '$options': 'i'}})
-        sinhas_available = sinhas_col.count_documents({status_field: {'$regex': '^vacant$', '$options': 'i'}})
-        sinhas_surrendered = sinhas_col.count_documents({status_field: {'$regex': 'surrendered', '$options': 'i'}})
-        sinhas_maintenance = sinhas_col.count_documents({status_field: {'$regex': 'maintenance', '$options': 'i'}})
+        filter_query = {status_field: {"$ne": "SURRENDERED"}}
 
-        # Type Distribution — filter out NaN _id
+        sinhas_total = sinhas_col.count_documents(filter_query)
+        sinhas_occupied = sinhas_col.count_documents({status_field: "OCCUPIED"})
+        sinhas_available = sinhas_col.count_documents({status_field: "VACANT"})
+        sinhas_partially = sinhas_col.count_documents({status_field: "PARTIALLY OCCUPIED"})
+        sinhas_maintenance = sinhas_col.count_documents({status_field: "MAINTENANCE"})
+
+        # Group by Property Type
         type_field = 'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE'
         pipeline_types = [
-            {"$match": {type_field: {"$exists": True, "$type": "string"}}},
+            {"$match": filter_query},
             {"$group": {"_id": f"${type_field}", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}
         ]
@@ -359,7 +391,7 @@ def get_stats():
         # Class Distribution
         class_field = 'PROPERTY CLASS (A/B/C)'
         pipeline_class = [
-            {"$match": {class_field: {"$exists": True, "$type": "string"}}},
+            {"$match": filter_query},
             {"$group": {"_id": f"${class_field}", "count": {"$sum": 1}}},
             {"$sort": {"_id": 1}}
         ]
@@ -390,14 +422,12 @@ def get_stats():
                 "occupied": sinhas_occupied,
                 "available": sinhas_available,
                 "partially": sinhas_partially,
-                "surrendered": sinhas_surrendered,
                 "maintenance": sinhas_maintenance
             },
             "charts": {
                 "occupancy": [
                     {"label": "Occupied", "value": sinhas_occupied},
                     {"label": "Vacant", "value": sinhas_available},
-                    {"label": "Surrendered", "value": sinhas_surrendered},
                     {"label": "Partially Occupied", "value": sinhas_partially},
                     {"label": "Maintenance", "value": sinhas_maintenance}
                 ],

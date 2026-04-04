@@ -11,6 +11,7 @@
   <!-- EXPORT LIBRARIES -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     *,
@@ -1593,23 +1594,9 @@
     // ─── EXPORT LOGIC ───
 
     function exportToExcel() {
-      try {
-        const table = document.querySelector('table');
-        const rows = Array.from(table.rows);
-        if (rows.length < 2) {
-          alert('No data to export.');
-          return;
-        }
-
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.table_to_sheet(table);
-
-        XLSX.utils.book_append_sheet(wb, ws, "Property Records");
-        XLSX.writeFile(wb, `Sinhas_GmbH_Records_${new_ds_string()}.xlsx`);
-      } catch (e) {
-        console.error('Excel Export Error:', e);
-        alert('Could not export Excel. See console.');
-      }
+      // Direct full download from MongoDB via backend
+      const url = `/api/export-excel?collection=${encodeURIComponent(curCol)}`;
+      window.location.href = url;
     }
 
     async function generatePDFReport() {
@@ -1653,34 +1640,67 @@
           pdf.text(`${k.l}: ${k.v}`, margin + 5, currY);
           currY += 6;
         });
-        currY += 10;
+        currY += 15;
 
-        // Capture Charts
-        const chartCards = document.querySelectorAll('.chart-card');
+        // Capture Charts & Data Tables
+        const chartCards = Array.from(document.querySelectorAll('.chart-card'));
         for (let i = 0; i < chartCards.length; i++) {
           const card = chartCards[i];
           const canvas = card.querySelector('canvas');
           if (!canvas) continue;
 
-          // If we run out of space on current page
-          if (currY > 240) {
+          const title = card.querySelector('h3').innerText;
+          const legendTable = card.querySelector('table'); // Mini tables are inside the card
+
+          // Start a new page if space is low
+          if (currY > 210) {
             pdf.addPage();
             currY = 20;
           }
 
-          const title = card.querySelector('h3').innerText;
+          // Section Title
           pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(12);
-          pdf.setTextColor(15, 23, 42);
+          pdf.setFontSize(13);
+          pdf.setTextColor(99, 102, 241);
           pdf.text(title, margin, currY);
-          currY += 5;
+          currY += 6;
 
+          // Add Chart Image
           const imgData = canvas.toDataURL("image/png", 1.0);
-          const imgWidth = pageWidth - (margin * 2);
+          const imgWidth = 80; // Smaller to fit table next to it or below
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
           pdf.addImage(imgData, 'PNG', margin, currY, imgWidth, imgHeight);
-          currY += imgHeight + 15;
+
+          // Add Data Table using autoTable
+          if (legendTable) {
+            const rows = Array.from(legendTable.querySelectorAll('tbody tr')).map(tr => {
+              const tds = tr.querySelectorAll('td');
+              return [
+                tds[0].innerText.trim(), // Label
+                tds[1].innerText.trim(), // Count
+                tds[2].innerText.trim()  // Percent
+              ];
+            });
+
+            pdf.autoTable({
+              startY: currY,
+              margin: { left: margin + imgWidth + 10 },
+              head: [['Label', 'Count', '%']],
+              body: rows,
+              tableWidth: pageWidth - (margin * 2) - imgWidth - 10,
+              theme: 'striped',
+              headStyles: { fillColor: [99, 102, 241], fontSize: 9 },
+              styles: { fontSize: 8, cellPadding: 2 },
+              columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } }
+            });
+            
+            // Advance Y based on the larger of the two
+            const tableEndY = pdf.lastAutoTable.finalY + 10;
+            const imgEndY = currY + imgHeight + 10;
+            currY = Math.max(tableEndY, imgEndY);
+          } else {
+            currY += imgHeight + 15;
+          }
         }
 
         pdf.save(`Sinhas_GmbH_Report_${new_ds_string()}.pdf`);
