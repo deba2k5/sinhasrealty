@@ -8,6 +8,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- EXPORT LIBRARIES -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     *,
     *::before,
@@ -864,6 +868,40 @@
     .empty-state p {
       font-size: 0.9rem;
     }
+
+    /* ─── EXPORT BUTTONS ─── */
+    .export-container {
+      display: flex;
+      gap: 10px;
+      margin-right: 8px;
+    }
+
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 15px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-export:hover {
+      background: var(--surface3);
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn-export.pdf { border-color: rgba(248, 113, 113, 0.3); }
+    .btn-export.pdf:hover { border-color: var(--red); box-shadow: 0 0 15px rgba(248, 113, 113, 0.2); }
+    .btn-export.excel { border-color: rgba(52, 211, 153, 0.3); }
+    .btn-export.excel:hover { border-color: var(--green); box-shadow: 0 0 15px rgba(52, 211, 153, 0.2); }
   </style>
 </head>
 
@@ -910,18 +948,30 @@
             for Sinha's GmbH</div>
           <h1 id="page-title" style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;">Dashboard</h1>
         </div>
-        <div
-          style="display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);">
-          <div style="text-align: right;">
-            <div
-              style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
-              Last Sync</div>
-            <div id="last-updated" style="font-size: 0.85rem; font-weight: 600; color: var(--primary-lt);">Never</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <!-- EXPORT ACTIONS -->
+          <div class="export-container">
+            <button class="btn-export pdf" onclick="generatePDFReport()" title="Download PDF Report">
+              <span>📄</span> Report
+            </button>
+            <button class="btn-export excel" onclick="exportToExcel()" title="Export Table to Excel">
+              <span>📊</span> Excel
+            </button>
           </div>
-          <button onclick="manualRefresh()" id="refresh-btn"
-            style="background: rgba(99,102,241,0.1); border: 1px solid var(--primary); color: var(--primary-lt); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
-            <span id="refresh-icon" style="font-size: 1.1rem; display:inline-block;">🔄</span>
-          </button>
+
+          <div
+            style="display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);">
+            <div style="text-align: right;">
+              <div
+                style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                Last Sync</div>
+              <div id="last-updated" style="font-size: 0.85rem; font-weight: 600; color: var(--primary-lt);">Never</div>
+            </div>
+            <button onclick="manualRefresh()" id="refresh-btn"
+              style="background: rgba(99,102,241,0.1); border: 1px solid var(--primary); color: var(--primary-lt); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
+              <span id="refresh-icon" style="font-size: 1.1rem; display:inline-block;">🔄</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1538,6 +1588,113 @@
       }
       curPage = 1;
       loadData();
+    }
+
+    // ─── EXPORT LOGIC ───
+
+    function exportToExcel() {
+      try {
+        const table = document.querySelector('table');
+        const rows = Array.from(table.rows);
+        if (rows.length < 2) {
+          alert('No data to export.');
+          return;
+        }
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.table_to_sheet(table);
+
+        XLSX.utils.book_append_sheet(wb, ws, "Property Records");
+        XLSX.writeFile(wb, `Sinhas_GmbH_Records_${new_ds_string()}.xlsx`);
+      } catch (e) {
+        console.error('Excel Export Error:', e);
+        alert('Could not export Excel. See console.');
+      }
+    }
+
+    async function generatePDFReport() {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 15;
+      let currY = 20;
+
+      showLoader();
+
+      try {
+        // Title
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(22);
+        pdf.setTextColor(15, 23, 42); // bg dark
+        pdf.text("SINHA'S GMBH - PORTAL REPORT", margin, currY);
+        currY += 8;
+
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(100, 116, 139); // muted
+        pdf.text(`Generated on: ${new Date().toLocaleString()}`, margin, currY);
+        currY += 15;
+
+        // KPI Summary
+        pdf.setFontSize(14);
+        pdf.setTextColor(99, 102, 241); // primary
+        pdf.text("Portfolio Summary", margin, currY);
+        currY += 10;
+
+        const kpis = [
+          { l: 'Total Properties', v: document.getElementById('stat-total').innerText },
+          { l: 'Occupied', v: document.getElementById('stat-occupied').innerText },
+          { l: 'Available', v: document.getElementById('stat-available').innerText }
+        ];
+
+        pdf.setFontSize(11);
+        pdf.setTextColor(15, 23, 42);
+        kpis.forEach(k => {
+          pdf.text(`${k.l}: ${k.v}`, margin + 5, currY);
+          currY += 6;
+        });
+        currY += 10;
+
+        // Capture Charts
+        const chartCards = document.querySelectorAll('.chart-card');
+        for (let i = 0; i < chartCards.length; i++) {
+          const card = chartCards[i];
+          const canvas = card.querySelector('canvas');
+          if (!canvas) continue;
+
+          // If we run out of space on current page
+          if (currY > 240) {
+            pdf.addPage();
+            currY = 20;
+          }
+
+          const title = card.querySelector('h3').innerText;
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(12);
+          pdf.setTextColor(15, 23, 42);
+          pdf.text(title, margin, currY);
+          currY += 5;
+
+          const imgData = canvas.toDataURL("image/png", 1.0);
+          const imgWidth = pageWidth - (margin * 2);
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          pdf.addImage(imgData, 'PNG', margin, currY, imgWidth, imgHeight);
+          currY += imgHeight + 15;
+        }
+
+        pdf.save(`Sinhas_GmbH_Report_${new_ds_string()}.pdf`);
+      } catch (e) {
+        console.error('PDF Generation Error:', e);
+        alert('Could not generate PDF. See console.');
+      } finally {
+        hideLoader();
+      }
+    }
+
+    function new_ds_string() {
+      const now = new Date();
+      return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     }
   </script>
 
