@@ -588,7 +588,7 @@
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
 
-  const ADMIN_EMAIL = 'rajeev@sinhas.ch';
+  const ADMIN_EMAILS = ['rajeev@sinhas.ch', 'soumika@sinhas.ch'];
   const AUTHORIZED_EMAILS = [
     'rajeev@sinhas.ch',
     'soumika@sinhas.ch',
@@ -605,7 +605,7 @@
     if (emailEl) emailEl.textContent = user.email;
 
     // Hide Admin Dashboard link for non-admin users
-    if (user.email !== ADMIN_EMAIL) {
+    if (!ADMIN_EMAILS.includes(user.email)) {
       const adminBtn = document.getElementById('nav-admin-link');
       if (adminBtn) adminBtn.style.display = 'none';
     }
