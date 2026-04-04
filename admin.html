@@ -950,6 +950,10 @@
     <div class="topbar" style="flex-direction: column; align-items: stretch; gap: 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
+          <div id="table-sub" style="color: var(--muted); font-size: 0.9rem;">— total records</div>
+          <div id="filter-badge" style="display:none; align-items:center; gap:8px; background:var(--primary); color:#fff; padding:4px 10px; border-radius:100px; font-size:0.75rem; margin-top:8px;">
+            <!-- Dynamic Content -->
+          </div>
           <div id="page-sub" style="color: var(--muted2); font-size: 0.9rem; margin-bottom: 4px;">Direct data management
             for Sinha's GmbH</div>
           <h1 id="page-title" style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;">Dashboard</h1>
@@ -1147,6 +1151,8 @@
     let curSortBy = '_id';
     let curSortOrder = -1; // -1 = desc, 1 = asc
     let editId = null;
+    let curFilterCol = '';
+    let curFilterVal = '';
     let charts = {};
 
     // Standardized key mapping for property records (shared between Manual Entry and Admin)
@@ -1294,7 +1300,7 @@
       el.innerHTML = html;
     }
 
-    function mkChart(id, type, labels, data, colors) {
+    function mkChart(id, type, labels, data, colors, colName = '') {
       if (charts[id]) charts[id].destroy();
       const ctx = document.getElementById(id).getContext('2d');
       charts[id] = new Chart(ctx, {
@@ -1320,13 +1326,14 @@
               const idx = els[0].index;
               const label = labels[idx];
               if (label) {
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                  searchInput.value = label;
-                  // Trigger redirect to table
-                  switchTab('property details data');
-                  // We don't need to manually call loadData as switchTab does it
+                if (colName) {
+                  curFilterCol = colName;
+                  curFilterVal = label;
+                  document.getElementById('searchInput').value = ''; // Clear general search
+                } else {
+                  document.getElementById('searchInput').value = label;
                 }
+                switchTab('property details data');
               }
             }
           },
@@ -1384,40 +1391,42 @@
 
       // Row 1: Occupancy doughnut + Cities bar
       const occ = c.occupancy || [];
+      const statusCol = 'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE';
       if (occ.length > 0) {
-        mkChart('occChart', 'doughnut', occ.map(o => o.label), occ.map(o => o.value), COLORS.occ);
+        mkChart('occChart', 'doughnut', occ.map(o => o.label), occ.map(o => o.value), COLORS.occ, statusCol);
         mkDataTable('occTable', occ.map(o => o.label), occ.map(o => o.value), COLORS.occ);
       }
 
       const cities = c.cities || [];
       if (cities.length > 0) {
-        mkChart('cityChart', 'bar', cities.map(ci => ci.label), cities.map(ci => ci.value), COLORS.city);
+        mkChart('cityChart', 'bar', cities.map(ci => ci.label), cities.map(ci => ci.value), COLORS.city, 'CITY');
         mkDataTable('cityTable', cities.map(ci => ci.label), cities.map(ci => ci.value), COLORS.city);
       }
 
       // Row 2: Property Types bar + Class doughnut
       const types = c.types || [];
+      const typeCol = 'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE';
       if (types.length > 0) {
-        mkChart('typeChart', 'bar', types.map(t => t.label), types.map(t => t.value), COLORS.type);
+        mkChart('typeChart', 'bar', types.map(t => t.label), types.map(t => t.value), COLORS.type, typeCol);
         mkDataTable('typeTable', types.map(t => t.label), types.map(t => t.value), COLORS.type);
       }
 
       const classes = c.classes || [];
       if (classes.length > 0) {
-        mkChart('classChart', 'doughnut', classes.map(cl => cl.label), classes.map(cl => cl.value), COLORS.cls);
+        mkChart('classChart', 'doughnut', classes.map(cl => cl.label), classes.map(cl => cl.value), COLORS.cls, 'PROPERTY CLASS (A/B/C)');
         mkDataTable('classTable', classes.map(cl => cl.label), classes.map(cl => cl.value), COLORS.cls);
       }
 
       // Row 3: OTA doughnut + Canton bar
       const otas = c.otas || [];
       if (otas.length > 0) {
-        mkChart('otaChart', 'doughnut', otas.map(o => o.label), otas.map(o => o.value), COLORS.ota);
+        mkChart('otaChart', 'doughnut', otas.map(o => o.label), otas.map(o => o.value), COLORS.ota, 'OTA/NON OTA');
         mkDataTable('otaTable', otas.map(o => o.label), otas.map(o => o.value), COLORS.ota);
       }
 
       const cantons = c.cantons || [];
       if (cantons.length > 0) {
-        mkChart('cantonChart', 'bar', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton);
+        mkChart('cantonChart', 'bar', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton, 'CANTON');
         mkDataTable('cantonTable', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton);
       }
     }
@@ -1432,9 +1441,18 @@
       showLoader();
       const q = document.getElementById('searchInput').value;
       const limit = force ?? curLimit;
-      const url = `/api/data/${encodeURIComponent(curCol)}?page=${curPage}&limit=${limit}&search=${encodeURIComponent(q)}&sort=${encodeURIComponent(curSortBy)}&order=${curSortOrder}`;
+      const url = `/api/data/${encodeURIComponent(curCol)}?page=${curPage}&limit=${limit}&search=${encodeURIComponent(q)}&sort=${encodeURIComponent(curSortBy)}&order=${curSortOrder}&f_col=${encodeURIComponent(curFilterCol)}&f_val=${encodeURIComponent(curFilterVal)}`;
       const res = await fetch(url).then(r => r.json());
       hideLoader();
+
+      // Show/Hide filter badge
+      const badge = document.getElementById('filter-badge');
+      if (curFilterCol && curFilterVal) {
+        badge.innerHTML = `<span>Filter: <b>${curFilterVal}</b></span> <button onclick="clearFilter()" style="background:none; border:none; color:#fff; cursor:pointer; font-weight:700; margin-left:4px;">✕</button>`;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
 
       document.getElementById('table-title').innerText = curCol.charAt(0).toUpperCase() + curCol.slice(1);
       document.getElementById('table-sub').innerText = `${res.total} total records`;
@@ -1442,6 +1460,12 @@
       document.getElementById('prev-btn').disabled = res.page <= 1;
       document.getElementById('next-btn').disabled = res.page >= res.totalPages;
       renderTable(res.data);
+    }
+
+    function clearFilter() {
+      curFilterCol = '';
+      curFilterVal = '';
+      loadData();
     }
 
     function renderTable(rows) {

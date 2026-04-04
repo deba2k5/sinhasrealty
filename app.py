@@ -230,12 +230,15 @@ def get_data(collection):
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
         search = request.args.get('search', '').strip()
+        f_col = request.args.get('f_col', '').strip()
+        f_val = request.args.get('f_val', '').strip()
         sort_field = request.args.get('sort', '_id')
         sort_order = int(request.args.get('order', -1)) # Default to descending (newest)
         skip = (page - 1) * limit
 
         query = {}
 
+        # 1. Broad Search Clause (Across all string/int fields)
         if search:
             regex = re.compile(search, re.IGNORECASE)
             sample = get_db()[collection].find_one()
@@ -246,12 +249,20 @@ def get_data(collection):
                         if isinstance(val, str):
                             or_clauses.append({key: {"$regex": regex}})
                         elif isinstance(val, (int, float)) and search.replace('.', '', 1).isdigit():
-                            if '.' in search:
-                                or_clauses.append({key: float(search)})
-                            else:
-                                or_clauses.append({key: int(search)})
+                            try:
+                                if '.' in search: or_clauses.append({key: float(search)})
+                                else: or_clauses.append({key: int(search)})
+                            except: pass
                 if or_clauses:
                     query = {'$or': or_clauses}
+
+        # 2. Precision Column Filter (Overrides or ANDs with search)
+        if f_col and f_val:
+            if query:
+                # If we have a general search, we AND it with the column filter
+                query = {"$and": [query, {f_col: f_val}]}
+            else:
+                query = {f_col: f_val}
 
         db_inst = get_db()
         cursor = db_inst[collection].find(query).sort(sort_field, sort_order)
