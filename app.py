@@ -9,13 +9,17 @@ from bson.objectid import ObjectId
 import math
 import re
 from urllib.parse import unquote
+from dotenv import load_dotenv
+
+# Load connection string from .env
+load_dotenv()
 
 app = Flask(__name__, static_folder=".")
 
 # ==========================================
 # CONFIGURATION
 # ==========================================
-MONGO_URI = os.getenv("MONGO_URI", 'mongodb+srv://sinhasrealty:sinhasrealty@sinhasrealty.cqt4cec.mongodb.net/?appName=sinhasrealty')
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://sinhasrealty:sinhasrealty@sinhasrealty.cqt4cec.mongodb.net/?appName=sinhasrealty")
 
 # Lazy MongoDB connection — avoids crash-on-import during Render build
 _client = None
@@ -103,108 +107,27 @@ def handle_upload_occupancy():
         return jsonify({"success": False, "message": "No file selected."}), 400
         
     try:
-        # Read the Excel sheet directly from the memory stream without saving to disk
         xls = pd.ExcelFile(file.stream, engine='openpyxl')
-        if 'OCCUPANCY -Apartment' not in xls.sheet_names:
-            return jsonify({"success": False, "message": "Missing 'OCCUPANCY -Apartment' sheet."}), 400
-            
-        df = pd.read_excel(xls, sheet_name='OCCUPANCY -Apartment', header=1)
-        # Standardize column names (casing, spaces, dots) for robust mapping
+        sheet_name = 'Sheet 1' if 'Sheet 1' in xls.sheet_names else xls.sheet_names[0]
+        
+        df = pd.read_excel(xls, sheet_name=sheet_name, header=1)
+        # Clean headers specifically for MongoDB compatibility
         df.columns = [str(c).replace('.', '').strip() for c in df.columns]
         
-        # Drop rows where 'Apartment address' is definitely NaN
-        df = df.dropna(subset=['Apartment address'])
-        # Replace NaN with None for all other fields
+        # Filter out empty rows
+        df = df.dropna(how='all')
+        # Replace NaN with None
         df = df.where(pd.notnull(df), None)
         
-        counts = {"cities": 0, "buildings": 0, "apartments": 0}
-        
-        # 1. Process Cities
-        unique_cities = df['City'].dropna().unique()
-        city_map = {}
-        for city in unique_cities:
-            city_name = str(city).strip()
-            city_doc = get_db().cities.find_one({"city_name_en": city_name})
-            if not city_doc:
-                result = get_db().cities.insert_one({
-                    "city_code": city_name[:2].upper(),
-                    "city_name_en": city_name,
-                    "canton": "",
-                    "country_code": "CH",
-                    "is_active": True
-                })
-                city_map[city_name] = result.inserted_id
-                counts['cities'] += 1
-            else:
-                city_map[city_name] = city_doc['_id']
-                
-        # 2. Process Buildings & Apartments
-        building_map = {}
-        for idx, row in df.iterrows():
-            city_name = str(row['City']).strip() if pd.notna(row['City']) else ""
-            if not city_name or city_name not in city_map:
-                continue
-                
-            address = str(row['Apartment address']).strip()
-            street_no = str(row['street no']).strip() if pd.notna(row['street no']) else ""
-            pin_code = str(row['pin code']).strip() if pd.notna(row['pin code']) else ""
-            full_address = f"{address} {street_no}, {pin_code} {city_name}".strip()
+        records = df.to_dict('records')
+        if records:
+            # Clear old data before "populating" with new data
+            get_db()['property details data'].delete_many({})
+            get_db()['property details data'].insert_many(records)
             
-            # Find or create building
-            if full_address not in building_map:
-                bldg_doc = get_db().buildings.find_one({"street_address": full_address})
-                if not bldg_doc:
-                    b_id = get_db().buildings.insert_one({
-                        "city_id": city_map[city_name],
-                        "building_code": f"BLDG-{len(building_map)+1000}",
-                        "street_address": full_address,
-                        "has_elevator": False,
-                        "has_parking": False,
-                        "building_status": "active"
-                    }).inserted_id
-                    building_map[full_address] = b_id
-                    counts['buildings'] += 1
-                else:
-                    building_map[full_address] = bldg_doc['_id']
-                    
-            # Insert apartment if it doesn't already exist
-            prop_id = str(row['Property Id']).strip() if pd.notna(row['Property Id']) else f"APT-{idx}"
-            apt_doc = get_db().apartments.find_one({"apt_code": prop_id})
-            if not apt_doc:
-                try:
-                    bedrooms = int(float(row['NO. OF ROOMS'])) if pd.notna(row['NO. OF ROOMS']) else 1
-                except:
-                    bedrooms = 1
-                    
-                try:
-                    sqmt = float(row['Apartment SQMT']) if pd.notna(row['Apartment SQMT']) else 50.0
-                except:
-                    sqmt = 50.0
-                    
-                status_raw = str(row.get('Unnamed: 12', '')).upper()
-                status = 'occupied' if 'OCCUPIED' in status_raw else 'available'
-                floor = str(row['FLOOR']).strip() if pd.notna(row['FLOOR']) else "0"
-                unit = str(row.get(' POSITION', '')).strip() if pd.notna(row.get(' POSITION', '')) else ""
-                
-                get_db().apartments.insert_one({
-                    "building_id": building_map[full_address],
-                    "apt_code": prop_id,
-                    "unit_number": unit,
-                    "floor_number": floor,
-                    "area_sqm": sqmt,
-                    "bedrooms": bedrooms,
-                    "bathrooms": 1,
-                    "max_occupants": bedrooms * 2,
-                    "is_ladies_only": False,
-                    "is_furnished": True,
-                    "allows_short_term": True,
-                    "apartment_status": status
-                })
-                counts['apartments'] += 1
-                
         return jsonify({
             "success": True, 
-            "message": f"Success! Inserted {counts['cities']} new cities, {counts['buildings']} buildings, and {counts['apartments']} apartments."
+            "message": f"Success! Uploaded {len(records)} records directly into 'property details data'."
         })
     except Exception as e:
         return jsonify({"success": False, "message": f"ETL Error: {str(e)}"}), 500
@@ -221,10 +144,10 @@ def add_city():
 
 @app.route('/add_property', methods=['POST'])
 def add_property():
-    """Manually insert a single record into the 'sinhasrealty data' collection"""
+    """Manually insert a single record into the 'property details data' collection"""
     data = request.json
     try:
-        get_db()['sinhasrealty data'].insert_one(data)
+        get_db()['property details data'].insert_one(data)
         addr = data.get('Apartment address', 'record')
         city = data.get('City', '')
         return jsonify({"success": True, "message": f"Successfully added property '{addr}' in {city}."})
@@ -233,7 +156,7 @@ def add_property():
 
 @app.route('/download_csv', methods=['GET'])
 def download_csv():
-    collection_name = request.args.get('collection', 'sinhasrealty data')
+    collection_name = request.args.get('collection', 'property details data')
     try:
         cursor = get_db()[collection_name].find({})
         docs = list(cursor)
@@ -277,6 +200,8 @@ def get_data(collection):
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
         search = request.args.get('search', '').strip()
+        sort_field = request.args.get('sort', '_id')
+        sort_order = int(request.args.get('order', -1)) # Default to descending (newest)
         skip = (page - 1) * limit
 
         query = {}
@@ -299,7 +224,7 @@ def get_data(collection):
                     query = {'$or': or_clauses}
 
         db_inst = get_db()
-        cursor = db_inst[collection].find(query)
+        cursor = db_inst[collection].find(query).sort(sort_field, sort_order)
         total = db_inst[collection].count_documents(query)
 
         docs = list(cursor.skip(skip).limit(limit))
@@ -389,43 +314,103 @@ def create_data(collection):
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     try:
-        total_apartments = get_db().apartments.count_documents({})
-        occupied_apartments = get_db().apartments.count_documents({'apartment_status': 'occupied'})
-        available_apartments = get_db().apartments.count_documents({'apartment_status': 'available'})
-        
-        total_buildings = get_db().buildings.count_documents({})
-        total_cities = get_db().cities.count_documents({})
-        
-        # Specific stats for Sinhas GmbH
-        sinhas_total = get_db()['sinhasrealty data'].count_documents({})
-        sinhas_occupied = get_db()['sinhasrealty data'].count_documents({'Status': {'$regex': 'occupied', '$options': 'i'}})
-        sinhas_available = get_db()['sinhasrealty data'].count_documents({'Status': {'$regex': 'available|vacant', '$options': 'i'}})
-        
-        pipeline = [
-            {"$group": {"_id": "$City", "count": {"$sum": 1}}},
+        import math
+        def safe_str(v):
+            """Convert value to string safely, treating NaN/None as empty."""
+            if v is None:
+                return None
+            try:
+                if isinstance(v, float) and math.isnan(v):
+                    return None
+            except Exception:
+                pass
+            return str(v)
+
+        # Core collection
+        sinhas_col = get_db()['property details data']
+        sinhas_total = sinhas_col.count_documents({})
+
+        # Occupancy stats — actual values: OCCUPIED, VACANT, PARTIALLY OCCUPIED, SURRENDERED
+        status_field = 'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE'
+        sinhas_occupied = sinhas_col.count_documents({status_field: {'$regex': '^occupied$', '$options': 'i'}})
+        sinhas_partially = sinhas_col.count_documents({status_field: {'$regex': 'partially', '$options': 'i'}})
+        sinhas_available = sinhas_col.count_documents({status_field: {'$regex': '^vacant$', '$options': 'i'}})
+        sinhas_surrendered = sinhas_col.count_documents({status_field: {'$regex': 'surrendered', '$options': 'i'}})
+        sinhas_maintenance = sinhas_col.count_documents({status_field: {'$regex': 'maintenance', '$options': 'i'}})
+
+        # Type Distribution — filter out NaN _id
+        type_field = 'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE'
+        pipeline_types = [
+            {"$match": {type_field: {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": f"${type_field}", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}
         ]
-        city_stats = list(get_db()['sinhasrealty data'].aggregate(pipeline))
-        sinhas_cities = {str(item['_id']): item['count'] for item in city_stats if item['_id']}
-        
+        types_data = list(sinhas_col.aggregate(pipeline_types))
+
+        # City Distribution
+        pipeline_cities = [
+            {"$match": {"CITY": {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": "$CITY", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        cities_data = list(sinhas_col.aggregate(pipeline_cities))
+
+        # Class Distribution
+        class_field = 'PROPERTY CLASS (A/B/C)'
+        pipeline_class = [
+            {"$match": {class_field: {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": f"${class_field}", "count": {"$sum": 1}}},
+            {"$sort": {"_id": 1}}
+        ]
+        class_data = list(sinhas_col.aggregate(pipeline_class))
+
+        # OTA Distribution
+        ota_field = 'OTA/NON OTA'
+        pipeline_ota = [
+            {"$match": {ota_field: {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": f"${ota_field}", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        ota_data = list(sinhas_col.aggregate(pipeline_ota))
+
+        # Canton Distribution
+        pipeline_cantons = [
+            {"$match": {"CANTON": {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": "$CANTON", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        cantons_data = list(sinhas_col.aggregate(pipeline_cantons))
+
         return jsonify({
-            'success': True,
-            'apartments': {
-                'total': total_apartments,
-                'occupied': occupied_apartments,
-                'available': available_apartments
+            "success": True,
+            "stats": {
+                "total": sinhas_total,
+                "occupied": sinhas_occupied,
+                "available": sinhas_available,
+                "partially": sinhas_partially,
+                "surrendered": sinhas_surrendered,
+                "maintenance": sinhas_maintenance
             },
-            'buildings': total_buildings,
-            'cities': total_cities,
-            'sinhasrealty_data': {
-                'total': sinhas_total,
-                'occupied': sinhas_occupied,
-                'available': sinhas_available,
-                'city_distribution': sinhas_cities
+            "charts": {
+                "occupancy": [
+                    {"label": "Occupied", "value": sinhas_occupied},
+                    {"label": "Vacant", "value": sinhas_available},
+                    {"label": "Surrendered", "value": sinhas_surrendered},
+                    {"label": "Partially Occupied", "value": sinhas_partially},
+                    {"label": "Maintenance", "value": sinhas_maintenance}
+                ],
+                "types": [{"label": safe_str(t['_id']), "value": t['count']} for t in types_data if safe_str(t['_id'])],
+                "cities": [{"label": safe_str(c['_id']), "value": c['count']} for c in cities_data if safe_str(c['_id'])],
+                "classes": [{"label": safe_str(cl['_id']), "value": cl['count']} for cl in class_data if safe_str(cl['_id'])],
+                "otas": [{"label": safe_str(o['_id']), "value": o['count']} for o in ota_data if safe_str(o['_id'])],
+                "cantons": [{"label": safe_str(cn['_id']), "value": cn['count']} for cn in cantons_data if safe_str(cn['_id'])]
             }
         })
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        import traceback
+        return jsonify({'success': False, 'message': str(e), 'trace': traceback.format_exc()}), 500
 
 @app.route('/api/collections', methods=['GET'])
 def get_collections():
@@ -440,7 +425,7 @@ def get_collections():
 
 if __name__ == '__main__':
     print(f"=====================================")
-    print(f" Sinhas GmbH Portal Backend Started ")
+    print(f" Sinha's GmBH Portal Backend Started ")
     print(f"=====================================")
     print(f" Connected DB: {MONGO_URI}")
     print(f" Dashboard is live at: http://localhost:5000")

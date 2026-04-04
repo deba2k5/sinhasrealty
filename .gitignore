@@ -5,3 +5,9 @@ venv/
 env/
 .venv/
 *.xlsx
+
+.env
+tmp_verify.py
+temp_analyze_new_excel.py
+temp_analyze_sheets.py
+verify_new_upload.py

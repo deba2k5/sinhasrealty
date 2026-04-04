@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sinhas GmbH — Data Portal</title>
+  <title>Sinha's GmBH — Data Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -192,7 +192,7 @@
 <nav>
   <a href="/" class="nav-logo">
     <span class="dot"></span>
-    Sinhas GmbH Portal
+    Sinha's GmBH Portal
   </a>
   <div class="nav-actions">
     <span id="nav-user-email" style="color:var(--muted2);font-size:0.85rem;font-weight:500;"></span>
@@ -264,111 +264,194 @@
     </div>
     <div class="divider"></div>
     
-    <!-- Row 1: Core Identifiers -->
+    <!-- Section 1: Core Identifiers -->
+    <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">1. Core Identifiers</h4>
+    </div>
     <div class="form-3col">
       <div class="form-row">
         <label>Property ID</label>
         <input id="m_propid" type="text" placeholder="e.g. PROP-123">
       </div>
       <div class="form-row">
-        <label>AWN No</label>
-        <input id="m_awn" type="number" placeholder="e.g. 1024">
+        <label>Property Name</label>
+        <input id="m_propname" type="text" placeholder="e.g. Skyline Residency">
+      </div>
+
+    </div>
+    <div class="form-3col">
+      <div class="form-row">
+        <label>Type</label>
+        <select id="m_type">
+          <option value="">— Select —</option>
+          <option>APARTMENT</option>
+          <option>HOUSE</option>
+          <option>CHALET</option>
+          <option>OFFICE</option>
+          <option>PARKING</option>
+          <option>GARAGE</option>
+        </select>
       </div>
       <div class="form-row">
-        <label>Object Number</label>
-        <input id="m_objno" type="number" placeholder="e.g. 505">
+        <label>Class (A/B/C)</label>
+        <select id="m_class">
+          <option value="">— Select —</option>
+          <option>A</option>
+          <option>B</option>
+          <option>C</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>OTA / Non-OTA</label>
+        <select id="m_ota">
+          <option value="">— Select —</option>
+          <option>OTA</option>
+          <option>NON OTA</option>
+        </select>
       </div>
     </div>
 
-    <!-- Row 2: Address & Location -->
+    <!-- Section 2: Address & Location -->
+    <div style="margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">2. Address &amp; Location</h4>
+    </div>
     <div class="form-3col">
       <div class="form-row">
-        <label>Apartment Address *</label>
-        <input id="m_addr" type="text" placeholder="Street Name">
+        <label>Street Name *</label>
+        <input id="m_street" type="text" placeholder="e.g. Badenerstrasse">
       </div>
       <div class="form-row">
         <label>Street Number</label>
-        <input id="m_streetno" type="number" placeholder="e.g. 15">
+        <input id="m_streetno" type="text" placeholder="e.g. 15a">
       </div>
       <div class="form-row">
         <label>City *</label>
         <input id="m_city" type="text" placeholder="e.g. Zürich">
       </div>
     </div>
-
-    <!-- Row 3: Building Details -->
     <div class="form-3col">
       <div class="form-row">
         <label>Pincode</label>
-        <input id="m_pincode" type="number" placeholder="e.g. 8050">
+        <input id="m_pincode" type="number" placeholder="8000">
       </div>
       <div class="form-row">
+        <label>Canton</label>
+        <input id="m_canton" type="text" placeholder="e.g. Zurich">
+      </div>
+      <div class="form-row">
+        <label>Country</label>
+        <input id="m_country" type="text" value="Switzerland">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>GPS Coordinates (Lat/Long)</label>
+      <input id="m_gps" type="text" placeholder="e.g. 47.3769, 8.5417">
+    </div>
+
+    <!-- Section 3: Technical Specs -->
+    <div style="margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">3. Technical Specs</h4>
+    </div>
+    <div class="form-3col">
+      <div class="form-row">
+        <label>AWN No</label>
+        <input id="m_awn" type="number" placeholder="1024">
+      </div>
+      <div class="form-row">
+        <label>Object Number</label>
+        <input id="m_objno" type="number" placeholder="505">
+      </div>
+      <div class="form-row">
+        <label>Parking/Garage Nr</label>
+        <input id="m_parkingnr" type="text" placeholder="P-12">
+      </div>
+    </div>
+    <div class="form-3col">
+      <div class="form-row">
         <label>Floor</label>
-        <input id="m_floor" type="number" placeholder="e.g. 2">
+        <input id="m_floor" type="number" placeholder="2">
       </div>
       <div class="form-row">
         <label>Position</label>
-        <select id="m_position">
-          <option value="">— Select —</option>
-          <option>Left</option>
-          <option>Right</option>
-          <option>Center</option>
-          <option>Front</option>
-          <option>Back</option>
-        </select>
+        <input id="m_position" type="text" placeholder="Left / Right">
+      </div>
+      <div class="form-row">
+        <label>Rooms</label>
+        <input id="m_rooms" type="number" step="0.5" placeholder="3.5">
       </div>
     </div>
-
-    <!-- Row 4: Specs -->
     <div class="form-3col">
       <div class="form-row">
-        <label>Apt SQMT</label>
-        <input id="m_sqmt" type="number" step="0.1" placeholder="e.g. 65">
+        <label>Size (SQM)</label>
+        <input id="m_size" type="number" step="0.1" placeholder="65.0">
       </div>
       <div class="form-row">
-        <label>No. of Rooms</label>
-        <input id="m_rooms" type="number" step="0.5" placeholder="e.g. 3.5">
-      </div>
-      <div class="form-row">
-        <label>Own / Rented</label>
-        <select id="m_ownrented">
+        <label>Own / Sublet</label>
+        <select id="m_ownsub">
           <option value="">— Select —</option>
           <option>OWN</option>
-          <option>RENTED</option>
+          <option>SUBLET</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Indiv / Sharing</label>
+        <select id="m_indshr">
+          <option value="">— Select —</option>
+          <option>INDIVIDUAL</option>
+          <option>SHARING</option>
         </select>
       </div>
     </div>
 
-    <!-- Row 5: Occupancy status -->
+    <!-- Section 4: Status & Management -->
+    <div style="margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">4. Status &amp; Management</h4>
+    </div>
     <div class="form-3col">
       <div class="form-row">
-        <label>Indiv. / Shr. (Occupancy Type)</label>
-        <select id="m_indiv">
-          <option value="">— Select —</option>
-          <option>Family</option>
-          <option>Individual</option>
-          <option>Sharing (2)</option>
-          <option>Sharing (3)</option>
-          <option>Sharing (4)</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Status</label>
+        <label>Current Status</label>
         <select id="m_status">
           <option value="">— Select —</option>
           <option>OCCUPIED</option>
-          <option>AVAILABLE</option>
+          <option>VACANT</option>
+          <option>PARTIALLY OCCUPIED</option>
+          <option>MAINTENANCE</option>
         </select>
       </div>
       <div class="form-row">
-        <label>Will Surrender By</label>
-        <input id="m_surrender" type="text" placeholder="e.g. 31.12.2024">
+        <label>Rent Start Date</label>
+        <input id="m_rentstart" type="text" placeholder="DD.MM.YYYY">
       </div>
+      <div class="form-row">
+        <label>Rent End Date</label>
+        <input id="m_rentend" type="text" placeholder="DD.MM.YYYY">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Keysafe Code</label>
+      <input id="m_key" type="text" placeholder="e.g. 1234#">
+    </div>
+
+    <!-- Section 5: Assets & AI -->
+    <div style="margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">5. Assets &amp; AI</h4>
+    </div>
+    <div class="form-row">
+      <label>GDrive URL (Images/Videos)</label>
+      <input id="m_gdrive" type="url" placeholder="https://drive.google.com/...">
+    </div>
+    <div class="form-row">
+      <label>Blob for AI (Context)</label>
+      <textarea id="m_aiblob" style="width:100%; height:80px; background:var(--surface2); border:1px solid var(--border); border-radius:9px; color:var(--text); padding:10px; font-family:inherit; resize:none;" placeholder="Describe the property context for AI..."></textarea>
+    </div>
+    <div class="form-row">
+      <label>Remarks</label>
+      <input id="m_remarks" type="text" placeholder="Any additional notes...">
     </div>
 
     <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
       <button class="btn btn-purple" id="b3" onclick="doManual()" style="width: auto; padding: 14px 40px;">
-        <span id="b3t">Insert into Database</span>
+        <span id="b3t">Save to property details data</span>
         <div class="loader" id="b3l"></div>
       </button>
     </div>
@@ -439,33 +522,51 @@
   }
 
   async function doManual() {
-    const addr = document.getElementById('m_addr').value.trim();
+    const street = document.getElementById('m_street').value.trim();
     const city = document.getElementById('m_city').value.trim();
-    if (!addr || !city) return showStatus('s3', 'Apartment Address and City are required.', false);
+    if (!street || !city) return showStatus('s3', 'Street Name and City are required.', false);
+    
     startBtn('b3','b3t','b3l');
     const payload = {
-      'AWN NO': document.getElementById('m_awn').value !== '' ? parseInt(document.getElementById('m_awn').value) : null,
-      'Apartment Address': addr,
-      'City': city,
-      'INDIV / SHR': document.getElementById('m_indiv').value,
-      'Status': document.getElementById('m_status').value,
-      'WILL SURRENDER BY': document.getElementById('m_surrender').value,
-      'NO OF ROOMS': document.getElementById('m_rooms').value !== '' ? parseFloat(document.getElementById('m_rooms').value) : null,
-      'Floor': document.getElementById('m_floor').value !== '' ? parseInt(document.getElementById('m_floor').value) : null,
-      'Apartment SQMT': document.getElementById('m_sqmt').value !== '' ? parseFloat(document.getElementById('m_sqmt').value) : null,
-      'Pincode': document.getElementById('m_pincode').value !== '' ? parseInt(document.getElementById('m_pincode').value) : null,
-      'Own/Rented': document.getElementById('m_ownrented').value,
+      'PROPERTY ID': document.getElementById('m_propid').value,
+      'PROPERTY NAME': document.getElementById('m_propname').value,
+      'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE': document.getElementById('m_type').value,
+      'PROPERTY CLASS (A/B/C)': document.getElementById('m_class').value,
+      'AWN NO': document.getElementById('m_awn').value ? parseInt(document.getElementById('m_awn').value) : null,
+      'OBJECT NUMBER': document.getElementById('m_objno').value ? parseInt(document.getElementById('m_objno').value) : null,
+      'PARKING / GARAGE Nr': document.getElementById('m_parkingnr').value,
+      'OTA/NON OTA': document.getElementById('m_ota').value,
+      'OWN/SUBLET': document.getElementById('m_ownsub').value,
+      'STREET NAME': street,
+      'STREET NUMBER': document.getElementById('m_streetno').value,
+      'PINCODE': document.getElementById('m_pincode').value ? parseInt(document.getElementById('m_pincode').value) : null,
+      'CITY': city,
+      'CANTON': document.getElementById('m_canton').value,
+      'COUNTRY': document.getElementById('m_country').value,
+      'Location - Coordinates (Lat/Long)': document.getElementById('m_gps').value,
+      'FLOOR': document.getElementById('m_floor').value ? parseInt(document.getElementById('m_floor').value) : null,
       'POSITION': document.getElementById('m_position').value,
-      'Object Number': document.getElementById('m_objno').value !== '' ? parseInt(document.getElementById('m_objno').value) : null,
-      'Street Number': document.getElementById('m_streetno').value !== '' ? parseInt(document.getElementById('m_streetno').value) : null,
-      'Property ID': document.getElementById('m_propid').value
+      'NO OF ROOMS': document.getElementById('m_rooms').value ? parseFloat(document.getElementById('m_rooms').value) : null,
+      'APARTMENT SIZE(SQM)': document.getElementById('m_size').value ? parseFloat(document.getElementById('m_size').value) : null,
+      'INDEPENDENT / SHARING': document.getElementById('m_indshr').value,
+      'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE': document.getElementById('m_status').value,
+      'RENT START DATE': document.getElementById('m_rentstart').value,
+      'RENT END DATE': document.getElementById('m_rentend').value,
+      'KEYSAFE CODE': document.getElementById('m_key').value,
+      'Blob for AI': document.getElementById('m_aiblob').value,
+      'GDRIVE URL FOR IMAGES & VIDEOS': document.getElementById('m_gdrive').value,
+      'REMARKS': document.getElementById('m_remarks').value
     };
+
     try {
       const r = await (await fetch('/add_property', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).json();
       showStatus('s3', r.message, r.success);
       if (r.success) { 
-        ['m_propid','m_awn','m_objno','m_addr','m_streetno','m_city','m_pincode','m_floor','m_sqmt','m_rooms','m_surrender'].forEach(id => document.getElementById(id).value = '');
-        ['m_position','m_ownrented','m_indiv','m_status'].forEach(id => document.getElementById(id).selectedIndex = 0);
+        // Reset all inputs
+        document.querySelectorAll('.manual-entry-card input, .manual-entry-card select, .manual-entry-card textarea').forEach(el => {
+          if(el.tagName === 'SELECT') el.selectedIndex = 0;
+          else el.value = '';
+        });
       }
     } catch { showStatus('s3', 'Request failed — is the server running?', false); }
     stopBtn('b3','b3t','b3l');

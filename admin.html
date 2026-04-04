@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Sinhas GmbH — Admin Dashboard</title>
+  <title>Sinha's GmbH — Admin Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -491,7 +491,13 @@
       color: var(--muted);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
+      cursor: pointer; position: relative; user-select: none; white-space: nowrap; transition: background 0.2s;
     }
+    th:hover { background: rgba(255,255,255,0.05); }
+    .sort-icon { display: inline-block; margin-left: 8px; font-size: 0.7rem; opacity: 0.5; transition: opacity 0.2s; }
+    th:hover .sort-icon { opacity: 1; }
+    .sort-active { color: var(--primary); }
+    .sort-active .sort-icon { opacity: 1; color: var(--primary); }
 
     td {
       padding: 13px 18px;
@@ -783,7 +789,7 @@
   <aside class="sidebar">
     <div class="sidebar-logo">
       <span class="dot"></span>
-      Sinhas GmbH
+      Sinha's GmBH
       <span class="badge">ADMIN</span>
     </div>
 
@@ -813,50 +819,58 @@
     <div class="loading-strip" id="loader-bar"></div>
 
     <!-- TOP BAR -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <h1 id="page-title">Dashboard</h1>
-        <p id="page-sub">Real-time data from MongoDB</p>
-      </div>
-      <div class="topbar-right" id="stat-pills">
-        <!-- filled by JS -->
+    <div class="topbar" style="flex-direction: column; align-items: stretch; gap: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+          <div id="page-sub" style="color: var(--muted2); font-size: 0.9rem; margin-bottom: 4px;">Direct data management for Sinha's GmBH</div>
+          <h1 id="page-title" style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;">Dashboard</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border);">
+          <div style="text-align: right;">
+            <div style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Last Sync</div>
+            <div id="last-updated" style="font-size: 0.85rem; font-weight: 600; color: var(--primary-lt);">Never</div>
+          </div>
+          <button onclick="manualRefresh()" id="refresh-btn" style="background: rgba(99,102,241,0.1); border: 1px solid var(--primary); color: var(--primary-lt); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
+            <span id="refresh-icon" style="font-size: 1.1rem; display:inline-block;">🔄</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- DASHBOARD VIEW -->
     <div id="view-dashboard">
 
-      <!-- KPI ROW -->
-      <div class="kpi-grid" id="kpi-grid">
+      <!-- KPI CARDS -->
+      <div class="kpi-grid">
         <div class="kpi-card kpi-blue">
           <span class="kpi-label">Total Properties</span>
-          <span class="kpi-value" id="k-total">—</span>
-          <span class="kpi-sub">in Sinhas GmbH records</span>
+          <span class="kpi-value" id="stat-total">—</span>
+          <span class="kpi-sub">in Sinha's GmBH records</span>
         </div>
         <div class="kpi-card kpi-red">
           <span class="kpi-label">Occupied</span>
-          <span class="kpi-value" id="k-occ">—</span>
+          <span class="kpi-value" id="stat-occupied">—</span>
           <span class="kpi-sub">apartment units</span>
         </div>
         <div class="kpi-card kpi-green">
           <span class="kpi-label">Available</span>
-          <span class="kpi-value" id="k-avail">—</span>
+          <span class="kpi-value" id="stat-available">—</span>
           <span class="kpi-sub">apartment units</span>
         </div>
         <div class="kpi-card kpi-yellow">
-          <span class="kpi-label">Buildings</span>
-          <span class="kpi-value" id="k-bldg">—</span>
-          <span class="kpi-sub">registered buildings</span>
+          <span class="kpi-label">Unique Cities</span>
+          <span class="kpi-value" id="stat-cities">—</span>
+          <span class="kpi-sub">across Swiss cantons</span>
         </div>
       </div>
 
-      <!-- CHARTS ROW -->
+      <!-- CHARTS ROW 1 -->
       <div class="chart-grid">
         <div class="chart-card">
           <div class="chart-card-header">
             <div>
               <h3>Occupancy Breakdown</h3>
-              <p>Occupied vs Available — sinhasrealty data</p>
+              <p>Occupied vs Available — property details data</p>
             </div>
           </div>
           <div class="chart-wrap"><canvas id="occChart"></canvas></div>
@@ -865,10 +879,54 @@
           <div class="chart-card-header">
             <div>
               <h3>Properties by City</h3>
-              <p>Top cities — sinhasrealty data</p>
+              <p>Top 10 cities — property details data</p>
             </div>
           </div>
           <div class="chart-wrap"><canvas id="cityChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW 2 -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Property Type Distribution</h3>
+              <p>Apartment / House / Chalet / Office etc.</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="typeChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Property Class (A / B / C)</h3>
+              <p>Portfolio class breakdown</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="classChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW 3 -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>OTA vs Non-OTA</h3>
+              <p>Booking channel distribution</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="otaChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Properties by Canton</h3>
+              <p>Regional distribution in Switzerland</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="cantonChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -931,30 +989,45 @@
     Chart.defaults.font.weight = "600";
     Chart.defaults.color = "#64748b";
 
-    let curCol = 'sinhasrealty data';
+    let curCol = 'property details data';
     let curPage = 1;
     let curLimit = 50;
+    let dTimer;
+    let curSortBy = '_id';
+    let curSortOrder = -1; // -1 = desc, 1 = asc
     let editId = null;
-    let dTimer = null;
     let charts = {};
 
     // Standardized key mapping for property records (shared between Manual Entry and Admin)
     const PROPERTY_COL_MAP = [
-      { id: 'AWN NO', label: 'AWN NO' },
-      { id: 'Apartment Address', label: 'Apartment Address' },
-      { id: 'City', label: 'City' },
-      { id: 'INDIV / SHR', label: 'Individual/Sharing' },
-      { id: 'Status', label: 'Status' },
-      { id: 'WILL SURRENDER BY', label: 'Will Surrender By' },
-      { id: 'NO OF ROOMS', label: 'No. of Rooms' },
-      { id: 'Floor', label: 'Floor' },
-      { id: 'Apartment SQMT', label: 'Apartment SQMT' },
-      { id: 'Pincode', label: 'Pincode' },
-      { id: 'Own/Rented', label: 'Own/Rented' },
-      { id: 'POSITION', label: 'Position' },
-      { id: 'Object Number', label: 'Object Number' },
-      { id: 'Street Number', label: 'Street Number' },
-      { id: 'Property ID', label: 'Property ID' }
+      { id: 'PROPERTY ID', label: 'Prop ID' },
+      { id: 'PROPERTY NAME', label: 'Prop Name' },
+      { id: 'PROPERTY TYPE-APARTMENT/HOUSE/CHALET/OFFICE/PARKING/GARAGE', label: 'Type' },
+      { id: 'PROPERTY CLASS (A/B/C)', label: 'Class' },
+      { id: 'AWN NO', label: 'AWN' },
+      { id: 'OBJECT NUMBER', label: 'Obj Nr' },
+      { id: 'PARKING / GARAGE Nr', label: 'Park Nr' },
+      { id: 'OTA/NON OTA', label: 'OTA' },
+      { id: 'OWN/SUBLET', label: 'Own/Sub' },
+      { id: 'STREET NAME', label: 'Street' },
+      { id: 'STREET NUMBER', label: 'Nr' },
+      { id: 'PINCODE', label: 'Zip' },
+      { id: 'CITY', label: 'City' },
+      { id: 'CANTON', label: 'Canton' },
+      { id: 'COUNTRY', label: 'Country' },
+      { id: 'Location - Coordinates (Lat/Long)', label: 'GPS' },
+      { id: 'FLOOR', label: 'Floor' },
+      { id: 'POSITION', label: 'Pos' },
+      { id: 'NO OF ROOMS', label: 'Rooms' },
+      { id: 'APARTMENT SIZE(SQM)', label: 'Size' },
+      { id: 'INDEPENDENT / SHARING', label: 'Ind/Shr' },
+      { id: 'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE', label: 'Status' },
+      { id: 'RENT START DATE', label: 'Rent Start' },
+      { id: 'RENT END DATE', label: 'Rent End' },
+      { id: 'KEYSAFE CODE', label: 'Key' },
+      { id: 'Blob for AI', label: 'AI Blob' },
+      { id: 'GDRIVE URL FOR IMAGES & VIDEOS', label: 'GDrive' },
+      { id: 'REMARKS', label: 'Remarks' }
     ];
 
     const loader = document.getElementById('loader-bar');
@@ -962,7 +1035,12 @@
     const hideLoader = () => loader.style.display = 'none';
 
     // ─── INIT ───
-    window.onload = async () => { await loadCollections(); await loadStats(); loadData(); };
+    window.onload = async () => {
+      document.getElementById('view-table').style.display = 'none';
+      await loadCollections();
+      await loadStats();
+    };
+
 
     // ─── COLLECTIONS ───
     async function loadCollections() {
@@ -988,14 +1066,19 @@
 
       if (tab === 'dashboard') {
         document.getElementById('view-dashboard').style.display = 'block';
+        document.getElementById('view-table').style.display = 'none';
         document.getElementById('page-title').innerText = 'Dashboard';
         document.getElementById('page-sub').innerText = 'Real-time data from MongoDB';
+        loadStats();
         return;
       }
 
       document.getElementById('view-dashboard').style.display = 'none';
+      document.getElementById('view-table').style.display = 'block';
       curCol = tab;
       curPage = 1;
+      curSortBy = '_id';
+      curSortOrder = -1;
       document.getElementById('searchInput').value = '';
       document.getElementById('page-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
       document.getElementById('page-sub').innerText = `Browsing collection: ${tab}`;
@@ -1004,24 +1087,41 @@
 
     // ─── STATS ───
     async function loadStats() {
-      showLoader();
-      const d = await fetch('/api/stats').then(r => r.json());
-      hideLoader();
-      if (!d.success) return;
-
-      document.getElementById('k-total').innerText = d.sinhasrealty_data?.total ?? '—';
-      document.getElementById('k-occ').innerText = d.sinhasrealty_data?.occupied ?? '—';
-      document.getElementById('k-avail').innerText = d.sinhasrealty_data?.available ?? '—';
-      document.getElementById('k-bldg').innerText = d.buildings ?? '—';
-
-      const pills = document.getElementById('stat-pills');
-      pills.innerHTML = `
-      <div class="stat-pill"><strong>${d.apartments?.total ?? 0}</strong> Apartments</div>
-      <div class="stat-pill"><strong>${d.buildings ?? 0}</strong> Buildings</div>
-      <div class="stat-pill"><strong>${d.cities ?? 0}</strong> Cities</div>`;
-
-      renderCharts(d);
+      const btn = document.getElementById('refresh-btn');
+      if(btn) { btn.style.transition = 'transform 0.5s ease'; btn.style.transform = 'rotate(360deg)'; }
+      
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (data.success) {
+          const s = data.stats || {};
+          document.getElementById('stat-total').innerText = s.total ?? '—';
+          document.getElementById('stat-occupied').innerText = s.occupied ?? '—';
+          document.getElementById('stat-available').innerText = s.available ?? '—';
+          document.getElementById('stat-cities').innerText = (data.charts?.cities?.length) ?? '—';
+          document.getElementById('last-updated').innerText = new Date().toLocaleTimeString();
+          renderCharts(data);
+        } else {
+          console.error('Stats API error:', data.message, data.trace);
+        }
+      } catch (e) { 
+        console.error('Stats fetch error:', e); 
+      } finally {
+        setTimeout(() => { if(btn) btn.style.transform = 'rotate(0deg)'; }, 600);
+      }
     }
+
+    // ─── REAL-TIME HEARTBEAT ───
+    setInterval(() => {
+      console.log('Real-time sync triggered...');
+      loadStats();
+      if(curCol) loadData(); 
+    }, 30000);
+
+    window.manualRefresh = () => {
+      loadStats();
+      loadData();
+    };
 
     function mkChart(id, type, labels, data, colors) {
       if (charts[id]) charts[id].destroy();
@@ -1057,16 +1157,65 @@
       });
     }
 
-    function renderCharts(d) {
-      mkChart('occChart', 'doughnut',
-        ['Occupied', 'Available'],
-        [d.sinhasrealty_data?.occupied ?? 0, d.sinhasrealty_data?.available ?? 0],
-        ['#6366f1', '#34d399']);
+    function renderCharts(data) {
+      const c = data.charts || {};
 
-      const cities = d.sinhasrealty_data?.city_distribution ?? {};
-      const topCities = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 7);
-      mkChart('cityChart', 'bar', topCities.map(c => c[0]), topCities.map(c => c[1]),
-        ['#6366f1', '#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f87171', '#818cf8']);
+      // Row 1: Occupancy doughnut (array of {label,value}) + Cities bar
+      const occ = c.occupancy || [];
+      if (occ.length > 0) {
+        mkChart('occChart', 'doughnut',
+          occ.map(o => o.label),
+          occ.map(o => o.value),
+          ['#6366f1','#34d399','#f87171','#fbbf24','#a78bfa']
+        );
+      }
+
+      const cities = c.cities || [];
+      if (cities.length > 0) {
+        mkChart('cityChart', 'bar',
+          cities.map(ci => ci.label),
+          cities.map(ci => ci.value),
+          ['#fbbf24','#f87171','#34d399','#22d3ee','#a78bfa','#6366f1','#fb923c','#e879f9','#4ade80','#38bdf8']
+        );
+      }
+
+      // Row 2: Property Types bar + Class doughnut
+      const types = c.types || [];
+      if (types.length > 0) {
+        mkChart('typeChart', 'bar',
+          types.map(t => t.label),
+          types.map(t => t.value),
+          ['#a78bfa','#22d3ee','#6366f1','#34d399','#f87171','#fbbf24']
+        );
+      }
+
+      const classes = c.classes || [];
+      if (classes.length > 0) {
+        mkChart('classChart', 'doughnut',
+          classes.map(cl => cl.label),
+          classes.map(cl => cl.value),
+          ['#6366f1','#22d3ee','#34d399','#f87171']
+        );
+      }
+
+      // Row 3: OTA doughnut + Canton bar
+      const otas = c.otas || [];
+      if (otas.length > 0) {
+        mkChart('otaChart', 'doughnut',
+          otas.map(o => o.label),
+          otas.map(o => o.value),
+          ['#a78bfa','#fbbf24','#34d399','#f87171']
+        );
+      }
+
+      const cantons = c.cantons || [];
+      if (cantons.length > 0) {
+        mkChart('cantonChart', 'bar',
+          cantons.map(cn => cn.label),
+          cantons.map(cn => cn.value),
+          ['#6366f1','#34d399','#fbbf24','#f87171','#22d3ee','#a78bfa','#fb923c','#e879f9']
+        );
+      }
     }
 
     // ─── TABLE DATA ───
@@ -1079,7 +1228,8 @@
       showLoader();
       const q = document.getElementById('searchInput').value;
       const limit = force ?? curLimit;
-      const res = await fetch(`/api/data/${encodeURIComponent(curCol)}?page=${curPage}&limit=${limit}&search=${encodeURIComponent(q)}`).then(r => r.json());
+      const url = `/api/data/${encodeURIComponent(curCol)}?page=${curPage}&limit=${limit}&search=${encodeURIComponent(q)}&sort=${encodeURIComponent(curSortBy)}&order=${curSortOrder}`;
+      const res = await fetch(url).then(r => r.json());
       hideLoader();
 
       document.getElementById('table-title').innerText = curCol.charAt(0).toUpperCase() + curCol.slice(1);
@@ -1101,8 +1251,8 @@
       }
 
       // Define fixed column mapping and order
-      const colMap = (curCol === 'sinhasrealty data' || curCol === 'apartments') ? PROPERTY_COL_MAP : [];
-      
+      const colMap = (curCol === 'property details data' || curCol === 'apartments') ? PROPERTY_COL_MAP : [];
+
       // If no fixed map (unknown collection), generate from data keys
       const displayCols = colMap.length > 0 ? colMap : Object.keys(rows[0]).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
 
@@ -1110,7 +1260,14 @@
       // Here we use the map as-is but handle missing data with —
       displayCols.forEach(col => {
         const th = document.createElement('th');
-        th.innerText = col.label.toUpperCase();
+        if (curSortBy === col.id) {
+          th.classList.add('sort-active');
+          const icon = curSortOrder === 1 ? '▲' : '▼';
+          th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">${icon}</span>`;
+        } else {
+          th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">↕</span>`;
+        }
+        th.onclick = () => handleSort(col.id);
         thead.appendChild(th);
       });
       const actTh = document.createElement('th');
@@ -1132,7 +1289,7 @@
           if (typeof v === 'object' && v !== null) v = JSON.stringify(v);
           if (v === null || v === undefined || v === '') v = '—';
 
-          if (col.id === 'Status' || col.id.toLowerCase().includes('status')) {
+          if (col.id === 'Status' || col.id === 'OCCUPIED/VACANT/PARTIALLY OCCUPIED' || col.id.toLowerCase().includes('status')) {
             const isOk = String(v).toLowerCase().includes('available') || String(v).toLowerCase() === 'true';
             td.innerHTML = `<span class="${isOk ? 'badge-ok' : 'badge-err'}">${v}</span>`;
           } else {
@@ -1161,8 +1318,8 @@
       body.innerHTML = '';
 
       // Use standardized keys for all property-like collections
-      const colMap = (curCol === 'sinhasrealty data' || curCol === 'apartments') ? PROPERTY_COL_MAP : 
-                     Object.keys(row).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
+      const colMap = (curCol === 'property details data' || curCol === 'apartments') ? PROPERTY_COL_MAP :
+        Object.keys(row).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
 
       colMap.forEach(col => {
         let v = row[col.id];
@@ -1240,6 +1397,17 @@
       } catch (e) {
         alert('Fetch Error: ' + e.message);
       }
+    }
+
+    function handleSort(id) {
+      if (curSortBy === id) {
+        curSortOrder = curSortOrder === 1 ? -1 : 1;
+      } else {
+        curSortBy = id;
+        curSortOrder = 1;
+      }
+      curPage = 1;
+      loadData();
     }
   </script>
 
