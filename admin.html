@@ -373,6 +373,45 @@
       position: relative;
     }
 
+    /* ─── CHART LEGEND TABLE ─── */
+    .chart-legend-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.78rem;
+    }
+    .chart-legend-table thead tr {
+      background: rgba(255,255,255,0.04);
+    }
+    .chart-legend-table th {
+      padding: 6px 10px;
+      text-align: left;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .chart-legend-table th:last-child { text-align: right; }
+    .chart-legend-table td {
+      padding: 5px 10px;
+      color: var(--text);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      vertical-align: middle;
+    }
+    .chart-legend-table td:last-child { text-align: right; font-weight: 700; color: var(--primary-lt); }
+    .chart-legend-table tr:last-child td { border-bottom: none; }
+    .chart-legend-table tr:hover td { background: rgba(255,255,255,0.025); }
+    .legend-swatch {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 3px;
+      margin-right: 7px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
     /* ─── TABLE SECTION ─── */
     .table-section {
       background: var(--surface);
@@ -874,6 +913,7 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="occChart"></canvas></div>
+          <div id="occTable"></div>
         </div>
         <div class="chart-card">
           <div class="chart-card-header">
@@ -883,6 +923,7 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="cityChart"></canvas></div>
+          <div id="cityTable"></div>
         </div>
       </div>
 
@@ -896,6 +937,7 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="typeChart"></canvas></div>
+          <div id="typeTable"></div>
         </div>
         <div class="chart-card">
           <div class="chart-card-header">
@@ -905,6 +947,7 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="classChart"></canvas></div>
+          <div id="classTable"></div>
         </div>
       </div>
 
@@ -918,6 +961,7 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="otaChart"></canvas></div>
+          <div id="otaTable"></div>
         </div>
         <div class="chart-card">
           <div class="chart-card-header">
@@ -927,6 +971,7 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="cantonChart"></canvas></div>
+          <div id="cantonTable"></div>
         </div>
       </div>
     </div>
@@ -1123,6 +1168,26 @@
       loadData();
     };
 
+    // Build a mini legend table next to each chart
+    function mkDataTable(containerId, labels, values, colors) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const total = values.reduce((a, b) => a + b, 0);
+      let html = `<table class="chart-legend-table">
+        <thead><tr><th>Label</th><th>Count</th><th style="text-align:right">%</th></tr></thead><tbody>`;
+      labels.forEach((lbl, i) => {
+        const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+        const color = Array.isArray(colors) ? (colors[i] || colors[colors.length - 1]) : colors;
+        html += `<tr>
+          <td><span class="legend-swatch" style="background:${color}"></span>${lbl}</td>
+          <td style="text-align:center;font-weight:700;color:var(--primary-lt)">${values[i]}</td>
+          <td>${pct}%</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      el.innerHTML = html;
+    }
+
     function mkChart(id, type, labels, data, colors) {
       if (charts[id]) charts[id].destroy();
       const ctx = document.getElementById(id).getContext('2d');
@@ -1133,10 +1198,10 @@
           datasets: [{
             data,
             backgroundColor: colors,
-            borderColor: type === 'bar' ? colors : '#0a0f1e',
+            borderColor: type === 'bar' ? 'transparent' : '#0a0f1e',
             borderWidth: type === 'bar' ? 0 : 2,
             borderRadius: type === 'bar' ? 6 : 0,
-            hoverOffset: 4
+            hoverOffset: 8
           }]
         },
         options: {
@@ -1145,13 +1210,38 @@
             legend: {
               display: type !== 'bar',
               position: 'right',
-              labels: { color: '#94a3b8', font: { size: 12, weight: '600' }, padding: 12 }
+              labels: { color: '#94a3b8', font: { size: 11, weight: '600' }, padding: 10, boxWidth: 12 }
             },
-            tooltip: { bodyFont: { weight: '600' } }
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(99,102,241,0.4)',
+              borderWidth: 1,
+              padding: 12,
+              titleFont: { size: 13, weight: '700' },
+              bodyFont: { size: 12, weight: '600' },
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.parsed.y !== undefined ? ctx.parsed.y : ctx.parsed;
+                  const ds = ctx.dataset.data;
+                  const total = ds.reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+                  return `  Count: ${val}  (${pct}%)`;
+                }
+              }
+            }
           },
           scales: type === 'bar' ? {
-            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b' }, border: { color: 'rgba(255,255,255,0.04)' } },
-            x: { grid: { display: false }, ticks: { color: '#64748b' }, border: { color: 'rgba(255,255,255,0.04)' } }
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: { color: '#64748b', precision: 0 },
+              border: { color: 'rgba(255,255,255,0.04)' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#64748b', maxRotation: 30 },
+              border: { color: 'rgba(255,255,255,0.04)' }
+            }
           } : undefined
         }
       });
@@ -1159,62 +1249,52 @@
 
     function renderCharts(data) {
       const c = data.charts || {};
+      const COLORS = {
+        occ:    ['#6366f1','#34d399','#f87171','#fbbf24','#a78bfa'],
+        city:   ['#fbbf24','#f87171','#34d399','#22d3ee','#a78bfa','#6366f1','#fb923c','#e879f9','#4ade80','#38bdf8'],
+        type:   ['#a78bfa','#22d3ee','#6366f1','#34d399','#f87171','#fbbf24'],
+        cls:    ['#6366f1','#22d3ee','#34d399','#f87171'],
+        ota:    ['#a78bfa','#fbbf24','#34d399','#f87171'],
+        canton: ['#6366f1','#34d399','#fbbf24','#f87171','#22d3ee','#a78bfa','#fb923c','#e879f9']
+      };
 
-      // Row 1: Occupancy doughnut (array of {label,value}) + Cities bar
+      // Row 1: Occupancy doughnut + Cities bar
       const occ = c.occupancy || [];
       if (occ.length > 0) {
-        mkChart('occChart', 'doughnut',
-          occ.map(o => o.label),
-          occ.map(o => o.value),
-          ['#6366f1','#34d399','#f87171','#fbbf24','#a78bfa']
-        );
+        mkChart('occChart', 'doughnut', occ.map(o => o.label), occ.map(o => o.value), COLORS.occ);
+        mkDataTable('occTable', occ.map(o => o.label), occ.map(o => o.value), COLORS.occ);
       }
 
       const cities = c.cities || [];
       if (cities.length > 0) {
-        mkChart('cityChart', 'bar',
-          cities.map(ci => ci.label),
-          cities.map(ci => ci.value),
-          ['#fbbf24','#f87171','#34d399','#22d3ee','#a78bfa','#6366f1','#fb923c','#e879f9','#4ade80','#38bdf8']
-        );
+        mkChart('cityChart', 'bar', cities.map(ci => ci.label), cities.map(ci => ci.value), COLORS.city);
+        mkDataTable('cityTable', cities.map(ci => ci.label), cities.map(ci => ci.value), COLORS.city);
       }
 
       // Row 2: Property Types bar + Class doughnut
       const types = c.types || [];
       if (types.length > 0) {
-        mkChart('typeChart', 'bar',
-          types.map(t => t.label),
-          types.map(t => t.value),
-          ['#a78bfa','#22d3ee','#6366f1','#34d399','#f87171','#fbbf24']
-        );
+        mkChart('typeChart', 'bar', types.map(t => t.label), types.map(t => t.value), COLORS.type);
+        mkDataTable('typeTable', types.map(t => t.label), types.map(t => t.value), COLORS.type);
       }
 
       const classes = c.classes || [];
       if (classes.length > 0) {
-        mkChart('classChart', 'doughnut',
-          classes.map(cl => cl.label),
-          classes.map(cl => cl.value),
-          ['#6366f1','#22d3ee','#34d399','#f87171']
-        );
+        mkChart('classChart', 'doughnut', classes.map(cl => cl.label), classes.map(cl => cl.value), COLORS.cls);
+        mkDataTable('classTable', classes.map(cl => cl.label), classes.map(cl => cl.value), COLORS.cls);
       }
 
       // Row 3: OTA doughnut + Canton bar
       const otas = c.otas || [];
       if (otas.length > 0) {
-        mkChart('otaChart', 'doughnut',
-          otas.map(o => o.label),
-          otas.map(o => o.value),
-          ['#a78bfa','#fbbf24','#34d399','#f87171']
-        );
+        mkChart('otaChart', 'doughnut', otas.map(o => o.label), otas.map(o => o.value), COLORS.ota);
+        mkDataTable('otaTable', otas.map(o => o.label), otas.map(o => o.value), COLORS.ota);
       }
 
       const cantons = c.cantons || [];
       if (cantons.length > 0) {
-        mkChart('cantonChart', 'bar',
-          cantons.map(cn => cn.label),
-          cantons.map(cn => cn.value),
-          ['#6366f1','#34d399','#fbbf24','#f87171','#22d3ee','#a78bfa','#fb923c','#e879f9']
-        );
+        mkChart('cantonChart', 'bar', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton);
+        mkDataTable('cantonTable', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton);
       }
     }
 
