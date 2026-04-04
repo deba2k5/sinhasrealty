@@ -425,7 +425,7 @@ def get_collections():
 
 if __name__ == '__main__':
     print(f"=====================================")
-    print(f" Sinha's GmBH Portal Backend Started ")
+    print(f" Sinha's GmbH Portal Backend Started ")
     print(f"=====================================")
     print(f" Connected DB: {MONGO_URI}")
     print(f" Dashboard is live at: http://localhost:5000")
