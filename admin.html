@@ -904,10 +904,23 @@
       box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
     }
 
-    .btn-export.pdf { border-color: rgba(248, 113, 113, 0.3); }
-    .btn-export.pdf:hover { border-color: var(--red); box-shadow: 0 0 15px rgba(248, 113, 113, 0.2); }
-    .btn-export.excel { border-color: rgba(52, 211, 153, 0.3); }
-    .btn-export.excel:hover { border-color: var(--green); box-shadow: 0 0 15px rgba(52, 211, 153, 0.2); }
+    .btn-export.pdf {
+      border-color: rgba(248, 113, 113, 0.3);
+    }
+
+    .btn-export.pdf:hover {
+      border-color: var(--red);
+      box-shadow: 0 0 15px rgba(248, 113, 113, 0.2);
+    }
+
+    .btn-export.excel {
+      border-color: rgba(52, 211, 153, 0.3);
+    }
+
+    .btn-export.excel:hover {
+      border-color: var(--green);
+      box-shadow: 0 0 15px rgba(52, 211, 153, 0.2);
+    }
   </style>
 </head>
 
@@ -951,7 +964,8 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
           <div id="table-sub" style="color: var(--muted); font-size: 0.9rem;">— total records</div>
-          <div id="filter-badge" style="display:none; align-items:center; gap:8px; background:var(--primary); color:#fff; padding:4px 10px; border-radius:100px; font-size:0.75rem; margin-top:8px;">
+          <div id="filter-badge"
+            style="display:none; align-items:center; gap:8px; background:var(--primary); color:#fff; padding:4px 10px; border-radius:100px; font-size:0.75rem; margin-top:8px;">
             <!-- Dynamic Content -->
           </div>
           <div id="page-sub" style="color: var(--muted2); font-size: 0.9rem; margin-bottom: 4px;">Direct data management
@@ -1149,7 +1163,7 @@
     let curLimit = 50;
     let dTimer;
     let curSortBy = '_id';
-    let curSortOrder = -1; // -1 = desc, 1 = asc
+    let curSortOrder = -1; // 
     let editId = null;
     let curFilterCol = '';
     let curFilterVal = '';
@@ -1740,7 +1754,7 @@
               styles: { fontSize: 8, cellPadding: 2 },
               columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } }
             });
-            
+
             // Advance Y based on the larger of the two
             const tableEndY = pdf.lastAutoTable.finalY + 10;
             const imgEndY = currY + imgHeight + 10;
@@ -1780,7 +1794,7 @@
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);
 
-    const ADMIN_EMAILS = ['rajeev@sinhas.ch', 'soumika@sinhas.ch', 'rishu@sinhas.ch', 'nirmalya@sinhas.ch', 'debangshu@sinhas.ch'];
+    const ADMIN_EMAILS = ['rajeev@sinhas.ch', 'soumika@sinhas.ch', 'megha@sinhas.ch', 'rishu@sinhas.ch', 'nirmalya@sinhas.ch', 'debangshu@sinhas.ch'];
 
     onAuthStateChanged(auth, user => {
       if (!user) {
