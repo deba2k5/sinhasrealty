@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sinharealty-portal
+    name: Sinha's_GmBH-portal
     env: python
     region: frankfurt
     plan: free
