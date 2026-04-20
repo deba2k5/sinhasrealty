@@ -1098,6 +1098,78 @@
           <div id="cantonTable"></div>
         </div>
       </div>
+
+      <!-- ─── PHYSICAL ATTRIBUTES SECTION ─── -->
+      <div style="margin: 2.5rem 0 1rem; padding: 1.2rem 1.5rem; background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.22); border-radius: 14px; display:flex; align-items:center; gap:14px;">
+        <span style="font-size:1.6rem;">🏗️</span>
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:800; color:var(--primary-lt); margin-bottom:2px;">Physical Attributes</h3>
+          <p style="font-size:0.82rem; color:var(--muted2);">Building infrastructure &amp; feature coverage — <span id="pa-records-count" style="color:var(--accent); font-weight:700;">—</span> property records</p>
+        </div>
+      </div>
+
+      <!-- PA KPI ROW -->
+      <div class="kpi-grid" style="margin-bottom:1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <span class="kpi-label">Total PA Records</span>
+          <span class="kpi-value" id="pa-stat-total">—</span>
+          <span class="kpi-sub">in physical_attributes</span>
+        </div>
+        <div class="kpi-card kpi-green">
+          <span class="kpi-label">Have Address</span>
+          <span class="kpi-value" id="pa-stat-address">—</span>
+          <span class="kpi-sub">properties with address</span>
+        </div>
+        <div class="kpi-card kpi-yellow">
+          <span class="kpi-label">Attributes Filled</span>
+          <span class="kpi-value" id="pa-stat-filled">—</span>
+          <span class="kpi-sub">fully populated records</span>
+        </div>
+        <div class="kpi-card kpi-red">
+          <span class="kpi-label">Pending Entry</span>
+          <span class="kpi-value" id="pa-stat-pending">—</span>
+          <span class="kpi-sub">awaiting data input</span>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW PA1 -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Attribute Fill Rate</h3>
+              <p>Completed vs pending physical attribute records</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="paFillChart"></canvas></div>
+          <div id="paFillTable"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Address Coverage</h3>
+              <p>Properties with vs without address data</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="paAddressChart"></canvas></div>
+          <div id="paAddressTable"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW PA2 -->
+      <div class="chart-grid">
+        <div class="chart-card" style="grid-column: span 2;">
+          <div class="chart-card-header">
+            <div>
+              <h3>Physical Attributes — Properties by City</h3>
+              <p>Top cities from physical_attributes address data</p>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px;"><canvas id="paCityChart"></canvas></div>
+          <div id="paCityTable"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- TABLE VIEW -->
@@ -1443,6 +1515,48 @@
         mkChart('cantonChart', 'bar', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton, 'CANTON');
         mkDataTable('cantonTable', cantons.map(cn => cn.label), cantons.map(cn => cn.value), COLORS.canton);
       }
+
+      // ─── PHYSICAL ATTRIBUTES CHARTS ───
+      const PA_COLORS = {
+        fill:    ['#22d3ee', '#1e293b'],
+        address: ['#34d399', '#f87171'],
+        city:    ['#6366f1','#a78bfa','#22d3ee','#34d399','#fbbf24','#f87171','#fb923c','#e879f9','#4ade80','#38bdf8']
+      };
+
+      // KPI cards
+      const paTotal = data.charts?.pa_total ?? '—';
+      const paRecords = data.charts?.pa_records ?? '—';
+      const paFill  = (data.charts?.pa_fill_rate || []);
+      const paAddr  = (data.charts?.pa_address_coverage || []);
+      const paFilled  = paFill[0]?.value ?? 0;
+      const paPending = paFill[1]?.value ?? 0;
+      const paHasAddr = paAddr[0]?.value ?? 0;
+
+      const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+      setEl('pa-stat-total',   paTotal);
+      setEl('pa-stat-address', paHasAddr);
+      setEl('pa-stat-filled',  paFilled);
+      setEl('pa-stat-pending', paPending);
+      setEl('pa-records-count', paRecords);
+
+      // Attribute fill rate doughnut
+      if (paFill.length > 0) {
+        mkChart('paFillChart', 'doughnut', paFill.map(d => d.label), paFill.map(d => d.value), PA_COLORS.fill);
+        mkDataTable('paFillTable', paFill.map(d => d.label), paFill.map(d => d.value), PA_COLORS.fill);
+      }
+
+      // Address coverage doughnut
+      if (paAddr.length > 0) {
+        mkChart('paAddressChart', 'doughnut', paAddr.map(d => d.label), paAddr.map(d => d.value), PA_COLORS.address);
+        mkDataTable('paAddressTable', paAddr.map(d => d.label), paAddr.map(d => d.value), PA_COLORS.address);
+      }
+
+      // City distribution bar
+      const paCities = c.pa_cities || [];
+      if (paCities.length > 0) {
+        mkChart('paCityChart', 'bar', paCities.map(pc => pc.label), paCities.map(pc => pc.value), PA_COLORS.city);
+        mkDataTable('paCityTable', paCities.map(pc => pc.label), paCities.map(pc => pc.value), PA_COLORS.city);
+      }
     }
 
     // ─── TABLE DATA ───
@@ -1578,25 +1692,43 @@
       document.getElementById('editOverlay').style.display = 'flex';
     }
 
-    function openAddModal() {
+    async function openAddModal() {
       editId = null;
       document.getElementById('modal-title').innerText = 'Add New Record';
       document.getElementById('modal-sub').innerText = `Creating new document in ${curCol}`;
       document.getElementById('saveBtn').innerText = 'Create Record';
 
       const body = document.getElementById('modal-body');
-      body.innerHTML = '';
+      body.innerHTML = '<div style="color:var(--muted2);padding:1rem;">Loading fields…</div>';
+      document.getElementById('editOverlay').style.display = 'flex';
 
-      const colMap = PROPERTY_COL_MAP;
+      let colMap;
+
+      if (curCol === 'property details data' || curCol === 'apartments') {
+        colMap = PROPERTY_COL_MAP;
+      } else {
+        // Fetch a sample document to auto-detect fields for this collection
+        try {
+          const res = await fetch(`/api/data/${encodeURIComponent(curCol)}?page=1&limit=1`).then(r => r.json());
+          const sample = (res.data && res.data.length > 0) ? res.data[0] : {};
+          colMap = Object.keys(sample).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
+        } catch(e) {
+          colMap = [];
+        }
+      }
+
+      body.innerHTML = '';
+      if (colMap.length === 0) {
+        body.innerHTML = '<p style="color:var(--muted2);padding:1rem;">No fields available. Add a record manually via the API.</p>';
+        return;
+      }
 
       colMap.forEach(col => {
         const div = document.createElement('div');
         div.className = 'field-row';
-        div.innerHTML = `<label>${col.label}</label><input id="ef_${col.id}" data-key="${col.id}" value="" placeholder="Enter ${col.label.toLowerCase()}...">`;
+        div.innerHTML = `<label>${col.label}</label><input id="ef_${CSS.escape(col.id)}" data-key="${col.id}" value="" placeholder="Enter value…">`;
         body.appendChild(div);
       });
-
-      document.getElementById('editOverlay').style.display = 'flex';
     }
 
     function closeModal() { document.getElementById('editOverlay').style.display = 'none'; editId = null; }

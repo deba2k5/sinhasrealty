@@ -428,6 +428,43 @@ def get_stats():
         ]
         cantons_data = list(sinhas_col.aggregate(pipeline_cantons))
 
+        # ─── PHYSICAL ATTRIBUTES STATS ───
+        pa_col = get_db()['physical_attributes']
+        pa_total = pa_col.count_documents({})
+
+        # Skip the first 3 metadata rows (ALLOWED VALUES, DESCRIPTION, PROPERTY_ID labels)
+        id_field = 'PROPERTY_ID - DATA TYPE'
+        METADATA_IDS = ['ALLOWED VALUES', 'DESCRIPTION', 'PROPERTY_ID']
+        pa_filter = {id_field: {"$nin": METADATA_IDS, "$exists": True, "$ne": None}}
+
+        pa_records = pa_col.count_documents(pa_filter)
+
+        # Count filled vs unfilled records (has BUILDING - NUMBER populated)
+        pa_filled = pa_col.count_documents({**pa_filter, 'BUILDING - NUMBER': {"$ne": None}})
+        pa_empty  = pa_records - pa_filled
+
+        # Lift availability
+        pa_lift_yes = pa_col.count_documents({**pa_filter, 'LIFT - BOOL': {"$nin": [None]}})
+        pa_lift_no  = pa_records - pa_lift_yes
+
+        # Parking availability
+        pa_parking_yes = pa_col.count_documents({**pa_filter, 'PARKING - SELECT': {"$nin": [None]}})
+        pa_parking_no  = pa_records - pa_parking_yes
+
+        # Address coverage (has address)
+        pa_has_address = pa_col.count_documents({**pa_filter, 'ADDRESS': {"$ne": None}})
+
+        # Category breakdown by address city (extract city from "Street, Zip City" format)
+        pipeline_pa_cities = [
+            {"$match": {**pa_filter, "ADDRESS": {"$type": "string"}}},
+            {"$project": {"city_raw": {"$trim": {"input": {"$arrayElemAt": [{"$split": ["$ADDRESS", ","]}, -1]}}}}},
+            {"$project": {"city": {"$trim": {"input": {"$arrayElemAt": [{"$split": ["$city_raw", " "]}, -1]}}}}},
+            {"$group": {"_id": "$city", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        pa_cities_data = list(pa_col.aggregate(pipeline_pa_cities))
+
         return jsonify({
             "success": True,
             "stats": {
@@ -448,7 +485,18 @@ def get_stats():
                 "cities": [{"label": safe_str(c['_id']), "value": c['count']} for c in cities_data if safe_str(c['_id'])],
                 "classes": [{"label": safe_str(cl['_id']), "value": cl['count']} for cl in class_data if safe_str(cl['_id'])],
                 "otas": [{"label": safe_str(o['_id']), "value": o['count']} for o in ota_data if safe_str(o['_id'])],
-                "cantons": [{"label": safe_str(cn['_id']), "value": cn['count']} for cn in cantons_data if safe_str(cn['_id'])]
+                "cantons": [{"label": safe_str(cn['_id']), "value": cn['count']} for cn in cantons_data if safe_str(cn['_id'])],
+                "pa_fill_rate": [
+                    {"label": "Attributes Filled", "value": pa_filled},
+                    {"label": "Pending Entry", "value": pa_empty}
+                ],
+                "pa_address_coverage": [
+                    {"label": "Has Address", "value": pa_has_address},
+                    {"label": "Missing Address", "value": pa_records - pa_has_address}
+                ],
+                "pa_cities": [{"label": safe_str(pc['_id']), "value": pc['count']} for pc in pa_cities_data if safe_str(pc['_id'])],
+                "pa_total": pa_total,
+                "pa_records": pa_records
             }
         })
     except Exception as e:
