@@ -1190,8 +1190,7 @@
       </div>
       <div style="overflow-x: auto;">
         <table>
-          <thead>
-            <tr id="thead"></tr>
+          <thead id="table-head">
           </thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -1240,6 +1239,7 @@
     let curFilterCol = '';
     let curFilterVal = '';
     let charts = {};
+    let curSchema = [];
 
     // Standardized key mapping for property records (shared between Manual Entry and Admin)
     const PROPERTY_COL_MAP = [
@@ -1570,6 +1570,19 @@
       const q = document.getElementById('searchInput').value;
       const limit = force ?? curLimit;
       const url = `/api/data/${encodeURIComponent(curCol)}?page=${curPage}&limit=${limit}&search=${encodeURIComponent(q)}&sort=${encodeURIComponent(curSortBy)}&order=${curSortOrder}&f_col=${encodeURIComponent(curFilterCol)}&f_val=${encodeURIComponent(curFilterVal)}`;
+      
+      // Fetch schema if available
+      try {
+        const schemaRes = await fetch(`/api/schema/${encodeURIComponent(curCol)}`).then(r => r.json());
+        if (schemaRes.success && schemaRes.schema) {
+           curSchema = schemaRes.schema;
+        } else {
+           curSchema = [];
+        }
+      } catch(e) {
+        curSchema = [];
+      }
+
       const res = await fetch(url).then(r => r.json());
       hideLoader();
 
@@ -1597,7 +1610,7 @@
     }
 
     function renderTable(rows) {
-      const thead = document.getElementById('thead');
+      const thead = document.getElementById('table-head');
       const tbody = document.getElementById('tbody');
       thead.innerHTML = '';
       tbody.innerHTML = '';
@@ -1607,28 +1620,80 @@
       }
 
       // Define fixed column mapping and order
-      const colMap = (curCol === 'property details data' || curCol === 'apartments') ? PROPERTY_COL_MAP : [];
+      let displayCols = [];
+      let schemaDriven = false;
 
-      // If no fixed map (unknown collection), generate from data keys
-      const displayCols = colMap.length > 0 ? colMap : Object.keys(rows[0]).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
+      if (curCol === 'property details data' || curCol === 'apartments') {
+         displayCols = PROPERTY_COL_MAP;
+      } else if (curSchema && curSchema.length > 0) {
+         schemaDriven = true;
+         displayCols = curSchema.map(s => ({ id: s.field, label: s.field, desc: s.description, cat: s.category, dtype: s.dtype }));
+      } else {
+         displayCols = Object.keys(rows[0]).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
+      }
 
-      // Filter mapping by checking if keys exist in rows (optional, but safer)
-      // Here we use the map as-is but handle missing data with —
-      displayCols.forEach(col => {
-        const th = document.createElement('th');
-        if (curSortBy === col.id) {
-          th.classList.add('sort-active');
-          const icon = curSortOrder === 1 ? '▲' : '▼';
-          th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">${icon}</span>`;
-        } else {
-          th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">↕</span>`;
-        }
-        th.onclick = () => handleSort(col.id);
-        thead.appendChild(th);
-      });
-      const actTh = document.createElement('th');
-      actTh.innerText = 'ACTIONS';
-      thead.appendChild(actTh);
+      if (schemaDriven) {
+         const trCat = document.createElement('tr');
+         const trField = document.createElement('tr');
+         
+         let currentCat = null;
+         let catSpan = 0;
+         let catTh = null;
+         
+         displayCols.forEach(col => {
+            const thF = document.createElement('th');
+            if (curSortBy === col.id) {
+              thF.classList.add('sort-active');
+              const icon = curSortOrder === 1 ? '▲' : '▼';
+              thF.innerHTML = `<span title="${col.desc || ''}">${col.label}</span> <br><small style="color:#aaa">${col.dtype || ''}</small> <span class="sort-icon">${icon}</span>`;
+            } else {
+              thF.innerHTML = `<span title="${col.desc || ''}">${col.label}</span> <br><small style="color:#aaa">${col.dtype || ''}</small> <span class="sort-icon">↕</span>`;
+            }
+            thF.onclick = () => handleSort(col.id);
+            trField.appendChild(thF);
+            
+            if (col.cat === currentCat && currentCat !== null) {
+               catSpan++;
+               if(catTh) catTh.colSpan = catSpan;
+            } else {
+               currentCat = col.cat;
+               catSpan = 1;
+               catTh = document.createElement('th');
+               catTh.innerText = currentCat || 'General';
+               catTh.style.borderBottom = "1px solid rgba(99,102,241,0.3)";
+               catTh.style.textAlign = "center";
+               catTh.style.color = "var(--primary-lt)";
+               trCat.appendChild(catTh);
+            }
+         });
+         
+         const actCatTh = document.createElement('th');
+         actCatTh.rowSpan = 2;
+         actCatTh.innerText = 'ACTIONS';
+         actCatTh.style.verticalAlign = 'middle';
+         trCat.appendChild(actCatTh);
+         
+         thead.appendChild(trCat);
+         thead.appendChild(trField);
+      } else {
+        const tr = document.createElement('tr');
+        displayCols.forEach(col => {
+          const th = document.createElement('th');
+          if (curSortBy === col.id) {
+            th.classList.add('sort-active');
+            const icon = curSortOrder === 1 ? '▲' : '▼';
+            th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">${icon}</span>`;
+          } else {
+            th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">↕</span>`;
+          }
+          th.onclick = () => handleSort(col.id);
+          tr.appendChild(th);
+        });
+        const actTh = document.createElement('th');
+        actTh.innerText = 'ACTIONS';
+        tr.appendChild(actTh);
+        thead.appendChild(tr);
+      }
 
       rows.forEach(row => {
         const tr = document.createElement('tr');
@@ -1674,8 +1739,14 @@
       body.innerHTML = '';
 
       // Use standardized keys for all property-like collections
-      const colMap = (curCol === 'property details data' || curCol === 'apartments') ? PROPERTY_COL_MAP :
-        Object.keys(row).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
+      let colMap = [];
+      if (curCol === 'property details data' || curCol === 'apartments') {
+         colMap = PROPERTY_COL_MAP;
+      } else if (curSchema && curSchema.length > 0) {
+         colMap = curSchema.map(s => ({ id: s.field, label: s.field, desc: s.description, cat: s.category, allowed: s.allowed_values, dtype: s.dtype }));
+      } else {
+         colMap = Object.keys(row).filter(k => k !== '_id').map(k => ({ id: k, label: k }));
+      }
 
       colMap.forEach(col => {
         let v = row[col.id];
@@ -1706,6 +1777,8 @@
 
       if (curCol === 'property details data' || curCol === 'apartments') {
         colMap = PROPERTY_COL_MAP;
+      } else if (curSchema && curSchema.length > 0) {
+         colMap = curSchema.map(s => ({ id: s.field, label: s.field, desc: s.description, cat: s.category, allowed: s.allowed_values, dtype: s.dtype }));
       } else {
         // Fetch a sample document to auto-detect fields for this collection
         try {
@@ -1726,7 +1799,7 @@
       colMap.forEach(col => {
         const div = document.createElement('div');
         div.className = 'field-row';
-        div.innerHTML = `<label>${col.label}</label><input id="ef_${CSS.escape(col.id)}" data-key="${col.id}" value="" placeholder="Enter value…">`;
+        div.innerHTML = `<label title="${col.desc || ''}">${col.label} <small style="display:block;color:var(--muted2);font-weight:400;">${col.dtype || ''}</small></label><input id="ef_${CSS.escape(col.id)}" data-key="${col.id}" value="" placeholder="${col.allowed ? 'e.g. '+col.allowed : 'Enter value…'}">`;
         body.appendChild(div);
       });
     }

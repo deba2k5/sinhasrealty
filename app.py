@@ -430,33 +430,27 @@ def get_stats():
 
         # ─── PHYSICAL ATTRIBUTES STATS ───
         pa_col = get_db()['physical_attributes']
-        pa_total = pa_col.count_documents({})
+        pa_records = pa_col.count_documents({})
+        pa_total = pa_records
 
-        # Skip the first 3 metadata rows (ALLOWED VALUES, DESCRIPTION, PROPERTY_ID labels)
-        id_field = 'PROPERTY_ID - DATA TYPE'
-        METADATA_IDS = ['ALLOWED VALUES', 'DESCRIPTION', 'PROPERTY_ID']
-        pa_filter = {id_field: {"$nin": METADATA_IDS, "$exists": True, "$ne": None}}
-
-        pa_records = pa_col.count_documents(pa_filter)
-
-        # Count filled vs unfilled records (has BUILDING - NUMBER populated)
-        pa_filled = pa_col.count_documents({**pa_filter, 'BUILDING - NUMBER': {"$ne": None}})
+        # Count filled vs unfilled records (has BLDG_YEAR_BUILT populated as an indicator)
+        pa_filled = pa_col.count_documents({'BLDG_YEAR_BUILT': {"$ne": None}})
         pa_empty  = pa_records - pa_filled
 
         # Lift availability
-        pa_lift_yes = pa_col.count_documents({**pa_filter, 'LIFT - BOOL': {"$nin": [None]}})
+        pa_lift_yes = pa_col.count_documents({'LIFT_PRESENT': {"$nin": [None]}})
         pa_lift_no  = pa_records - pa_lift_yes
 
         # Parking availability
-        pa_parking_yes = pa_col.count_documents({**pa_filter, 'PARKING - SELECT': {"$nin": [None]}})
+        pa_parking_yes = pa_col.count_documents({'PARKING_AVAILABLE': {"$nin": [None]}})
         pa_parking_no  = pa_records - pa_parking_yes
 
         # Address coverage (has address)
-        pa_has_address = pa_col.count_documents({**pa_filter, 'ADDRESS': {"$ne": None}})
+        pa_has_address = pa_col.count_documents({'ADDRESS': {"$ne": None}})
 
         # Category breakdown by address city (extract city from "Street, Zip City" format)
         pipeline_pa_cities = [
-            {"$match": {**pa_filter, "ADDRESS": {"$type": "string"}}},
+            {"$match": {"ADDRESS": {"$type": "string"}}},
             {"$project": {"city_raw": {"$trim": {"input": {"$arrayElemAt": [{"$split": ["$ADDRESS", ","]}, -1]}}}}},
             {"$project": {"city": {"$trim": {"input": {"$arrayElemAt": [{"$split": ["$city_raw", " "]}, -1]}}}}},
             {"$group": {"_id": "$city", "count": {"$sum": 1}}},
@@ -508,9 +502,18 @@ def get_collections():
     try:
         # Get all collection names, filtering out system collections if necessary
         collections = get_db().list_collection_names()
-        # Filter out system collections if any
-        collections = [c for c in collections if not c.startswith('system.')]
+        # Filter out system collections and schema collections
+        collections = [c for c in collections if not c.startswith('system.') and not c.endswith('_schema')]
         return jsonify({'success': True, 'collections': collections})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/schema/<collection>', methods=['GET'])
+def get_schema(collection):
+    try:
+        schema_col = get_db()[f"{collection}_schema"]
+        schema_docs = list(schema_col.find({}, {'_id': 0}).sort("col_index", 1))
+        return jsonify({'success': True, 'schema': schema_docs})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
