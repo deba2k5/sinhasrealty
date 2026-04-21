@@ -448,6 +448,22 @@ def get_stats():
         # Address coverage (has address)
         pa_has_address = pa_col.count_documents({'ADDRESS': {"$ne": None}})
 
+        # ─── FURNISHINGS & INVENTORY STATS ───
+        fi_col = get_db()['furnishings_inventory']
+        fi_records = fi_col.count_documents({})
+        fi_total = fi_records
+
+        # Check if basic info like bed count is populated
+        fi_filled = fi_col.count_documents({'BED_TOTAL_COUNT': {"$ne": None}})
+        fi_empty = fi_records - fi_filled
+
+        # TV presence
+        fi_tv_yes = fi_col.count_documents({'TV_COUNT': {"$gt": 0}})
+        fi_tv_no = fi_records - fi_tv_yes
+
+        # Address coverage
+        fi_has_address = fi_col.count_documents({'ADDRESS': {"$ne": None}})
+
         # Category breakdown by address city (extract city from "Street, Zip City" format)
         pipeline_pa_cities = [
             {"$match": {"ADDRESS": {"$type": "string"}}},
@@ -458,6 +474,16 @@ def get_stats():
             {"$limit": 10}
         ]
         pa_cities_data = list(pa_col.aggregate(pipeline_pa_cities))
+
+        pipeline_fi_cities = [
+            {"$match": {"ADDRESS": {"$type": "string"}}},
+            {"$project": {"city_raw": {"$trim": {"input": {"$arrayElemAt": [{"$split": ["$ADDRESS", ","]}, -1]}}}}},
+            {"$project": {"city": {"$trim": {"input": {"$arrayElemAt": [{"$split": ["$city_raw", " "]}, -1]}}}}},
+            {"$group": {"_id": "$city", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        fi_cities_data = list(fi_col.aggregate(pipeline_fi_cities))
 
         return jsonify({
             "success": True,
@@ -490,7 +516,22 @@ def get_stats():
                 ],
                 "pa_cities": [{"label": safe_str(pc['_id']), "value": pc['count']} for pc in pa_cities_data if safe_str(pc['_id'])],
                 "pa_total": pa_total,
-                "pa_records": pa_records
+                "pa_records": pa_records,
+                "fi_fill_rate": [
+                    {"label": "Attributes Filled", "value": fi_filled},
+                    {"label": "Pending Entry", "value": fi_empty}
+                ],
+                "fi_address_coverage": [
+                    {"label": "Has Address", "value": fi_has_address},
+                    {"label": "Missing Address", "value": fi_records - fi_has_address}
+                ],
+                "fi_tv_presence": [
+                    {"label": "Has TV", "value": fi_tv_yes},
+                    {"label": "No TV", "value": fi_tv_no}
+                ],
+                "fi_cities": [{"label": safe_str(fc['_id']), "value": fc['count']} for fc in fi_cities_data if safe_str(fc['_id'])],
+                "fi_total": fi_total,
+                "fi_records": fi_records
             }
         })
     except Exception as e:

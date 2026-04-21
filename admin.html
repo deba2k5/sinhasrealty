@@ -1170,6 +1170,77 @@
         </div>
       </div>
 
+      <!-- ─── FURNISHINGS & INVENTORY SECTION ─── -->
+      <div style="margin: 2.5rem 0 1rem; padding: 1.2rem 1.5rem; background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.22); border-radius: 14px; display:flex; align-items:center; gap:14px;">
+        <span style="font-size:1.6rem;">🪑</span>
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:800; color:var(--accent); margin-bottom:2px;">Furnishings &amp; Inventory</h3>
+          <p style="font-size:0.82rem; color:var(--muted2);">Asset tracking &amp; inventory coverage — <span id="fi-records-count" style="color:var(--primary-lt); font-weight:700;">—</span> records</p>
+        </div>
+      </div>
+
+      <!-- FI KPI ROW -->
+      <div class="kpi-grid" style="margin-bottom:1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <span class="kpi-label">Total FI Records</span>
+          <span class="kpi-value" id="fi-stat-total">—</span>
+          <span class="kpi-sub">in furnishings_inventory</span>
+        </div>
+        <div class="kpi-card kpi-green">
+          <span class="kpi-label">Have Address</span>
+          <span class="kpi-value" id="fi-stat-address">—</span>
+          <span class="kpi-sub">properties with address</span>
+        </div>
+        <div class="kpi-card kpi-yellow">
+          <span class="kpi-label">Attributes Filled</span>
+          <span class="kpi-value" id="fi-stat-filled">—</span>
+          <span class="kpi-sub">fully populated records</span>
+        </div>
+        <div class="kpi-card kpi-red">
+          <span class="kpi-label">Pending Entry</span>
+          <span class="kpi-value" id="fi-stat-pending">—</span>
+          <span class="kpi-sub">awaiting data input</span>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW FI1 -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Attribute Fill Rate</h3>
+              <p>Completed vs pending furnishings inventory records</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="fiFillChart"></canvas></div>
+          <div id="fiFillTable"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>TV Presence</h3>
+              <p>Properties with vs without TV</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="fiTvChart"></canvas></div>
+          <div id="fiTvTable"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW FI2 -->
+      <div class="chart-grid">
+        <div class="chart-card" style="grid-column: span 2;">
+          <div class="chart-card-header">
+            <div>
+              <h3>Furnishings &amp; Inventory — Properties by City</h3>
+              <p>Top cities from furnishings_inventory address data</p>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px;"><canvas id="fiCityChart"></canvas></div>
+          <div id="fiCityTable"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- TABLE VIEW -->
@@ -1556,6 +1627,48 @@
       if (paCities.length > 0) {
         mkChart('paCityChart', 'bar', paCities.map(pc => pc.label), paCities.map(pc => pc.value), PA_COLORS.city);
         mkDataTable('paCityTable', paCities.map(pc => pc.label), paCities.map(pc => pc.value), PA_COLORS.city);
+      }
+
+      // ─── FURNISHINGS & INVENTORY CHARTS ───
+      const FI_COLORS = {
+        fill:    ['#fbbf24', '#1e293b'],
+        tv:      ['#a78bfa', '#f87171'],
+        city:    ['#22d3ee','#34d399','#6366f1','#a78bfa','#fbbf24','#f87171','#fb923c','#e879f9','#4ade80','#38bdf8']
+      };
+
+      // KPI cards
+      const fiTotal = data.charts?.fi_total ?? '—';
+      const fiRecords = data.charts?.fi_records ?? '—';
+      const fiFill  = (data.charts?.fi_fill_rate || []);
+      const fiAddr  = (data.charts?.fi_address_coverage || []);
+      const fiTv    = (data.charts?.fi_tv_presence || []);
+      const fiFilled  = fiFill[0]?.value ?? 0;
+      const fiPending = fiFill[1]?.value ?? 0;
+      const fiHasAddr = fiAddr[0]?.value ?? 0;
+
+      setEl('fi-stat-total',   fiTotal);
+      setEl('fi-stat-address', fiHasAddr);
+      setEl('fi-stat-filled',  fiFilled);
+      setEl('fi-stat-pending', fiPending);
+      setEl('fi-records-count', fiRecords);
+
+      // Attribute fill rate doughnut
+      if (fiFill.length > 0) {
+        mkChart('fiFillChart', 'doughnut', fiFill.map(d => d.label), fiFill.map(d => d.value), FI_COLORS.fill);
+        mkDataTable('fiFillTable', fiFill.map(d => d.label), fiFill.map(d => d.value), FI_COLORS.fill);
+      }
+
+      // TV presence doughnut
+      if (fiTv.length > 0) {
+        mkChart('fiTvChart', 'doughnut', fiTv.map(d => d.label), fiTv.map(d => d.value), FI_COLORS.tv);
+        mkDataTable('fiTvTable', fiTv.map(d => d.label), fiTv.map(d => d.value), FI_COLORS.tv);
+      }
+
+      // City distribution bar
+      const fiCities = c.fi_cities || [];
+      if (fiCities.length > 0) {
+        mkChart('fiCityChart', 'bar', fiCities.map(fc => fc.label), fiCities.map(fc => fc.value), FI_COLORS.city);
+        mkDataTable('fiCityTable', fiCities.map(fc => fc.label), fiCities.map(fc => fc.value), FI_COLORS.city);
       }
     }
 
