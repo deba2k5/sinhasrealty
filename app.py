@@ -84,8 +84,10 @@ def handle_upload():
             if not df.empty:
                 df = clean_headers(df)
                 df = clean_data(df)
-                records = df.to_dict('records')
-                get_db()[sheet].insert_many(records)
+                records = [r for r in df.to_dict('records') if any(val for key, val in r.items() if val and str(val).strip())]
+                if records:
+                    get_db()[sheet].insert_many(records)
+
                 sheets_inserted[sheet] = len(records)
                 
         msg = ", ".join([f"{count} rows -> '{sheet}'" for sheet, count in sheets_inserted.items()])
@@ -119,8 +121,9 @@ def handle_upload_occupancy():
         # Replace NaN with None
         df = df.where(pd.notnull(df), None)
         
-        records = df.to_dict('records')
+        records = [r for r in df.to_dict('records') if any(val for key, val in r.items() if val and str(val).strip())]
         if records:
+
             # Clear old data before "populating" with new data
             get_db()['property details data'].delete_many({})
             get_db()['property details data'].insert_many(records)
@@ -201,7 +204,10 @@ def handle_upload_verwaltung():
             records = []
             for _, row in df.iterrows():
                 rec = {k: clean_val(v) for k, v in row.items()}
-                if rec.get("PROPERTY_ID"): records.append(rec)
+                # Skip rows that are effectively empty (no meaningful data)
+                if any(val for key, val in rec.items() if val and str(val).strip()):
+                    records.append(rec)
+
             
             if records:
                 db_inst["verwaltung_contacts"].delete_many({})

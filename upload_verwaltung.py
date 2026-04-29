@@ -105,10 +105,9 @@ df = df.rename(columns=new_col_map)
 records = []
 for _, row in df.iterrows():
     rec = {k: clean_val(v) for k, v in row.items()}
-    # Skip blank rows (no property ID)
-    if rec.get("PROPERTY_ID") is None:
-        continue
-    records.append(rec)
+    # Only add if at least one meaningful field has a value (ignore empty strings)
+    if any(val for key, val in rec.items() if val and str(val).strip()):
+        records.append(rec)
 
 print(f"  -> {len(records)} records found")
 
