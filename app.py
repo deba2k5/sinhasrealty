@@ -169,11 +169,19 @@ def handle_upload_verwaltung():
                 "Agency Address": "AGENCY_ADDRESS",
                 "Contact 1 -> Name": "CONTACT1_NAME",
                 "Contact 1 -> Mobile": "CONTACT1_MOBILE",
+                "Contact 1 -> Landline": "CONTACT1_LANDLINE",
                 "Contact 1 -> Email": "CONTACT1_EMAIL",
+                "Contact 2 -> Name": "CONTACT2_NAME",
+                "Contact 2 -> Mobile": "CONTACT2_MOBILE",
+                "Contact 2 -> Landline": "CONTACT2_LANDLINE",
+                "Contact 2 -> Email": "CONTACT2_EMAIL",
                 "Hauswart -> Name": "HAUSWART_NAME",
                 "Hauswart -> Mobile": "HAUSWART_MOBILE",
+                "Hauswart -> Landline / Tel": "HAUSWART_LANDLINE",
+                "Hauswart -> Email": "HAUSWART_EMAIL",
                 "Remarks": "REMARKS",
             }
+
             
             new_col_map = {}
             for old_col in df.columns:
