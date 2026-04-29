@@ -187,10 +187,14 @@ def handle_upload_verwaltung():
             for old_col in df.columns:
                 matched = False
                 for pattern, new_name in rename_map.items():
-                    if pattern.replace("->", "").strip().lower() in old_col.replace("->", "").replace("→", "").replace("\u2192", "").strip().lower():
+                    # Robust matching
+                    p_norm = "".join(c.lower() for c in pattern if c.isalnum())
+                    o_norm = "".join(c.lower() for c in old_col if c.isalnum())
+                    if p_norm in o_norm:
                         new_col_map[old_col] = new_name
                         matched = True
                         break
+
                 if not matched: new_col_map[old_col] = old_col
 
             df = df.rename(columns=new_col_map)
