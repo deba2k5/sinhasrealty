@@ -132,6 +132,96 @@ def handle_upload_occupancy():
     except Exception as e:
         return jsonify({"success": False, "message": f"ETL Error: {str(e)}"}), 500
 
+@app.route('/upload_verwaltung', methods=['POST'])
+def handle_upload_verwaltung():
+    """Specifically handles the Verwaltung Contacts Excel file with multi-sheet parsing."""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "No file uploaded."}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"success": False, "message": "No file selected."}), 400
+        
+    try:
+        xls = pd.ExcelFile(file.stream, engine='openpyxl')
+        db_inst = get_db()
+        
+        def clean_val(v):
+            if v is None: return None
+            if isinstance(v, float) and math.isnan(v): return None
+            return str(v).strip()
+
+        # 1. VERWALTUNG CONTACTS sheet
+        if "VERWALTUNG CONTACTS" in xls.sheet_names:
+            raw = pd.read_excel(xls, sheet_name="VERWALTUNG CONTACTS", header=None)
+            col_names = raw.iloc[1].tolist()
+            clean_cols = [str(c).replace("\u2192", "->").replace("→", "->").strip() for c in col_names]
+            
+            df = raw.iloc[2:].copy()
+            df.columns = clean_cols
+            df = df.dropna(how="all")
+            
+            rename_map = {
+                "Property ID": "PROPERTY_ID",
+                "Property Address": "PROPERTY_ADDRESS",
+                "OWN / SUB": "OWN_SUB",
+                "Agency / Verwaltung Name": "AGENCY_NAME",
+                "Agency Address": "AGENCY_ADDRESS",
+                "Contact 1 -> Name": "CONTACT1_NAME",
+                "Contact 1 -> Mobile": "CONTACT1_MOBILE",
+                "Contact 1 -> Email": "CONTACT1_EMAIL",
+                "Hauswart -> Name": "HAUSWART_NAME",
+                "Hauswart -> Mobile": "HAUSWART_MOBILE",
+                "Remarks": "REMARKS",
+            }
+            
+            new_col_map = {}
+            for old_col in df.columns:
+                matched = False
+                for pattern, new_name in rename_map.items():
+                    if pattern.replace("->", "").strip().lower() in old_col.replace("->", "").replace("→", "").replace("\u2192", "").strip().lower():
+                        new_col_map[old_col] = new_name
+                        matched = True
+                        break
+                if not matched: new_col_map[old_col] = old_col
+
+            df = df.rename(columns=new_col_map)
+            records = []
+            for _, row in df.iterrows():
+                rec = {k: clean_val(v) for k, v in row.items()}
+                if rec.get("PROPERTY_ID"): records.append(rec)
+            
+            if records:
+                db_inst["verwaltung_contacts"].delete_many({})
+                db_inst["verwaltung_contacts"].insert_many(records)
+
+        # 2. AGENCY SUMMARY sheet
+        if "AGENCY SUMMARY" in xls.sheet_names:
+            raw2 = pd.read_excel(xls, sheet_name="AGENCY SUMMARY", header=None)
+            agency_cols = raw2.iloc[1].tolist()
+            df2 = raw2.iloc[2:].copy()
+            df2.columns = [str(c).strip() for c in agency_cols]
+            df2 = df2.dropna(how="all")
+            
+            agency_rename = { "#": "RANK", "AGENCY / VERWALTUNG": "AGENCY_NAME", "PROPERTY COUNT": "PROPERTY_COUNT", "PROPERTY IDs": "PROPERTY_IDS" }
+            df2 = df2.rename(columns={c: agency_rename.get(c, c) for c in df2.columns})
+            
+            agency_records = []
+            for _, row in df2.iterrows():
+                rec = {k: clean_val(v) for k, v in row.items()}
+                if rec.get("AGENCY_NAME"): agency_records.append(rec)
+                
+            if agency_records:
+                db_inst["agency_summary"].delete_many({})
+                db_inst["agency_summary"].insert_many(agency_records)
+
+        return jsonify({"success": True, "message": "Successfully updated Verwaltung Contacts and Agency Summary collections."})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"success": False, "message": f"Verwaltung Upload Error: {str(e)}"}), 500
+
+
 @app.route('/add_city', methods=['POST'])
 def add_city():
     """Manual endpoint example for adding a single city to the cities table"""
@@ -485,6 +575,16 @@ def get_stats():
         ]
         fi_cities_data = list(fi_col.aggregate(pipeline_fi_cities))
 
+        # ─── VERWALTUNG CONTACTS STATS ───
+        vc_col = get_db()['verwaltung_contacts']
+        vc_total = vc_col.count_documents({})
+        
+        vc_has_contact1 = vc_col.count_documents({'CONTACT1_NAME': {"$ne": None}})
+        vc_has_hauswart = vc_col.count_documents({'HAUSWART_NAME': {"$ne": None}})
+        
+        as_col = get_db()['agency_summary']
+        as_data = list(as_col.find({"AGENCY_NAME": {"$ne": None}}).sort("PROPERTY_COUNT", -1).limit(10))
+
         return jsonify({
             "success": True,
             "stats": {
@@ -531,7 +631,17 @@ def get_stats():
                 ],
                 "fi_cities": [{"label": safe_str(fc['_id']), "value": fc['count']} for fc in fi_cities_data if safe_str(fc['_id'])],
                 "fi_total": fi_total,
-                "fi_records": fi_records
+                "fi_records": fi_records,
+                "vc_total": vc_total,
+                "vc_contact1_coverage": [
+                    {"label": "Has Contact 1", "value": vc_has_contact1},
+                    {"label": "Missing Contact 1", "value": vc_total - vc_has_contact1}
+                ],
+                "vc_hauswart_coverage": [
+                    {"label": "Has Hauswart", "value": vc_has_hauswart},
+                    {"label": "Missing Hauswart", "value": vc_total - vc_has_hauswart}
+                ],
+                "vc_agencies": [{"label": safe_str(a['AGENCY_NAME']), "value": a['PROPERTY_COUNT']} for a in as_data if safe_str(a['AGENCY_NAME'])]
             }
         })
     except Exception as e:

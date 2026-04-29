@@ -1241,6 +1241,78 @@
         </div>
       </div>
 
+      <!-- ─── VERWALTUNG CONTACTS SECTION ─── -->
+      <div style="margin: 2.5rem 0 1rem; padding: 1.2rem 1.5rem; background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.22); border-radius: 14px; display:flex; align-items:center; gap:14px;">
+        <span style="font-size:1.6rem;">📞</span>
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:800; color:var(--purple); margin-bottom:2px;">Verwaltung Contacts</h3>
+          <p style="font-size:0.82rem; color:var(--muted2);">Agency and Hauswart tracking — <span id="vc-records-count" style="color:var(--primary-lt); font-weight:700;">—</span> records</p>
+          <p style="font-size:0.7rem; color:var(--muted); margin-top:4px;">Source: <span style="font-family:monospace; color:var(--purple-lt);">Verwaltung_Contacts_SINHAS-Final.xlsx</span></p>
+        </div>
+      </div>
+
+      <!-- VC KPI ROW -->
+      <div class="kpi-grid" style="margin-bottom:1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <span class="kpi-label">Total VC Records</span>
+          <span class="kpi-value" id="vc-stat-total">—</span>
+          <span class="kpi-sub">in verwaltung_contacts</span>
+        </div>
+        <div class="kpi-card kpi-green">
+          <span class="kpi-label">Has Contact 1</span>
+          <span class="kpi-value" id="vc-stat-contact1">—</span>
+          <span class="kpi-sub">properties with Contact 1</span>
+        </div>
+        <div class="kpi-card kpi-yellow">
+          <span class="kpi-label">Has Hauswart</span>
+          <span class="kpi-value" id="vc-stat-hauswart">—</span>
+          <span class="kpi-sub">properties with Hauswart</span>
+        </div>
+        <div class="kpi-card kpi-red">
+          <span class="kpi-label">Top Agency Share</span>
+          <span class="kpi-value" id="vc-stat-agency">—</span>
+          <span class="kpi-sub">dominant agency prop count</span>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW VC1 -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Contact 1 Coverage</h3>
+              <p>Properties with vs without Contact 1</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="vcContact1Chart"></canvas></div>
+          <div id="vcContact1Table"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Hauswart Coverage</h3>
+              <p>Properties with vs without Hauswart</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="vcHauswartChart"></canvas></div>
+          <div id="vcHauswartTable"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW VC2 -->
+      <div class="chart-grid">
+        <div class="chart-card" style="grid-column: span 2;">
+          <div class="chart-card-header">
+            <div>
+              <h3>Top Agencies by Property Count</h3>
+              <p>Distribution across Verwaltung agencies</p>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px;"><canvas id="vcAgencyChart"></canvas></div>
+          <div id="vcAgencyTable"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- TABLE VIEW -->
@@ -1343,6 +1415,28 @@
       { id: 'GDRIVE URL FOR IMAGES & VIDEOS', label: 'GDrive' },
       { id: 'REMARKS', label: 'Remarks' }
     ];
+    
+    const VERWALTUNG_COL_MAP = [
+      { id: 'PROPERTY_ID', label: 'Property ID' },
+      { id: 'PROPERTY_ADDRESS', label: 'Property Address' },
+      { id: 'OWN_SUB', label: 'Own/Sub' },
+      { id: 'AGENCY_NAME', label: 'Agency Name' },
+      { id: 'AGENCY_ADDRESS', label: 'Agency Address' },
+      { id: 'CONTACT1_NAME', label: 'Contact 1 Name' },
+      { id: 'CONTACT1_MOBILE', label: 'Contact 1 Mobile' },
+      { id: 'CONTACT1_EMAIL', label: 'Contact 1 Email' },
+      { id: 'HAUSWART_NAME', label: 'Hauswart Name' },
+      { id: 'HAUSWART_MOBILE', label: 'Hauswart Mobile' },
+      { id: 'REMARKS', label: 'Remarks' }
+    ];
+
+    const AGENCY_SUMMARY_COL_MAP = [
+      { id: 'RANK', label: 'Rank' },
+      { id: 'AGENCY_NAME', label: 'Agency / Verwaltung' },
+      { id: 'PROPERTY_COUNT', label: 'Property Count' },
+      { id: 'PROPERTY_IDS', label: 'Property IDs' }
+    ];
+
 
     const loader = document.getElementById('loader-bar');
     const showLoader = () => loader.style.display = 'block';
@@ -1670,6 +1764,51 @@
         mkChart('fiCityChart', 'bar', fiCities.map(fc => fc.label), fiCities.map(fc => fc.value), FI_COLORS.city);
         mkDataTable('fiCityTable', fiCities.map(fc => fc.label), fiCities.map(fc => fc.value), FI_COLORS.city);
       }
+
+      // ─── VERWALTUNG CONTACTS CHARTS ───
+      const VC_COLORS = {
+        contact: ['#10b981', '#1e293b'],
+        hauswart: ['#f59e0b', '#1e293b'],
+        agency: ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#6366f1']
+      };
+
+      // KPI cards
+      const vcTotal = data.charts?.vc_total ?? '—';
+      const vcContact1 = (data.charts?.vc_contact1_coverage || []);
+      const vcHauswart = (data.charts?.vc_hauswart_coverage || []);
+      const vcAgencies = (data.charts?.vc_agencies || []);
+      
+      const vcC1Count = vcContact1[0]?.value ?? 0;
+      const vcHwCount = vcHauswart[0]?.value ?? 0;
+      
+      let topAgencyName = '—';
+      if (vcAgencies.length > 0 && vcAgencies[0].label) {
+        topAgencyName = `${vcAgencies[0].label} (${vcAgencies[0].value})`;
+      }
+
+      setEl('vc-stat-total', vcTotal);
+      setEl('vc-records-count', vcTotal);
+      setEl('vc-stat-contact1', vcC1Count);
+      setEl('vc-stat-hauswart', vcHwCount);
+      setEl('vc-stat-agency', topAgencyName);
+
+      // Contact 1 Coverage doughnut
+      if (vcContact1.length > 0) {
+        mkChart('vcContact1Chart', 'doughnut', vcContact1.map(d => d.label), vcContact1.map(d => d.value), VC_COLORS.contact);
+        mkDataTable('vcContact1Table', vcContact1.map(d => d.label), vcContact1.map(d => d.value), VC_COLORS.contact);
+      }
+
+      // Hauswart Coverage doughnut
+      if (vcHauswart.length > 0) {
+        mkChart('vcHauswartChart', 'doughnut', vcHauswart.map(d => d.label), vcHauswart.map(d => d.value), VC_COLORS.hauswart);
+        mkDataTable('vcHauswartTable', vcHauswart.map(d => d.label), vcHauswart.map(d => d.value), VC_COLORS.hauswart);
+      }
+
+      // Agencies distribution bar
+      if (vcAgencies.length > 0) {
+        mkChart('vcAgencyChart', 'bar', vcAgencies.map(a => a.label), vcAgencies.map(a => a.value), VC_COLORS.agency);
+        mkDataTable('vcAgencyTable', vcAgencies.map(a => a.label), vcAgencies.map(a => a.value), VC_COLORS.agency);
+      }
     }
 
     // ─── TABLE DATA ───
@@ -1738,6 +1877,10 @@
 
       if (curCol === 'property details data' || curCol === 'apartments') {
          displayCols = PROPERTY_COL_MAP;
+      } else if (curCol === 'verwaltung_contacts') {
+         displayCols = VERWALTUNG_COL_MAP;
+      } else if (curCol === 'agency_summary') {
+         displayCols = AGENCY_SUMMARY_COL_MAP;
       } else if (curSchema && curSchema.length > 0) {
          schemaDriven = true;
          displayCols = curSchema.map(s => ({ id: s.field, label: s.field, desc: s.description, cat: s.category, dtype: s.dtype }));

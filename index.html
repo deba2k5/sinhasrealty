@@ -255,6 +255,28 @@
     <div class="status-box" id="s2"></div>
   </div>
 
+  <!-- ─── VERWALTUNG CONTACTS UPLOAD ─── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon icon-purple">📞</div>
+      <div class="card-header-text">
+        <h3>Verwaltung Contacts</h3>
+        <p>Import Agency & Hauswart details</p>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="drop-zone" id="dz-vc" onclick="document.getElementById('fi-vc').click()">
+      <span class="icon">📁</span>
+      <div class="label" id="dz-vc-label">Drop <span>Verwaltung Excel</span> here or <span>browse</span></div>
+    </div>
+    <input type="file" id="fi-vc" accept=".xlsx,.xls">
+    <button class="btn btn-purple" id="b-vc" onclick="doVerwaltungUpload()">
+      <span id="b-vc-t">Upload Contacts</span>
+      <div class="loader" id="b-vc-l"></div>
+    </button>
+    <div class="status-box" id="s-vc"></div>
+  </div>
+
   <!-- ─── MANUAL ENTRY ─── -->
   <div class="card manual-entry-card">
     <div class="card-header">
@@ -522,6 +544,22 @@
     } catch { showStatus('s2', 'Upload failed — is the server running?', false); }
     stopBtn('b2','b2t','b2l');
   }
+
+  let fvc = null;
+  wireDropZone('dz-vc','fi-vc','dz-vc-label', f => fvc = f);
+
+  async function doVerwaltungUpload() {
+    if (!fvc) return showStatus('s-vc', 'Please select a file first.', false);
+    startBtn('b-vc','b-vc-t','b-vc-l');
+    const fd = new FormData(); fd.append('file', fvc);
+    try {
+      const r = await (await fetch('/upload_verwaltung', { method: 'POST', body: fd })).json();
+      showStatus('s-vc', r.message, r.success);
+      if (r.success) { fvc = null; document.getElementById('dz-vc-label').innerHTML = 'Drop <span>Verwaltung Excel</span> here or <span>browse</span>'; document.getElementById('fi-vc').value = ''; }
+    } catch { showStatus('s-vc', 'Upload failed — is the server running?', false); }
+    stopBtn('b-vc','b-vc-t','b-vc-l');
+  }
+
 
   async function doManual() {
     const street = document.getElementById('m_street').value.trim();
