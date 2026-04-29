@@ -583,15 +583,38 @@ def get_stats():
         ]
         fi_cities_data = list(fi_col.aggregate(pipeline_fi_cities))
 
-        # ─── VERWALTUNG CONTACTS STATS ───
         vc_col = get_db()['verwaltung_contacts']
         vc_total = vc_col.count_documents({})
         
         vc_has_contact1 = vc_col.count_documents({'CONTACT1_NAME': {"$ne": None}})
         vc_has_hauswart = vc_col.count_documents({'HAUSWART_NAME': {"$ne": None}})
         
+        # Additional deep-dive stats for "all details"
+        vc_total_mobiles = vc_col.count_documents({
+            "$or": [
+                {'CONTACT1_MOBILE': {"$ne": None}},
+                {'CONTACT2_MOBILE': {"$ne": None}},
+                {'HAUSWART_MOBILE': {"$ne": None}}
+            ]
+        })
+        vc_total_emails = vc_col.count_documents({
+            "$or": [
+                {'CONTACT1_EMAIL': {"$ne": None}},
+                {'CONTACT2_EMAIL': {"$ne": None}},
+                {'HAUSWART_EMAIL': {"$ne": None}}
+            ]
+        })
+        vc_total_landlines = vc_col.count_documents({
+            "$or": [
+                {'CONTACT1_LANDLINE': {"$ne": None}},
+                {'CONTACT2_LANDLINE': {"$ne": None}},
+                {'HAUSWART_LANDLINE': {"$ne": None}}
+            ]
+        })
+        
         as_col = get_db()['agency_summary']
         as_data = list(as_col.find({"AGENCY_NAME": {"$ne": None}}).sort("PROPERTY_COUNT", -1).limit(10))
+
 
         return jsonify({
             "success": True,
@@ -641,10 +664,14 @@ def get_stats():
                 "fi_total": fi_total,
                 "fi_records": fi_records,
                 "vc_total": vc_total,
+                "vc_total_mobiles": vc_total_mobiles,
+                "vc_total_emails": vc_total_emails,
+                "vc_total_landlines": vc_total_landlines,
                 "vc_contact1_coverage": [
                     {"label": "Has Contact 1", "value": vc_has_contact1},
                     {"label": "Missing Contact 1", "value": vc_total - vc_has_contact1}
                 ],
+
                 "vc_hauswart_coverage": [
                     {"label": "Has Hauswart", "value": vc_has_hauswart},
                     {"label": "Missing Hauswart", "value": vc_total - vc_has_hauswart}

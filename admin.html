@@ -1251,8 +1251,8 @@
         </div>
       </div>
 
-      <!-- VC KPI ROW -->
-      <div class="kpi-grid" style="margin-bottom:1.5rem;">
+      <!-- VC KPI ROW 1 -->
+      <div class="kpi-grid" style="margin-bottom:1rem;">
         <div class="kpi-card kpi-blue">
           <span class="kpi-label">Total VC Records</span>
           <span class="kpi-value" id="vc-stat-total">—</span>
@@ -1274,6 +1274,31 @@
           <span class="kpi-sub">dominant agency prop count</span>
         </div>
       </div>
+
+      <!-- VC KPI ROW 2: CONTACT HEALTH -->
+      <div class="kpi-grid" style="margin-bottom:1.5rem;">
+        <div class="kpi-card kpi-purple">
+          <span class="kpi-label">Mobile Numbers</span>
+          <span class="kpi-value" id="vc-stat-mobiles">—</span>
+          <span class="kpi-sub">records with mobile data</span>
+        </div>
+        <div class="kpi-card kpi-cyan">
+          <span class="kpi-label">Email Addresses</span>
+          <span class="kpi-value" id="vc-stat-emails">—</span>
+          <span class="kpi-sub">records with email data</span>
+        </div>
+        <div class="kpi-card kpi-orange">
+          <span class="kpi-label">Landline Phones</span>
+          <span class="kpi-value" id="vc-stat-landlines">—</span>
+          <span class="kpi-sub">records with landline data</span>
+        </div>
+        <div class="kpi-card kpi-gray">
+          <span class="kpi-label">Coverage Quality</span>
+          <span class="kpi-value" id="vc-stat-quality">—</span>
+          <span class="kpi-sub">overall data completeness</span>
+        </div>
+      </div>
+
 
       <!-- CHARTS ROW VC1 -->
       <div class="chart-grid">
@@ -1799,6 +1824,19 @@
       setEl('vc-stat-contact1', vcC1Count);
       setEl('vc-stat-hauswart', vcHwCount);
       setEl('vc-stat-agency', topAgencyName);
+
+      // Populate new contact health cards
+      const vcMobiles = data.charts?.vc_total_mobiles ?? 0;
+      const vcEmails = data.charts?.vc_total_emails ?? 0;
+      const vcLandlines = data.charts?.vc_total_landlines ?? 0;
+      
+      setEl('vc-stat-mobiles', vcMobiles);
+      setEl('vc-stat-emails', vcEmails);
+      setEl('vc-stat-landlines', vcLandlines);
+      
+      const quality = vcTotal > 0 ? Math.round(((vcMobiles + vcEmails + vcLandlines) / (vcTotal * 3)) * 100) : 0;
+      setEl('vc-stat-quality', quality + '%');
+
 
       // Contact 1 Coverage doughnut
       if (vcContact1.length > 0) {
