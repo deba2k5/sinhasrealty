@@ -1505,16 +1505,32 @@
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       if (el) el.classList.add('active');
 
+      // Hide all panes first
+      document.getElementById('view-dashboard').style.display = 'none';
+      document.getElementById('view-table').style.display = 'none';
+      const vDash = document.getElementById('verwaltung-dashboard');
+      if (vDash) vDash.style.display = 'none';
+
       if (tab === 'dashboard') {
         document.getElementById('view-dashboard').style.display = 'block';
-        document.getElementById('view-table').style.display = 'none';
         document.getElementById('page-title').innerText = 'Dashboard';
         document.getElementById('page-sub').innerText = 'Real-time data from MongoDB';
         loadStats();
         return;
       }
 
-      document.getElementById('view-dashboard').style.display = 'none';
+      // If it's the verwaltung collection, we show its custom dashboard pane
+      if (tab === 'verwaltung_contacts') {
+        if (vDash) vDash.style.display = 'block';
+        document.getElementById('view-table').style.display = 'block'; // Show table below charts
+        document.getElementById('page-title').innerText = 'Verwaltung Contacts';
+        document.getElementById('page-sub').innerText = 'Property management contact database';
+        curCol = tab;
+        loadStats();
+        loadData();
+        return;
+      }
+
       document.getElementById('view-table').style.display = 'block';
       curCol = tab;
       curPage = 1;
@@ -1525,6 +1541,7 @@
       document.getElementById('page-sub').innerText = `Browsing collection: ${tab}`;
       loadData();
     }
+
 
     // ─── STATS ───
     async function loadStats() {
@@ -1806,36 +1823,39 @@
       };
 
       // KPI cards
-      const vcTotal = data.charts?.vc_total ?? '—';
+      const vcTotalVal = Number(data.stats?.vc_total) || 0;
+      const vcTotalStr = data.stats?.vc_total ?? '—';
       const vcContact1 = (data.charts?.vc_contact1_coverage || []);
       const vcHauswart = (data.charts?.vc_hauswart_coverage || []);
       const vcAgencies = (data.charts?.vc_agencies || []);
       
-      const vcC1Count = vcContact1[0]?.value ?? 0;
-      const vcHwCount = vcHauswart[0]?.value ?? 0;
+      const vcC1Count = data.stats?.vc_has_contact1 ?? 0;
+      const vcHwCount = data.stats?.vc_has_hauswart ?? 0;
       
       let topAgencyName = '—';
       if (vcAgencies.length > 0 && vcAgencies[0].label) {
         topAgencyName = `${vcAgencies[0].label} (${vcAgencies[0].value})`;
       }
 
-      setEl('vc-stat-total', vcTotal);
-      setEl('vc-records-count', vcTotal);
+      setEl('vc-stat-total', vcTotalStr);
+      setEl('vc-records-count', vcTotalStr);
       setEl('vc-stat-contact1', vcC1Count);
       setEl('vc-stat-hauswart', vcHwCount);
       setEl('vc-stat-agency', topAgencyName);
 
       // Populate new contact health cards
-      const vcMobiles = data.charts?.vc_total_mobiles ?? 0;
-      const vcEmails = data.charts?.vc_total_emails ?? 0;
-      const vcLandlines = data.charts?.vc_total_landlines ?? 0;
+      const vcMobiles = Number(data.stats?.vc_total_mobiles) || 0;
+      const vcEmails = Number(data.stats?.vc_total_emails) || 0;
+      const vcLandlines = Number(data.stats?.vc_total_landlines) || 0;
+
       
       setEl('vc-stat-mobiles', vcMobiles);
       setEl('vc-stat-emails', vcEmails);
       setEl('vc-stat-landlines', vcLandlines);
       
-      const quality = vcTotal > 0 ? Math.round(((vcMobiles + vcEmails + vcLandlines) / (vcTotal * 3)) * 100) : 0;
+      const quality = vcTotalVal > 0 ? Math.round(((vcMobiles + vcEmails + vcLandlines) / (vcTotalVal * 3)) * 100) : 0;
       setEl('vc-stat-quality', quality + '%');
+
 
 
       // Contact 1 Coverage doughnut

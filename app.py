@@ -623,7 +623,17 @@ def get_stats():
                 "occupied": sinhas_occupied,
                 "available": sinhas_available,
                 "partially": sinhas_partially,
-                "maintenance": sinhas_maintenance
+                "maintenance": sinhas_maintenance,
+                "pa_total": pa_total,
+                "pa_records": pa_records,
+                "fi_total": fi_total,
+                "fi_records": fi_records,
+                "vc_total": vc_total,
+                "vc_total_mobiles": vc_total_mobiles,
+                "vc_total_emails": vc_total_emails,
+                "vc_total_landlines": vc_total_landlines,
+                "vc_has_contact1": vc_has_contact1,
+                "vc_has_hauswart": vc_has_hauswart
             },
             "charts": {
                 "occupancy": [
@@ -646,8 +656,6 @@ def get_stats():
                     {"label": "Missing Address", "value": pa_records - pa_has_address}
                 ],
                 "pa_cities": [{"label": safe_str(pc['_id']), "value": pc['count']} for pc in pa_cities_data if safe_str(pc['_id'])],
-                "pa_total": pa_total,
-                "pa_records": pa_records,
                 "fi_fill_rate": [
                     {"label": "Attributes Filled", "value": fi_filled},
                     {"label": "Pending Entry", "value": fi_empty}
@@ -661,17 +669,10 @@ def get_stats():
                     {"label": "No TV", "value": fi_tv_no}
                 ],
                 "fi_cities": [{"label": safe_str(fc['_id']), "value": fc['count']} for fc in fi_cities_data if safe_str(fc['_id'])],
-                "fi_total": fi_total,
-                "fi_records": fi_records,
-                "vc_total": vc_total,
-                "vc_total_mobiles": vc_total_mobiles,
-                "vc_total_emails": vc_total_emails,
-                "vc_total_landlines": vc_total_landlines,
                 "vc_contact1_coverage": [
                     {"label": "Has Contact 1", "value": vc_has_contact1},
                     {"label": "Missing Contact 1", "value": vc_total - vc_has_contact1}
                 ],
-
                 "vc_hauswart_coverage": [
                     {"label": "Has Hauswart", "value": vc_has_hauswart},
                     {"label": "Missing Hauswart", "value": vc_total - vc_has_hauswart}
