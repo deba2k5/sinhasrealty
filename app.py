@@ -239,6 +239,72 @@ def handle_upload_verwaltung():
         print(traceback.format_exc())
         return jsonify({"success": False, "message": f"Verwaltung Upload Error: {str(e)}"}), 500
 
+@app.route('/upload_guest_client', methods=['POST'])
+def handle_upload_guest_client():
+    """Handles the SINHAS_Guest_Client_Database Excel file with specific header row indexing."""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "No file uploaded."}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"success": False, "message": "No file selected."}), 400
+        
+    try:
+        xls = pd.ExcelFile(file.stream, engine='openpyxl')
+        db_inst = get_db()
+        
+        def clean_val(v):
+            if v is None: return None
+            if isinstance(v, float) and math.isnan(v): return None
+            return str(v).strip()
+
+        sheets_info = [
+            # (sheet_name, collection_name, header_row_idx, include_skeleton_rows)
+            # include_skeleton_rows=True  -> insert ALL rows, even if only S.No. is populated
+            ("Guest Profiles", "guest_profiles", 3, True),
+            ("Property Lookup", "property_lookup", 2, False),
+            ("Revenue Tracker", "revenue_tracker", 3, False)
+        ]
+        
+        messages = []
+        for sheet_name, col_name, header_idx, include_skeleton in sheets_info:
+            if sheet_name in xls.sheet_names:
+                df = pd.read_excel(xls, sheet_name=sheet_name, header=header_idx)
+                
+                # Clean headers
+                df.columns = [str(c).replace("\n", " ").replace(".", "").strip() for c in df.columns]
+                
+                df = df.dropna(how="all")
+                
+                records = []
+                for _, row in df.iterrows():
+                    rec = {k: clean_val(v) for k, v in row.items()}
+                    
+                    if include_skeleton:
+                        # For Guest Profiles: include ALL rows that have at least an S.No.
+                        # This ensures the full schema table (even empty rows) is visible and editable
+                        sno_val = rec.get('SNo') or rec.get('S No') or rec.get('SNO')
+                        if sno_val and str(sno_val).strip():
+                            records.append(rec)
+                    else:
+                        # For other sheets: only include rows with meaningful data beyond S.No.
+                        if any(val for key, val in rec.items() if val and str(val).strip() and str(key).lower() not in ('sno', 's no', 's.no.')):
+                            records.append(rec)
+                        
+                if records:
+                    db_inst[col_name].delete_many({})
+                    db_inst[col_name].insert_many(records)
+                    messages.append(f"{len(records)} rows -> '{sheet_name}'")
+                    
+        if not messages:
+            return jsonify({"success": True, "message": "No relevant data found in sheets."})
+            
+        return jsonify({"success": True, "message": "Success! " + ", ".join(messages)})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"success": False, "message": f"Guest Client Upload Error: {str(e)}"}), 500
+
 
 @app.route('/add_city', methods=['POST'])
 def add_city():
@@ -625,6 +691,40 @@ def get_stats():
         as_col = get_db()['agency_summary']
         as_data = list(as_col.find({"AGENCY_NAME": {"$ne": None}}).sort("PROPERTY_COUNT", -1).limit(10))
 
+        # ─── GUEST PROFILES STATS ───
+        gp_col = get_db()['guest_profiles']
+        gp_total = gp_col.count_documents({})
+        
+        # Nationality Distribution
+        pipeline_nationality = [
+            {"$match": {"Nationality / Citizenship": {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": "$Nationality / Citizenship", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        nationality_data = list(gp_col.aggregate(pipeline_nationality))
+
+        # ─── PROPERTY LOOKUP STATS ───
+        pl_col = get_db()['property_lookup']
+        pl_total = pl_col.count_documents({})
+
+        pipeline_own_sublet = [
+            {"$match": {"Own/Sublet": {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": "$Own/Sublet", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        own_sublet_data = list(pl_col.aggregate(pipeline_own_sublet))
+
+        # ─── REVENUE TRACKER STATS ───
+        rt_col = get_db()['revenue_tracker']
+        rt_total = rt_col.count_documents({})
+        
+        pipeline_stay_type = [
+            {"$match": {"Stay Type (Short/Long)": {"$exists": True, "$type": "string"}}},
+            {"$group": {"_id": "$Stay Type (Short/Long)", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        stay_type_data = list(rt_col.aggregate(pipeline_stay_type))
 
         return jsonify({
             "success": True,
@@ -643,7 +743,10 @@ def get_stats():
                 "vc_total_emails": vc_total_emails,
                 "vc_total_landlines": vc_total_landlines,
                 "vc_has_contact1": vc_has_contact1,
-                "vc_has_hauswart": vc_has_hauswart
+                "vc_has_hauswart": vc_has_hauswart,
+                "gp_total": gp_total,
+                "pl_total": pl_total,
+                "rt_total": rt_total
             },
             "charts": {
                 "occupancy": [
@@ -687,7 +790,10 @@ def get_stats():
                     {"label": "Has Hauswart", "value": vc_has_hauswart},
                     {"label": "Missing Hauswart", "value": vc_total - vc_has_hauswart}
                 ],
-                "vc_agencies": [{"label": safe_str(a['AGENCY_NAME']), "value": a['PROPERTY_COUNT']} for a in as_data if safe_str(a['AGENCY_NAME'])]
+                "vc_agencies": [{"label": safe_str(a['AGENCY_NAME']), "value": a['PROPERTY_COUNT']} for a in as_data if safe_str(a['AGENCY_NAME'])],
+                "gp_nationalities": [{"label": safe_str(n['_id']), "value": n['count']} for n in nationality_data if safe_str(n['_id'])],
+                "pl_own_sublet": [{"label": safe_str(o['_id']), "value": o['count']} for o in own_sublet_data if safe_str(o['_id'])],
+                "rt_stay_types": [{"label": safe_str(s['_id']), "value": s['count']} for s in stay_type_data if safe_str(s['_id'])]
             }
         })
     except Exception as e:

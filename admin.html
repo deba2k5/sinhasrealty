@@ -1338,6 +1338,72 @@
         </div>
       </div>
 
+      <!-- ─── GUEST PROFILES, PROPERTY LOOKUP, REVENUE TRACKER ─── -->
+      <div style="margin: 2.5rem 0 1rem; padding: 1.2rem 1.5rem; background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.22); border-radius: 14px; display:flex; align-items:center; gap:14px;">
+        <span style="font-size:1.6rem;">👥</span>
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:800; color:var(--yellow); margin-bottom:2px;">Guest Clients & Operations</h3>
+          <p style="font-size:0.82rem; color:var(--muted2);">Guest Profiles: <span id="gp-records-count" style="color:var(--primary-lt); font-weight:700;">—</span> | Property Lookup: <span id="pl-records-count" style="color:var(--primary-lt); font-weight:700;">—</span> | Revenue Tracker: <span id="rt-records-count" style="color:var(--primary-lt); font-weight:700;">—</span></p>
+        </div>
+      </div>
+
+      <!-- NEW COLLECTIONS KPI ROW -->
+      <div class="kpi-grid" style="margin-bottom:1.5rem;">
+        <div class="kpi-card kpi-yellow">
+          <span class="kpi-label">Guest Profiles</span>
+          <span class="kpi-value" id="gp-stat-total">—</span>
+          <span class="kpi-sub">total guest records</span>
+        </div>
+        <div class="kpi-card kpi-blue">
+          <span class="kpi-label">Property Lookup</span>
+          <span class="kpi-value" id="pl-stat-total">—</span>
+          <span class="kpi-sub">total property records</span>
+        </div>
+        <div class="kpi-card kpi-green">
+          <span class="kpi-label">Revenue Tracker</span>
+          <span class="kpi-value" id="rt-stat-total">—</span>
+          <span class="kpi-sub">total revenue records</span>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW GP/PL/RT -->
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Guest Nationalities</h3>
+              <p>Top nationalities from Guest Profiles</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="gpNationalityChart"></canvas></div>
+          <div id="gpNationalityTable"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <h3>Own vs Sublet</h3>
+              <p>Property Lookup distribution</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="plOwnSubletChart"></canvas></div>
+          <div id="plOwnSubletTable"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW RT -->
+      <div class="chart-grid">
+        <div class="chart-card" style="grid-column: span 2;">
+          <div class="chart-card-header">
+            <div>
+              <h3>Stay Types (Short vs Long)</h3>
+              <p>Revenue Tracker stay type distribution</p>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:260px;"><canvas id="rtStayTypeChart"></canvas></div>
+          <div id="rtStayTypeTable"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- TABLE VIEW -->
@@ -1874,6 +1940,44 @@
       if (vcAgencies.length > 0) {
         mkChart('vcAgencyChart', 'bar', vcAgencies.map(a => a.label), vcAgencies.map(a => a.value), VC_COLORS.agency);
         mkDataTable('vcAgencyTable', vcAgencies.map(a => a.label), vcAgencies.map(a => a.value), VC_COLORS.agency);
+      }
+
+      // ─── GUEST CLIENTS & OPS CHARTS ───
+      const OPS_COLORS = {
+        nationality: ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#6366f1', '#ef4444'],
+        own_sublet: ['#3b82f6', '#1e293b'],
+        stay_type: ['#10b981', '#8b5cf6', '#f59e0b', '#3b82f6']
+      };
+
+      const gpTotal = data.stats?.gp_total ?? '—';
+      const plTotal = data.stats?.pl_total ?? '—';
+      const rtTotal = data.stats?.rt_total ?? '—';
+
+      setEl('gp-records-count', gpTotal);
+      setEl('pl-records-count', plTotal);
+      setEl('rt-records-count', rtTotal);
+      
+      setEl('gp-stat-total', gpTotal);
+      setEl('pl-stat-total', plTotal);
+      setEl('rt-stat-total', rtTotal);
+
+      const gpNationalities = (data.charts?.gp_nationalities || []);
+      const plOwnSublet = (data.charts?.pl_own_sublet || []);
+      const rtStayTypes = (data.charts?.rt_stay_types || []);
+
+      if (gpNationalities.length > 0) {
+        mkChart('gpNationalityChart', 'doughnut', gpNationalities.map(d => d.label), gpNationalities.map(d => d.value), OPS_COLORS.nationality);
+        mkDataTable('gpNationalityTable', gpNationalities.map(d => d.label), gpNationalities.map(d => d.value), OPS_COLORS.nationality);
+      }
+
+      if (plOwnSublet.length > 0) {
+        mkChart('plOwnSubletChart', 'doughnut', plOwnSublet.map(d => d.label), plOwnSublet.map(d => d.value), OPS_COLORS.own_sublet);
+        mkDataTable('plOwnSubletTable', plOwnSublet.map(d => d.label), plOwnSublet.map(d => d.value), OPS_COLORS.own_sublet);
+      }
+
+      if (rtStayTypes.length > 0) {
+        mkChart('rtStayTypeChart', 'bar', rtStayTypes.map(d => d.label), rtStayTypes.map(d => d.value), OPS_COLORS.stay_type);
+        mkDataTable('rtStayTypeTable', rtStayTypes.map(d => d.label), rtStayTypes.map(d => d.value), OPS_COLORS.stay_type);
       }
     }
 
