@@ -820,6 +820,265 @@ def get_schema(collection):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/dashboard')
+def dashboard():
+    """Serves the Guest Client Dashboard"""
+    return send_from_directory('.', 'dashboard.html')
+
+@app.route('/api/guest-client-collections', methods=['GET'])
+def get_guest_client_collections():
+    """Returns all guest client collection data for editing"""
+    try:
+        db_inst = get_db()
+        collection_name = request.args.get('collection', 'guest_profiles')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        skip = (page - 1) * limit
+        
+        cursor = db_inst[collection_name].find({}).skip(skip).limit(limit)
+        docs = list(cursor)
+        total = db_inst[collection_name].count_documents({})
+        
+        for doc in docs:
+            doc['_id'] = str(doc['_id'])
+        
+        return jsonify({
+            'success': True,
+            'collection': collection_name,
+            'data': docs,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'totalPages': math.ceil(total / limit) if limit > 0 else 1
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/guest-client-update/<collection>/<doc_id>', methods=['POST'])
+def update_guest_client_record(collection, doc_id):
+    """Update a single record in guest client collections"""
+    try:
+        data = request.json
+        db_inst = get_db()
+        
+        # Convert string _id to ObjectId
+        try:
+            oid = ObjectId(doc_id)
+        except:
+            return jsonify({'success': False, 'message': 'Invalid document ID'}), 400
+        
+        # Remove _id from update data if present
+        if '_id' in data:
+            del data['_id']
+        
+        result = db_inst[collection].update_one({'_id': oid}, {'$set': data})
+        
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'message': 'Document not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Record updated successfully',
+            'modified': result.modified_count
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/guest-client-add/<collection>', methods=['POST'])
+def add_guest_client_record(collection):
+    """Add a new record to guest client collections"""
+    try:
+        data = request.json
+        db_inst = get_db()
+        
+        result = db_inst[collection].insert_one(data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Record added successfully',
+            'id': str(result.inserted_id)
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/guest-client-delete/<collection>/<doc_id>', methods=['DELETE'])
+def delete_guest_client_record(collection, doc_id):
+    """Delete a record from guest client collections"""
+    try:
+        db_inst = get_db()
+        
+        try:
+            oid = ObjectId(doc_id)
+        except:
+            return jsonify({'success': False, 'message': 'Invalid document ID'}), 400
+        
+        result = db_inst[collection].delete_one({'_id': oid})
+        
+        if result.deleted_count == 0:
+            return jsonify({'success': False, 'message': 'Document not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Record deleted successfully'
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/guest-client-stats', methods=['GET'])
+def get_guest_client_stats():
+    """Returns comprehensive statistics for the Guest Client Dashboard"""
+    try:
+        db_inst = get_db()
+        
+        # ─── GUEST PROFILES STATS ───
+        gp_col = db_inst['guest_profiles']
+        gp_total = gp_col.count_documents({})
+        
+        # Guest Type Distribution
+        guest_type_pipeline = [
+            {"$match": {"Guest Type (Corp/ Family/ Student/ Intern)": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Guest Type (Corp/ Family/ Student/ Intern)", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        guest_types = list(gp_col.aggregate(guest_type_pipeline))
+        
+        # VIP Distribution
+        vip_pipeline = [
+            {"$match": {"Guest Type (VIP/ Non-VIP)": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Guest Type (VIP/ Non-VIP)", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        vip_types = list(gp_col.aggregate(vip_pipeline))
+        
+        # Guest Nationality Distribution (Top 10)
+        nationality_pipeline = [
+            {"$match": {"Nationality / Citizenship": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Nationality / Citizenship", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        nationalities = list(gp_col.aggregate(nationality_pipeline))
+        
+        # Travel Purpose Distribution
+        purpose_pipeline = [
+            {"$match": {"Travel Purpose (Business/Leisure)": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Travel Purpose (Business/Leisure)", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        purposes = list(gp_col.aggregate(purpose_pipeline))
+        
+        # ─── PROPERTY LOOKUP STATS ───
+        pl_col = db_inst['property_lookup']
+        pl_total = pl_col.count_documents({})
+        
+        # Status Distribution
+        status_pipeline = [
+            {"$match": {"Status": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Status", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        statuses = list(pl_col.aggregate(status_pipeline))
+        
+        # City Distribution (Top 15)
+        city_pipeline = [
+            {"$match": {"City": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$City", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 15}
+        ]
+        cities = list(pl_col.aggregate(city_pipeline))
+        
+        # Own/Sublet Distribution
+        own_sublet_pipeline = [
+            {"$match": {"Own/Sublet": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Own/Sublet", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        own_sublet = list(pl_col.aggregate(own_sublet_pipeline))
+        
+        # Rooms Distribution
+        rooms_pipeline = [
+            {"$match": {"Rooms": {"$exists": True, "$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Rooms", "count": {"$sum": 1}}},
+            {"$sort": {"_id": 1}},
+            {"$limit": 10}
+        ]
+        rooms_dist = list(pl_col.aggregate(rooms_pipeline))
+        
+        # ─── REVENUE TRACKER STATS ───
+        rt_col = db_inst['revenue_tracker']
+        rt_total = rt_col.count_documents({})
+        
+        # Booking Channel Distribution
+        booking_channel_pipeline = [
+            {"$match": {"Booking Channel": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Booking Channel", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        booking_channels = list(rt_col.aggregate(booking_channel_pipeline))
+        
+        # Stay Type Distribution
+        stay_type_pipeline = [
+            {"$match": {"Stay Type (Short/Long)": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Stay Type (Short/Long)", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        stay_types = list(rt_col.aggregate(stay_type_pipeline))
+        
+        # Purpose Distribution (Business/Leisure)
+        purpose_tracker_pipeline = [
+            {"$match": {"Purpose (Business/ Leisure)": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Purpose (Business/ Leisure)", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        purpose_tracker = list(rt_col.aggregate(purpose_tracker_pipeline))
+        
+        # Payment Status Distribution
+        payment_status_pipeline = [
+            {"$match": {"Payment Status": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$Payment Status", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}
+        ]
+        payment_statuses = list(rt_col.aggregate(payment_status_pipeline))
+        
+        return jsonify({
+            'success': True,
+            'guest_profiles': {
+                'total': gp_total,
+                'guest_types': guest_types,
+                'vip_types': vip_types,
+                'nationalities': nationalities,
+                'purposes': purposes
+            },
+            'property_lookup': {
+                'total': pl_total,
+                'statuses': statuses,
+                'cities': cities,
+                'own_sublet': own_sublet,
+                'rooms_dist': rooms_dist
+            },
+            'revenue_tracker': {
+                'total': rt_total,
+                'booking_channels': booking_channels,
+                'stay_types': stay_types,
+                'purposes': purpose_tracker,
+                'payment_statuses': payment_statuses
+            }
+        })
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 if __name__ == '__main__':
     print(f"=====================================")
     print(f" Sinha's GmbH Portal Backend Started ")

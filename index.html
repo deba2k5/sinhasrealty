@@ -198,6 +198,7 @@
   </a>
   <div class="nav-actions">
     <span id="nav-user-email" style="color:var(--muted2);font-size:0.85rem;font-weight:500;"></span>
+    <a href="/dashboard" class="btn btn-ghost">📊 Guest Analytics</a>
     <a href="/admin" id="nav-admin-link" class="btn btn-ghost">Admin Dashboard &rarr;</a>
     <button id="nav-logout" onclick="doSignOut()" style="display:none;" class="btn btn-ghost">Sign Out</button>
   </div>
@@ -275,6 +276,28 @@
       <div class="loader" id="b-vc-l"></div>
     </button>
     <div class="status-box" id="s-vc"></div>
+  </div>
+
+  <!-- ─── GUEST CLIENT DATABASE UPLOAD ─── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon icon-blue">👥</div>
+      <div class="card-header-text">
+        <h3>Guest Client Database</h3>
+        <p>Import Guest Profiles, Property Lookup & Revenue Tracker</p>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="drop-zone" id="dz-gc" onclick="document.getElementById('fi-gc').click()">
+      <span class="icon">👥</span>
+      <div class="label" id="dz-gc-label">Drop <span>Guest Client Excel</span> here or <span>browse</span></div>
+    </div>
+    <input type="file" id="fi-gc" accept=".xlsx,.xls">
+    <button class="btn btn-accent" id="b-gc" onclick="doGuestClientUpload()">
+      <span id="b-gc-t">Upload Guest Database</span>
+      <div class="loader" id="b-gc-l"></div>
+    </button>
+    <div class="status-box" id="s-gc"></div>
   </div>
 
   <!-- ─── MANUAL ENTRY ─── -->
@@ -548,6 +571,9 @@
   let fvc = null;
   wireDropZone('dz-vc','fi-vc','dz-vc-label', f => fvc = f);
 
+  let fgc = null;
+  wireDropZone('dz-gc','fi-gc','dz-gc-label', f => fgc = f);
+
   async function doVerwaltungUpload() {
     if (!fvc) return showStatus('s-vc', 'Please select a file first.', false);
     startBtn('b-vc','b-vc-t','b-vc-l');
@@ -558,6 +584,18 @@
       if (r.success) { fvc = null; document.getElementById('dz-vc-label').innerHTML = 'Drop <span>Verwaltung Excel</span> here or <span>browse</span>'; document.getElementById('fi-vc').value = ''; }
     } catch { showStatus('s-vc', 'Upload failed — is the server running?', false); }
     stopBtn('b-vc','b-vc-t','b-vc-l');
+  }
+
+  async function doGuestClientUpload() {
+    if (!fgc) return showStatus('s-gc', 'Please select a file first.', false);
+    startBtn('b-gc','b-gc-t','b-gc-l');
+    const fd = new FormData(); fd.append('file', fgc);
+    try {
+      const r = await (await fetch('/upload_guest_client', { method: 'POST', body: fd })).json();
+      showStatus('s-gc', r.message, r.success);
+      if (r.success) { fgc = null; document.getElementById('dz-gc-label').innerHTML = 'Drop <span>Guest Client Excel</span> here or <span>browse</span>'; document.getElementById('fi-gc').value = ''; }
+    } catch { showStatus('s-gc', 'Upload failed — is the server running?', false); }
+    stopBtn('b-gc','b-gc-t','b-gc-l');
   }
 
 

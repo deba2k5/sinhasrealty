@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guest Client Dashboard — Sinha's GmbH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0f1e;
+      --surface: #101728;
+      --surface2: #151d30;
+      --border: rgba(255,255,255,0.08);
+      --primary: #6366f1;
+      --primary-lt: #818cf8;
+      --accent: #22d3ee;
+      --accent2: #a78bfa;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+    }
+
+    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    body { background-image: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(34,211,238,0.06) 0%, transparent 60%); }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,15,30,0.95);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; color: var(--text); text-decoration: none; }
+    .nav-logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 16px var(--primary); }
+    .nav-actions { display: flex; gap: 12px; align-items: center; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 8px; font-family: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface); color: var(--text); }
+
+    .hero {
+      text-align: center;
+      padding: 60px 2.5rem 40px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      background: linear-gradient(to bottom right, #fff 30%, var(--muted2) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p { font-size: 1rem; color: var(--muted2); max-width: 560px; margin: 0 auto; }
+
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 2.5rem 80px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.3s;
+    }
+    .stat-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
+    .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+    .stat-value { font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+    .charts-section {
+      margin-bottom: 4rem;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      background: rgba(99,102,241,0.15);
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    @media (max-width: 1200px) {
+      .chart-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      transition: all 0.3s;
+    }
+    .chart-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
+    .chart-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text); }
+    .chart-container { position: relative; height: 300px; }
+
+    .divider { height: 1px; background: var(--border); margin: 3rem 0; }
+
+    .loading { text-align: center; padding: 2rem; color: var(--muted); }
+    .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: var(--red); padding: 1rem; border-radius: 10px; }
+
+    .tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      color: var(--muted2);
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+      font-size: 0.95rem;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .tab-btn:hover { color: var(--text); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th {
+      background: var(--surface2);
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--muted2);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:hover { background: rgba(99,102,241,0.05); }
+    input[type="text"], input[type="number"], input[type="date"], input[type="email"], select {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .action-btn {
+      padding: 6px 12px;
+      margin: 0 2px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-save { background: var(--green); color: #fff; }
+    .btn-save:hover { background: #059669; }
+    .btn-delete { background: var(--red); color: #fff; }
+    .btn-delete:hover { background: #ea5555; }
+    .btn-cancel { background: var(--muted); color: #fff; }
+    .btn-cancel:hover { background: #475569; }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 2rem;
+    }
+    .page-btn {
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .page-btn:hover { border-color: var(--primary); }
+    .page-btn.active { background: var(--primary); border-color: var(--primary); }
+    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <span class="dot"></span>
+    Sinha's GmbH — Guest Dashboard
+  </a>
+  <div class="nav-actions">
+    <a href="/" class="btn btn-ghost">← Back to Portal</a>
+    <a href="/admin" class="btn btn-ghost">Admin Dashboard →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>Guest Client Analytics</h1>
+  <p>Comprehensive insights into Guest Profiles, Properties, and Revenue</p>
+</section>
+
+<div class="dashboard-container">
+
+  <!-- ─── TABS ─── -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('analytics', this)">📊 Analytics</button>
+    <button class="tab-btn" onclick="switchTab('guest-profiles', this)">👥 Guest Profiles</button>
+    <button class="tab-btn" onclick="switchTab('property-lookup', this)">🏢 Property Lookup</button>
+    <button class="tab-btn" onclick="switchTab('revenue-tracker', this)">💰 Revenue Tracker</button>
+  </div>
+
+  <!-- ─── ANALYTICS TAB (READ-ONLY) ─── -->
+  <div id="analytics" class="tab-content active">
+
+  <!-- ─── KEY METRICS ─── -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+
+  <!-- ─── GUEST PROFILES SECTION ─── -->
+  <section class="charts-section">
+    <h2 class="section-title">
+      <span class="section-icon">👥</span>
+      Guest Profiles Analytics
+    </h2>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3 class="chart-title">Guest Type Distribution</h3>
+        <div class="chart-container">
+          <canvas id="guestTypeChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">VIP vs Non-VIP</h3>
+        <div class="chart-container">
+          <canvas id="vipChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Top 10 Nationalities</h3>
+        <div class="chart-container">
+          <canvas id="nationalityChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Travel Purpose</h3>
+        <div class="chart-container">
+          <canvas id="purposeChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── PROPERTY LOOKUP SECTION ─── -->
+  <section class="charts-section">
+    <h2 class="section-title">
+      <span class="section-icon">🏢</span>
+      Property Lookup Analytics
+    </h2>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3 class="chart-title">Property Status</h3>
+        <div class="chart-container">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Own vs Sublet</h3>
+        <div class="chart-container">
+          <canvas id="ownSubletChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Top 15 Cities</h3>
+        <div class="chart-container">
+          <canvas id="cityChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Room Distribution</h3>
+        <div class="chart-container">
+          <canvas id="roomsChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ─── REVENUE TRACKER SECTION ─── -->
+  <section class="charts-section">
+    <h2 class="section-title">
+      <span class="section-icon">💰</span>
+      Revenue Tracker Analytics
+    </h2>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3 class="chart-title">Booking Channels (Top 10)</h3>
+        <div class="chart-container">
+          <canvas id="bookingChannelChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Stay Type</h3>
+        <div class="chart-container">
+          <canvas id="stayTypeChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Purpose of Stay</h3>
+        <div class="chart-container">
+          <canvas id="purposeTrackerChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Payment Status</h3>
+        <div class="chart-container">
+          <canvas id="paymentStatusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- ─── DATA TABLES TABS ─── -->
+  <div id="guest-profiles" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 class="section-title" style="margin: 0;">Guest Profiles</h2>
+      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('guest_profiles')">+ Add New</button>
+    </div>
+    <div id="guest-profiles-container"></div>
+  </div>
+
+  <div id="property-lookup" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 class="section-title" style="margin: 0;">Property Lookup</h2>
+      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('property_lookup')">+ Add New</button>
+    </div>
+    <div id="property-lookup-container"></div>
+  </div>
+
+  <div id="revenue-tracker" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 class="section-title" style="margin: 0;">Revenue Tracker</h2>
+      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('revenue_tracker')">+ Add New</button>
+    </div>
+    <div id="revenue-tracker-container"></div>
+  </div>
+
+</div>
+
+<script>
+  const colors = {
+    primary: '#6366f1',
+    accent: '#22d3ee',
+    green: '#34d399',
+    red: '#f87171',
+    yellow: '#fbbf24',
+    purple: '#a78bfa',
+    gradient: ['#6366f1', '#22d3ee', '#34d399', '#f87171', '#fbbf24', '#a78bfa', '#ec4899', '#8b5cf6']
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: { color: '#94a3b8', font: { family: "'Inter', sans-serif", size: 12 } }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+    }
+  };
+
+  let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1 };
+  let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
+  let editingRecords = {};
+
+  function switchTab(tabName, btn) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Show selected tab
+    document.getElementById(tabName).classList.add('active');
+    btn.classList.add('active');
+    
+    // Load data if it's a data table tab
+    if (['guest-profiles', 'property-lookup', 'revenue-tracker'].includes(tabName)) {
+      const collectionMap = {
+        'guest-profiles': 'guest_profiles',
+        'property-lookup': 'property_lookup',
+        'revenue-tracker': 'revenue_tracker'
+      };
+      loadCollectionData(collectionMap[tabName], 1);
+    }
+  }
+
+  async function loadCollectionData(collection, page) {
+    try {
+      const containerMap = {
+        guest_profiles: 'guest-profiles-container',
+        property_lookup: 'property-lookup-container',
+        revenue_tracker: 'revenue-tracker-container'
+      };
+      
+      const container = document.getElementById(containerMap[collection]);
+      container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+      
+      const response = await fetch(`/api/guest-client-collections?collection=${collection}&page=${page}&limit=20`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        container.innerHTML = `<div class="error">${data.message}</div>`;
+        return;
+      }
+      
+      currentCollectionPage[collection] = page;
+      currentCollectionData[collection] = data.data;
+      
+      renderDataTable(collection, data, container);
+    } catch (error) {
+      console.error('Error loading collection:', error);
+      document.getElementById(containerMap[collection]).innerHTML = `<div class="error">Error loading data: ${error.message}</div>`;
+    }
+  }
+
+  function renderDataTable(collection, data, container) {
+    if (!data.data || data.data.length === 0) {
+      container.innerHTML = '<div class="error">No records found</div>';
+      return;
+    }
+    
+    const keys = Object.keys(data.data[0]).filter(k => k !== '_id');
+    
+    let html = '<div class="table-container"><div class="table-wrapper"><table>';
+    html += '<thead><tr>';
+    html += '<th>Actions</th>';
+    keys.forEach(k => html += `<th>${k}</th>`);
+    html += '</tr></thead><tbody>';
+    
+    data.data.forEach((record, idx) => {
+      const recordId = record._id;
+      const isEditing = editingRecords[recordId];
+      
+      html += `<tr>`;
+      html += `<td>`;
+      if (isEditing) {
+        html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
+        html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
+      } else {
+        html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
+        html += `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
+      }
+      html += `</td>`;
+      
+      keys.forEach(k => {
+        const value = record[k];
+        if (isEditing) {
+          html += `<td><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+        } else {
+          html += `<td>${value || '—'}</td>`;
+        }
+      });
+      html += `</tr>`;
+    });
+    
+    html += '</tbody></table></div></div>';
+    
+    // Add pagination
+    html += '<div class="pagination">';
+    const totalPages = data.totalPages;
+    for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+      const active = i === data.page ? 'active' : '';
+      html += `<button class="page-btn ${active}" onclick="loadCollectionData('${collection}', ${i})">${i}</button>`;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+  }
+
+  function editRecord(recordId) {
+    editingRecords[recordId] = true;
+    // Find which collection this record belongs to and re-render
+    for (const col in currentCollectionData) {
+      if (currentCollectionData[col].some(r => r._id === recordId)) {
+        const containerMap = {
+          guest_profiles: 'guest-profiles-container',
+          property_lookup: 'property-lookup-container',
+          revenue_tracker: 'revenue-tracker-container'
+        };
+        const container = document.getElementById(containerMap[col]);
+        renderDataTable(col, { data: currentCollectionData[col], page: currentCollectionPage[col], totalPages: 1 }, container);
+        break;
+      }
+    }
+  }
+
+  function cancelEdit(recordId) {
+    delete editingRecords[recordId];
+    for (const col in currentCollectionData) {
+      if (currentCollectionData[col].some(r => r._id === recordId)) {
+        const containerMap = {
+          guest_profiles: 'guest-profiles-container',
+          property_lookup: 'property-lookup-container',
+          revenue_tracker: 'revenue-tracker-container'
+        };
+        const container = document.getElementById(containerMap[col]);
+        renderDataTable(col, { data: currentCollectionData[col], page: currentCollectionPage[col], totalPages: 1 }, container);
+        break;
+      }
+    }
+  }
+
+  async function saveRecord(collection, recordId) {
+    try {
+      const fields = document.querySelectorAll(`.edit-field[data-record="${recordId}"]`);
+      const updateData = {};
+      
+      fields.forEach(field => {
+        updateData[field.dataset.field] = field.value;
+      });
+      
+      const response = await fetch(`/api/guest-client-update/${collection}/${recordId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        delete editingRecords[recordId];
+        loadCollectionData(collection, currentCollectionPage[collection]);
+      } else {
+        alert('Error saving record: ' + result.message);
+      }
+    } catch (error) {
+      alert('Error saving record: ' + error.message);
+    }
+  }
+
+  async function deleteRecord(collection, recordId) {
+    if (!confirm('Are you sure you want to delete this record?')) return;
+    
+    try {
+      const response = await fetch(`/api/guest-client-delete/${collection}/${recordId}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        loadCollectionData(collection, currentCollectionPage[collection]);
+      } else {
+        alert('Error deleting record: ' + result.message);
+      }
+    } catch (error) {
+      alert('Error deleting record: ' + error.message);
+    }
+  }
+
+  function addNewRecord(collection) {
+    // For now, show an alert - in production, you'd open a form
+    alert('Add new record feature will be added soon. You can manually add records through MongoDB.');
+  }
+
+  async function loadDashboard() {
+    try {
+      const response = await fetch('/api/guest-client-stats');
+      const data = await response.json();
+
+      if (!data.success) {
+        document.getElementById('stats-grid').innerHTML = `<div class="error">${data.message}</div>`;
+        return;
+      }
+
+      const stats = data;
+      
+      // Update stat cards
+      const statsGrid = document.getElementById('stats-grid');
+      statsGrid.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Total Guest Profiles</div>
+          <div class="stat-value">${stats.guest_profiles.total}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Properties</div>
+          <div class="stat-value">${stats.property_lookup.total}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Revenue Records</div>
+          <div class="stat-value">${stats.revenue_tracker.total}</div>
+        </div>
+      `;
+
+      // ─── GUEST PROFILES CHARTS ───
+      
+      // Guest Type Chart
+      if (stats.guest_profiles.guest_types.length > 0) {
+        new Chart(document.getElementById('guestTypeChart'), {
+          type: 'doughnut',
+          data: {
+            labels: stats.guest_profiles.guest_types.map(d => d._id),
+            datasets: [{
+              data: stats.guest_profiles.guest_types.map(d => d.count),
+              backgroundColor: colors.gradient,
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // VIP Chart
+      if (stats.guest_profiles.vip_types.length > 0) {
+        new Chart(document.getElementById('vipChart'), {
+          type: 'pie',
+          data: {
+            labels: stats.guest_profiles.vip_types.map(d => d._id),
+            datasets: [{
+              data: stats.guest_profiles.vip_types.map(d => d.count),
+              backgroundColor: [colors.primary, colors.accent],
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // Nationality Chart
+      if (stats.guest_profiles.nationalities.length > 0) {
+        new Chart(document.getElementById('nationalityChart'), {
+          type: 'bar',
+          data: {
+            labels: stats.guest_profiles.nationalities.map(d => d._id).slice(0, 10),
+            datasets: [{
+              label: 'Count',
+              data: stats.guest_profiles.nationalities.map(d => d.count).slice(0, 10),
+              backgroundColor: colors.primary,
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: { ...chartOptions, indexAxis: 'y' }
+        });
+      }
+
+      // Purpose Chart
+      if (stats.guest_profiles.purposes.length > 0) {
+        new Chart(document.getElementById('purposeChart'), {
+          type: 'doughnut',
+          data: {
+            labels: stats.guest_profiles.purposes.map(d => d._id),
+            datasets: [{
+              data: stats.guest_profiles.purposes.map(d => d.count),
+              backgroundColor: [colors.primary, colors.accent],
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // ─── PROPERTY LOOKUP CHARTS ───
+
+      // Status Chart
+      if (stats.property_lookup.statuses.length > 0) {
+        new Chart(document.getElementById('statusChart'), {
+          type: 'doughnut',
+          data: {
+            labels: stats.property_lookup.statuses.map(d => d._id),
+            datasets: [{
+              data: stats.property_lookup.statuses.map(d => d.count),
+              backgroundColor: [colors.green, colors.yellow, colors.red, colors.primary],
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // Own/Sublet Chart
+      if (stats.property_lookup.own_sublet.length > 0) {
+        new Chart(document.getElementById('ownSubletChart'), {
+          type: 'pie',
+          data: {
+            labels: stats.property_lookup.own_sublet.map(d => d._id),
+            datasets: [{
+              data: stats.property_lookup.own_sublet.map(d => d.count),
+              backgroundColor: [colors.primary, colors.accent],
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // City Chart
+      if (stats.property_lookup.cities.length > 0) {
+        new Chart(document.getElementById('cityChart'), {
+          type: 'bar',
+          data: {
+            labels: stats.property_lookup.cities.map(d => d._id),
+            datasets: [{
+              label: 'Properties',
+              data: stats.property_lookup.cities.map(d => d.count),
+              backgroundColor: colors.accent,
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: { ...chartOptions, indexAxis: 'y' }
+        });
+      }
+
+      // Rooms Chart
+      if (stats.property_lookup.rooms_dist.length > 0) {
+        new Chart(document.getElementById('roomsChart'), {
+          type: 'bar',
+          data: {
+            labels: stats.property_lookup.rooms_dist.map(d => d._id),
+            datasets: [{
+              label: 'Count',
+              data: stats.property_lookup.rooms_dist.map(d => d.count),
+              backgroundColor: colors.green,
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // ─── REVENUE TRACKER CHARTS ───
+
+      // Booking Channel Chart
+      if (stats.revenue_tracker.booking_channels.length > 0) {
+        new Chart(document.getElementById('bookingChannelChart'), {
+          type: 'bar',
+          data: {
+            labels: stats.revenue_tracker.booking_channels.map(d => d._id).slice(0, 10),
+            datasets: [{
+              label: 'Bookings',
+              data: stats.revenue_tracker.booking_channels.map(d => d.count).slice(0, 10),
+              backgroundColor: colors.purple,
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: { ...chartOptions, indexAxis: 'y' }
+        });
+      }
+
+      // Stay Type Chart
+      if (stats.revenue_tracker.stay_types.length > 0) {
+        new Chart(document.getElementById('stayTypeChart'), {
+          type: 'doughnut',
+          data: {
+            labels: stats.revenue_tracker.stay_types.map(d => d._id),
+            datasets: [{
+              data: stats.revenue_tracker.stay_types.map(d => d.count),
+              backgroundColor: [colors.primary, colors.accent],
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // Purpose Tracker Chart
+      if (stats.revenue_tracker.purposes.length > 0) {
+        new Chart(document.getElementById('purposeTrackerChart'), {
+          type: 'pie',
+          data: {
+            labels: stats.revenue_tracker.purposes.map(d => d._id),
+            datasets: [{
+              data: stats.revenue_tracker.purposes.map(d => d.count),
+              backgroundColor: [colors.primary, colors.accent],
+              borderColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 2
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+      // Payment Status Chart
+      if (stats.revenue_tracker.payment_statuses.length > 0) {
+        new Chart(document.getElementById('paymentStatusChart'), {
+          type: 'bar',
+          data: {
+            labels: stats.revenue_tracker.payment_statuses.map(d => d._id),
+            datasets: [{
+              label: 'Count',
+              data: stats.revenue_tracker.payment_statuses.map(d => d.count),
+              backgroundColor: colors.green,
+              borderRadius: 8,
+              borderSkipped: false
+            }]
+          },
+          options: chartOptions
+        });
+      }
+
+    } catch (error) {
+      console.error('Dashboard error:', error);
+      document.getElementById('stats-grid').innerHTML = `<div class="error">Error loading dashboard: ${error.message}</div>`;
+    }
+  }
+
+  // Load dashboard on page load
+  document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+
+</body>
+</html>
