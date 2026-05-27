@@ -10,6 +10,7 @@ import math
 import re
 from urllib.parse import unquote
 from dotenv import load_dotenv
+import datetime
 
 # Load connection string from .env
 load_dotenv()
@@ -271,8 +272,14 @@ def handle_upload_guest_client():
             if sheet_name in xls.sheet_names:
                 df = pd.read_excel(xls, sheet_name=sheet_name, header=header_idx)
                 
+                # Store original column order BEFORE cleaning headers
+                original_columns = list(df.columns)
+                
                 # Clean headers
                 df.columns = [str(c).replace("\n", " ").replace(".", "").strip() for c in df.columns]
+                
+                # Store the cleaned column order for reference
+                cleaned_columns = list(df.columns)
                 
                 df = df.dropna(how="all")
                 
@@ -294,6 +301,15 @@ def handle_upload_guest_client():
                 if records:
                     db_inst[col_name].delete_many({})
                     db_inst[col_name].insert_many(records)
+                    
+                    # Store column order metadata
+                    db_inst['column_order'].delete_one({'collection': col_name})
+                    db_inst['column_order'].insert_one({
+                        'collection': col_name,
+                        'columns': cleaned_columns,
+                        'timestamp': datetime.datetime.now()
+                    })
+                    
                     messages.append(f"{len(records)} rows -> '{sheet_name}'")
                     
         if not messages:
@@ -842,10 +858,21 @@ def get_guest_client_collections():
         for doc in docs:
             doc['_id'] = str(doc['_id'])
         
+        # Get column order from metadata
+        column_order = []
+        col_order_doc = db_inst['column_order'].find_one({'collection': collection_name})
+        if col_order_doc:
+            column_order = col_order_doc.get('columns', [])
+        else:
+            # Fallback: extract column order from first document
+            if docs:
+                column_order = [k for k in docs[0].keys() if k != '_id']
+        
         return jsonify({
             'success': True,
             'collection': collection_name,
             'data': docs,
+            'columns': column_order,
             'total': total,
             'page': page,
             'limit': limit,

@@ -452,6 +452,7 @@
 
   let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1 };
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
+  let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
   let editingRecords = {};
 
   function switchTab(tabName, btn) {
@@ -495,6 +496,7 @@
       
       currentCollectionPage[collection] = page;
       currentCollectionData[collection] = data.data;
+      currentCollectionColumns[collection] = data.columns || [];
       
       renderDataTable(collection, data, container);
     } catch (error) {
@@ -509,7 +511,10 @@
       return;
     }
     
-    const keys = Object.keys(data.data[0]).filter(k => k !== '_id');
+    // Use column order from backend, fallback to Object.keys if not available
+    let keys = data.columns && data.columns.length > 0 
+      ? data.columns 
+      : Object.keys(data.data[0]).filter(k => k !== '_id');
     
     let html = '<div class="table-container"><div class="table-wrapper"><table>';
     html += '<thead><tr>';
@@ -568,7 +573,12 @@
           revenue_tracker: 'revenue-tracker-container'
         };
         const container = document.getElementById(containerMap[col]);
-        renderDataTable(col, { data: currentCollectionData[col], page: currentCollectionPage[col], totalPages: 1 }, container);
+        renderDataTable(col, { 
+          data: currentCollectionData[col], 
+          columns: currentCollectionColumns[col],
+          page: currentCollectionPage[col], 
+          totalPages: 1 
+        }, container);
         break;
       }
     }
@@ -584,7 +594,12 @@
           revenue_tracker: 'revenue-tracker-container'
         };
         const container = document.getElementById(containerMap[col]);
-        renderDataTable(col, { data: currentCollectionData[col], page: currentCollectionPage[col], totalPages: 1 }, container);
+        renderDataTable(col, { 
+          data: currentCollectionData[col], 
+          columns: currentCollectionColumns[col],
+          page: currentCollectionPage[col], 
+          totalPages: 1 
+        }, container);
         break;
       }
     }
