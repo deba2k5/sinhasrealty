@@ -531,17 +531,31 @@
   }
 
   function calculateGuestNights(checkIn, checkOut) {
-    if (!checkIn || !checkOut) return null;
+    console.log("calculateGuestNights called with checkIn:", checkIn, "checkOut:", checkOut);
+    if (!checkIn || !checkOut) {
+      console.log("calculateGuestNights: missing checkIn or checkOut, returning null");
+      return null;
+    }
     const dateIn = parseDateString(checkIn);
     const dateOut = parseDateString(checkOut);
-    if (!dateIn || !dateOut) return null;
+    if (!dateIn || !dateOut) {
+      console.log("calculateGuestNights: one or both dates invalid, returning null");
+      return null;
+    }
     const diffTime = dateOut - dateIn;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : null;
+    console.log("calculateGuestNights: diffTime:", diffTime, "diffDays:", diffDays);
+    const result = diffDays > 0 ? diffDays : null;
+    console.log("calculateGuestNights: returning result:", result);
+    return result;
   }
 
   function parseDateString(dateStr) {
-    if (!dateStr) return null;
+    console.log("parseDateString called with:", dateStr);
+    if (!dateStr) {
+      console.log("parseDateString: no dateStr, returning null");
+      return null;
+    }
     // Try parsing dd.mm.yyyy
     const partsDMY = dateStr.split('.');
     if (partsDMY.length === 3) {
@@ -549,11 +563,18 @@
       const m = parseInt(partsDMY[1]) - 1;
       const y = parseInt(partsDMY[2]);
       const date = new Date(y, m, d);
-      if (!isNaN(date)) return date;
+      if (!isNaN(date)) {
+        console.log("parseDateString: parsed as dd.mm.yyyy:", date);
+        return date;
+      }
     }
     // Try parsing yyyy-mm-dd
     const date = new Date(dateStr);
-    if (!isNaN(date)) return date;
+    if (!isNaN(date)) {
+      console.log("parseDateString: parsed as yyyy-mm-dd:", date);
+      return date;
+    }
+    console.log("parseDateString: failed to parse, returning null");
     return null;
   }
 
@@ -717,25 +738,58 @@
   }
 
   function autoCalculateGuestNightsInEdit(changedField, container, keys) {
+    console.log("=== autoCalculateGuestNightsInEdit START ===");
+    
     // Get record ID from the changed field
     const recordId = changedField.dataset.record;
+    console.log("Record ID:", recordId);
+    console.log("Changed field:", changedField.dataset.field);
+    console.log("Changed value:", changedField.value);
 
     // Find all fields for this specific record
-    const checkInKeys = keys.filter(k => k.toLowerCase().includes('check in') || k.toLowerCase().includes('checkin'));
-    const checkOutKeys = keys.filter(k => k.toLowerCase().includes('check out') || k.toLowerCase().includes('checkout'));
-    const guestNightsKey = keys.find(k => k.toLowerCase().includes('guest night') || k.toLowerCase().includes('guest nights'));
-    if (!checkInKeys.length || !checkOutKeys.length || !guestNightsKey) return;
+    const checkInKeys = keys.filter(k => {
+      const lower = k.toLowerCase();
+      return lower.includes('check in') || lower.includes('checkin') || lower.includes('check-in');
+    });
+    const checkOutKeys = keys.filter(k => {
+      const lower = k.toLowerCase();
+      return lower.includes('check out') || lower.includes('checkout') || lower.includes('check-out');
+    });
+    const guestNightsKey = keys.find(k => {
+      const lower = k.toLowerCase();
+      return lower.includes('guest night') || lower.includes('guest nights') || lower.includes('nights');
+    });
+
+    console.log("Available keys:", keys);
+    console.log("Found checkInKeys:", checkInKeys);
+    console.log("Found checkOutKeys:", checkOutKeys);
+    console.log("Found guestNightsKey:", guestNightsKey);
+
+    if (!checkInKeys.length || !checkOutKeys.length || !guestNightsKey) {
+      console.log("Missing required keys, exiting");
+      return;
+    }
 
     const checkInField = container.querySelector(`[data-record="${recordId}"][data-field="${checkInKeys[0]}"]`);
     const checkOutField = container.querySelector(`[data-record="${recordId}"][data-field="${checkOutKeys[0]}"]`);
     const guestNightsField = container.querySelector(`[data-record="${recordId}"][data-field="${guestNightsKey}"]`);
 
+    console.log("checkInField:", checkInField?.value);
+    console.log("checkOutField:", checkOutField?.value);
+    console.log("guestNightsField:", guestNightsField);
+
     if (checkInField && checkOutField && guestNightsField) {
       const guestNights = calculateGuestNights(checkInField.value, checkOutField.value);
+      console.log("Calculated guest nights:", guestNights);
       if (guestNights) {
         guestNightsField.value = guestNights;
+        console.log("Updated guest nights field to:", guestNights);
       }
+    } else {
+      console.log("One or more fields not found");
     }
+
+    console.log("=== autoCalculateGuestNightsInEdit END ===");
   }
 
   function handleSort(collection, field) {
