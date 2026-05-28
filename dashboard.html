@@ -696,12 +696,15 @@
         let bStyle = (columnGroups[collection] && keys.length === expectedCols && boundaries.has(colIdx)) ? 'border-right: 2px solid var(--primary);' : '';
         if (isEditing) {
           // Check if this is a check-in/check-out field for revenue tracker
+          const lowerK = k.toLowerCase();
           const isDateField = collection === 'revenue_tracker' && 
-            (k.toLowerCase().includes('check in') || k.toLowerCase().includes('checkin') || 
-             k.toLowerCase().includes('check out') || k.toLowerCase().includes('checkout'));
+            (lowerK.includes('check-in') || lowerK.includes('check in') || lowerK.includes('checkin') || 
+             lowerK.includes('check-out') || lowerK.includes('check out') || lowerK.includes('checkout'));
+          console.log("Rendering field:", k, "isDateField:", isDateField, "value:", value);
           if (isDateField) {
             const parsedDate = parseDateString(value);
             const inputValue = formatDateForInput(parsedDate);
+            console.log("Creating date input with value:", inputValue);
             html += `<td style="${bStyle}"><input type="date" value="${inputValue}" data-field="${k}" data-record="${recordId}" class="edit-field edit-date-field"></td>`;
           } else {
             html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
