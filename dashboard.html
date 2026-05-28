@@ -539,18 +539,27 @@
     html += '<thead>';
     
     let expectedCols = 0;
+    let boundaries = new Set();
     if (columnGroups[collection]) {
-        expectedCols = columnGroups[collection].reduce((sum, g) => sum + g.colspan, 0);
+        let acc = 0;
+        columnGroups[collection].forEach(group => {
+            acc += group.colspan;
+            expectedCols += group.colspan;
+            boundaries.add(acc - 1); // 0-indexed column boundary
+        });
     }
     
     if (columnGroups[collection] && keys.length === expectedCols) {
        html += '<tr>';
-       html += '<th rowspan="2" style="vertical-align: middle;">Actions</th>';
+       html += '<th rowspan="2" style="vertical-align: middle; border-right: 2px solid var(--primary);">Actions</th>';
        columnGroups[collection].forEach(group => {
-           html += `<th colspan="${group.colspan}" style="text-align: center; border-bottom: 2px solid var(--primary); color: #fff; background: rgba(99,102,241,0.15); font-size: 0.95rem; letter-spacing: 0.5px;">${group.title}</th>`;
+           html += `<th colspan="${group.colspan}" style="text-align: center; border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); color: #fff; background: rgba(99,102,241,0.15); font-size: 0.95rem; letter-spacing: 0.5px;">${group.title}</th>`;
        });
        html += '</tr><tr>';
-       keys.forEach(k => html += `<th style="top: 41px;">${k}</th>`); // offset sticky top
+       keys.forEach((k, idx) => {
+           let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
+           html += `<th style="top: 41px; ${bStyle}">${k}</th>`;
+       }); // offset sticky top
        html += '</tr>';
     } else {
        html += '<tr>';
@@ -565,7 +574,8 @@
       const isEditing = editingRecords[recordId];
       
       html += `<tr>`;
-      html += `<td>`;
+      let actionBorder = (columnGroups[collection] && keys.length === expectedCols) ? 'border-right: 2px solid var(--primary);' : '';
+      html += `<td style="${actionBorder}">`;
       if (isEditing) {
         html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
         html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
@@ -575,12 +585,13 @@
       }
       html += `</td>`;
       
-      keys.forEach(k => {
+      keys.forEach((k, colIdx) => {
         const value = record[k];
+        let bStyle = (columnGroups[collection] && keys.length === expectedCols && boundaries.has(colIdx)) ? 'border-right: 2px solid var(--primary);' : '';
         if (isEditing) {
-          html += `<td><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+          html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
         } else {
-          html += `<td>${value || '—'}</td>`;
+          html += `<td style="${bStyle}">${value || '—'}</td>`;
         }
       });
       html += `</tr>`;
