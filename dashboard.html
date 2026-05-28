@@ -540,6 +540,31 @@
     return diffDays > 0 ? diffDays : null;
   }
 
+  function parseDateString(dateStr) {
+    if (!dateStr) return null;
+    // Try parsing dd.mm.yyyy
+    const partsDMY = dateStr.split('.');
+    if (partsDMY.length === 3) {
+      const d = parseInt(partsDMY[0]);
+      const m = parseInt(partsDMY[1]) - 1;
+      const y = parseInt(partsDMY[2]);
+      const date = new Date(y, m, d);
+      if (!isNaN(date)) return date;
+    }
+    // Try parsing yyyy-mm-dd
+    const date = new Date(dateStr);
+    if (!isNaN(date)) return date;
+    return null;
+  }
+
+  function formatDateForInput(date) {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   function renderDataTable(collection, data, container) {
     if (!data.data || data.data.length === 0) {
       container.innerHTML = '<div class="error">No records found</div>';
@@ -649,7 +674,17 @@
         const value = record[k];
         let bStyle = (columnGroups[collection] && keys.length === expectedCols && boundaries.has(colIdx)) ? 'border-right: 2px solid var(--primary);' : '';
         if (isEditing) {
-          html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+          // Check if this is a check-in/check-out field for revenue tracker
+          const isDateField = collection === 'revenue_tracker' && 
+            (k.toLowerCase().includes('check in') || k.toLowerCase().includes('checkin') || 
+             k.toLowerCase().includes('check out') || k.toLowerCase().includes('checkout'));
+          if (isDateField) {
+            const parsedDate = parseDateString(value);
+            const inputValue = formatDateForInput(parsedDate);
+            html += `<td style="${bStyle}"><input type="date" value="${inputValue}" data-field="${k}" data-record="${recordId}" class="edit-field edit-date-field"></td>`;
+          } else {
+            html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+          }
         } else {
           html += `<td style="${bStyle}">${value || '—'}</td>`;
         }
@@ -669,6 +704,36 @@
     html += '</div>';
     
     container.innerHTML = html;
+
+    // Add event listeners to date fields to auto-calculate guest nights when changed
+    if (collection === 'revenue_tracker') {
+      const dateFields = container.querySelectorAll('.edit-date-field');
+      dateFields.forEach(field => {
+        field.addEventListener('change', () => {
+          autoCalculateGuestNightsInEdit(container, keys);
+        });
+      });
+    }
+  }
+
+  function autoCalculateGuestNightsInEdit(container, keys) {
+    // Get all edit fields in this row
+    const checkInKeys = keys.filter(k => k.toLowerCase().includes('check in') || k.toLowerCase().includes('checkin'));
+    const checkOutKeys = keys.filter(k => k.toLowerCase().includes('check out') || k.toLowerCase().includes('checkout'));
+    const guestNightsKey = keys.find(k => k.toLowerCase().includes('guest night') || k.toLowerCase().includes('guest nights'));
+    if (!checkInKeys.length || !checkOutKeys.length || !guestNightsKey) return;
+
+    // We'll just update the first matching record we find (since it's the same table)
+    const checkInField = container.querySelector(`[data-field="${checkInKeys[0]}"]`);
+    const checkOutField = container.querySelector(`[data-field="${checkOutKeys[0]}"]`);
+    const guestNightsField = container.querySelector(`[data-field="${guestNightsKey}"]`);
+
+    if (checkInField && checkOutField && guestNightsField) {
+      const guestNights = calculateGuestNights(checkInField.value, checkOutField.value);
+      if (guestNights) {
+        guestNightsField.value = guestNights;
+      }
+    }
   }
 
   function handleSort(collection, field) {

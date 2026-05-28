@@ -900,7 +900,7 @@ def update_guest_client_record(collection, doc_id):
         if '_id' in data:
             del data['_id']
         
-        # Calculate guest nights for revenue tracker
+        # Calculate guest nights for revenue tracker and format dates
         if collection == 'revenue_tracker':
             # Get the current record
             current_record = db_inst[collection].find_one({'_id': oid})
@@ -909,14 +909,37 @@ def update_guest_client_record(collection, doc_id):
                 check_in = None
                 check_out = None
                 guest_nights_key = None
+                check_in_key = None
+                check_out_key = None
                 
                 for key in current_record.keys():
                     if not check_in and ('check in' in key.lower() or 'checkin' in key.lower()):
+                        check_in_key = key
                         check_in = data.get(key, current_record.get(key))
                     if not check_out and ('check out' in key.lower() or 'checkout' in key.lower()):
+                        check_out_key = key
                         check_out = data.get(key, current_record.get(key))
                     if not guest_nights_key and ('guest night' in key.lower() or 'guest nights' in key.lower()):
                         guest_nights_key = key
+                
+                # Format dates to dd.mm.yyyy
+                try:
+                    from datetime import datetime
+                    if check_in_key and check_in:
+                        # Try to parse as yyyy-mm-dd first
+                        try:
+                            date_in = datetime.strptime(str(check_in).strip(), '%Y-%m-%d')
+                            data[check_in_key] = date_in.strftime('%d.%m.%Y')
+                        except ValueError:
+                            pass
+                    if check_out_key and check_out:
+                        try:
+                            date_out = datetime.strptime(str(check_out).strip(), '%Y-%m-%d')
+                            data[check_out_key] = date_out.strftime('%d.%m.%Y')
+                        except ValueError:
+                            pass
+                except Exception as e:
+                    print(f"Error formatting dates: {e}")
                 
                 if check_in and check_out and guest_nights_key:
                     try:
