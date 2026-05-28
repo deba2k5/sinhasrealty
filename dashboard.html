@@ -532,9 +532,9 @@
 
   function calculateGuestNights(checkIn, checkOut) {
     if (!checkIn || !checkOut) return null;
-    const dateIn = new Date(checkIn);
-    const dateOut = new Date(checkOut);
-    if (isNaN(dateIn) || isNaN(dateOut)) return null;
+    const dateIn = parseDateString(checkIn);
+    const dateOut = parseDateString(checkOut);
+    if (!dateIn || !dateOut) return null;
     const diffTime = dateOut - dateIn;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : null;
@@ -709,24 +709,26 @@
     if (collection === 'revenue_tracker') {
       const dateFields = container.querySelectorAll('.edit-date-field');
       dateFields.forEach(field => {
-        field.addEventListener('change', () => {
-          autoCalculateGuestNightsInEdit(container, keys);
+        field.addEventListener('change', (e) => {
+          autoCalculateGuestNightsInEdit(e.target, container, keys);
         });
       });
     }
   }
 
-  function autoCalculateGuestNightsInEdit(container, keys) {
-    // Get all edit fields in this row
+  function autoCalculateGuestNightsInEdit(changedField, container, keys) {
+    // Get record ID from the changed field
+    const recordId = changedField.dataset.record;
+
+    // Find all fields for this specific record
     const checkInKeys = keys.filter(k => k.toLowerCase().includes('check in') || k.toLowerCase().includes('checkin'));
     const checkOutKeys = keys.filter(k => k.toLowerCase().includes('check out') || k.toLowerCase().includes('checkout'));
     const guestNightsKey = keys.find(k => k.toLowerCase().includes('guest night') || k.toLowerCase().includes('guest nights'));
     if (!checkInKeys.length || !checkOutKeys.length || !guestNightsKey) return;
 
-    // We'll just update the first matching record we find (since it's the same table)
-    const checkInField = container.querySelector(`[data-field="${checkInKeys[0]}"]`);
-    const checkOutField = container.querySelector(`[data-field="${checkOutKeys[0]}"]`);
-    const guestNightsField = container.querySelector(`[data-field="${guestNightsKey}"]`);
+    const checkInField = container.querySelector(`[data-record="${recordId}"][data-field="${checkInKeys[0]}"]`);
+    const checkOutField = container.querySelector(`[data-record="${recordId}"][data-field="${checkOutKeys[0]}"]`);
+    const guestNightsField = container.querySelector(`[data-record="${recordId}"][data-field="${guestNightsKey}"]`);
 
     if (checkInField && checkOutField && guestNightsField) {
       const guestNights = calculateGuestNights(checkInField.value, checkOutField.value);
