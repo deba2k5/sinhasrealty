@@ -729,8 +729,15 @@
     // Add event listeners to date fields to auto-calculate guest nights when changed
     if (collection === 'revenue_tracker') {
       const dateFields = container.querySelectorAll('.edit-date-field');
+      console.log("Found", dateFields.length, "edit-date-field elements");
       dateFields.forEach(field => {
+        console.log("Adding event listeners to field:", field.dataset.field);
         field.addEventListener('change', (e) => {
+          console.log("CHANGE event fired");
+          autoCalculateGuestNightsInEdit(e.target, container, keys);
+        });
+        field.addEventListener('input', (e) => {
+          console.log("INPUT event fired");
           autoCalculateGuestNightsInEdit(e.target, container, keys);
         });
       });
