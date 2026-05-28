@@ -515,12 +515,50 @@
     let keys = data.columns && data.columns.length > 0 
       ? data.columns 
       : Object.keys(data.data[0]).filter(k => k !== '_id');
+      
+    const columnGroups = {
+      'guest_profiles': [
+        { title: 'GUEST IDENTIFICATION', colspan: 8 },
+        { title: 'CONTACT DETAILS', colspan: 7 },
+        { title: 'ADDRESS — SWITZERLAND', colspan: 6 },
+        { title: 'ORIGIN — INDIA / HOME COUNTRY', colspan: 6 },
+        { title: 'COMPANY / EMPLOYER', colspan: 6 },
+        { title: 'INTERNAL / ADMIN', colspan: 4 }
+      ],
+      'revenue_tracker': [
+        { title: 'KEYS (Guest ID + Property ID)', colspan: 4 },
+        { title: 'GUEST SUMMARY', colspan: 5 },
+        { title: 'PROPERTY SUMMARY', colspan: 7 },
+        { title: 'STAY DETAILS', colspan: 8 },
+        { title: 'REVENUE & FINANCIALS (CHF)', colspan: 23 },
+        { title: 'STATUS & NOTES', colspan: 5 }
+      ]
+    };
     
     let html = '<div class="table-container"><div class="table-wrapper"><table>';
-    html += '<thead><tr>';
-    html += '<th>Actions</th>';
-    keys.forEach(k => html += `<th>${k}</th>`);
-    html += '</tr></thead><tbody>';
+    html += '<thead>';
+    
+    let expectedCols = 0;
+    if (columnGroups[collection]) {
+        expectedCols = columnGroups[collection].reduce((sum, g) => sum + g.colspan, 0);
+    }
+    
+    if (columnGroups[collection] && keys.length === expectedCols) {
+       html += '<tr>';
+       html += '<th rowspan="2" style="vertical-align: middle;">Actions</th>';
+       columnGroups[collection].forEach(group => {
+           html += `<th colspan="${group.colspan}" style="text-align: center; border-bottom: 2px solid var(--primary); color: #fff; background: rgba(99,102,241,0.15); font-size: 0.95rem; letter-spacing: 0.5px;">${group.title}</th>`;
+       });
+       html += '</tr><tr>';
+       keys.forEach(k => html += `<th style="top: 41px;">${k}</th>`); // offset sticky top
+       html += '</tr>';
+    } else {
+       html += '<tr>';
+       html += '<th>Actions</th>';
+       keys.forEach(k => html += `<th>${k}</th>`);
+       html += '</tr>';
+    }
+    html += '</thead><tbody>';
     
     data.data.forEach((record, idx) => {
       const recordId = record._id;
