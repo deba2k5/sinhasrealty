@@ -900,6 +900,46 @@ def update_guest_client_record(collection, doc_id):
         if '_id' in data:
             del data['_id']
         
+        # Calculate guest nights for revenue tracker
+        if collection == 'revenue_tracker':
+            # Get the current record
+            current_record = db_inst[collection].find_one({'_id': oid})
+            if current_record:
+                # Find check-in and check-out dates
+                check_in = None
+                check_out = None
+                guest_nights_key = None
+                
+                for key in current_record.keys():
+                    if not check_in and ('check in' in key.lower() or 'checkin' in key.lower()):
+                        check_in = data.get(key, current_record.get(key))
+                    if not check_out and ('check out' in key.lower() or 'checkout' in key.lower()):
+                        check_out = data.get(key, current_record.get(key))
+                    if not guest_nights_key and ('guest night' in key.lower() or 'guest nights' in key.lower()):
+                        guest_nights_key = key
+                
+                if check_in and check_out and guest_nights_key:
+                    try:
+                        from datetime import datetime
+                        date_format = '%d.%m.%Y'
+                        try:
+                            date_in = datetime.strptime(str(check_in).strip(), date_format)
+                            date_out = datetime.strptime(str(check_out).strip(), date_format)
+                        except ValueError:
+                            try:
+                                date_in = datetime.strptime(str(check_in).strip(), '%Y-%m-%d')
+                                date_out = datetime.strptime(str(check_out).strip(), '%Y-%m-%d')
+                            except:
+                                date_in = None
+                                date_out = None
+                        
+                        if date_in and date_out:
+                            diff_days = (date_out - date_in).days
+                            if diff_days > 0:
+                                data[guest_nights_key] = diff_days
+                    except Exception as e:
+                        print(f"Error calculating guest nights: {e}")
+        
         result = db_inst[collection].update_one({'_id': oid}, {'$set': data})
         
         if result.matched_count == 0:

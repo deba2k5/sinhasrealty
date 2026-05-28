@@ -454,6 +454,11 @@
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
   let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
   let editingRecords = {};
+  let currentSort = {
+    guest_profiles: { field: null, direction: 'asc' },
+    property_lookup: { field: null, direction: 'asc' },
+    revenue_tracker: { field: null, direction: 'asc' }
+  };
 
   function switchTab(tabName, btn) {
     // Hide all tabs
@@ -505,6 +510,36 @@
     }
   }
 
+  function sortData(collection, field, data) {
+    if (!field) return data;
+    const direction = currentSort[collection].direction === 'asc' ? 1 : -1;
+    return [...data].sort((a, b) => {
+      let valA = (a[field] || '').toString().toLowerCase();
+      let valB = (b[field] || '').toString().toLowerCase();
+      // Try to compare as numbers
+      if (!isNaN(valA) && !isNaN(valB)) {
+        return (Number(valA) - Number(valB)) * direction;
+      }
+      // Try to compare as dates
+      const dateA = new Date(valA);
+      const dateB = new Date(valB);
+      if (!isNaN(dateA) && !isNaN(dateB)) {
+        return (dateA - dateB) * direction;
+      }
+      return valA.localeCompare(valB) * direction;
+    });
+  }
+
+  function calculateGuestNights(checkIn, checkOut) {
+    if (!checkIn || !checkOut) return null;
+    const dateIn = new Date(checkIn);
+    const dateOut = new Date(checkOut);
+    if (isNaN(dateIn) || isNaN(dateOut)) return null;
+    const diffTime = dateOut - dateIn;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : null;
+  }
+
   function renderDataTable(collection, data, container) {
     if (!data.data || data.data.length === 0) {
       container.innerHTML = '<div class="error">No records found</div>';
@@ -516,6 +551,9 @@
       ? data.columns 
       : Object.keys(data.data[0]).filter(k => k !== '_id');
       
+    // Sort data if needed
+    let sortedData = sortData(collection, currentSort[collection].field, data.data);
+
     const columnGroups = {
       'guest_profiles': [
         { title: 'GUEST IDENTIFICATION', colspan: 8 },
@@ -558,21 +596,43 @@
        html += '</tr><tr>';
        keys.forEach((k, idx) => {
            let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
-           html += `<th style="top: 41px; ${bStyle}">${k}</th>`;
+           const isSorted = currentSort[collection].field === k;
+           const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
+           html += `<th style="top: 41px; cursor: pointer; ${bStyle}" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}</th>`;
        }); // offset sticky top
        html += '</tr>';
     } else {
        html += '<tr>';
        html += '<th>Actions</th>';
-       keys.forEach(k => html += `<th>${k}</th>`);
+       keys.forEach(k => {
+         const isSorted = currentSort[collection].field === k;
+         const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
+         html += `<th style="cursor: pointer;" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}</th>`;
+       });
        html += '</tr>';
     }
     html += '</thead><tbody>';
     
-    data.data.forEach((record, idx) => {
+    sortedData.forEach((record, idx) => {
       const recordId = record._id;
       const isEditing = editingRecords[recordId];
       
+      // For revenue tracker, auto-calculate guest nights
+      if (collection === 'revenue_tracker' && !isEditing) {
+        const checkInKeys = keys.filter(k => k.toLowerCase().includes('check in') || k.toLowerCase().includes('checkin'));
+        const checkOutKeys = keys.filter(k => k.toLowerCase().includes('check out') || k.toLowerCase().includes('checkout'));
+        if (checkInKeys.length > 0 && checkOutKeys.length > 0) {
+          const checkIn = record[checkInKeys[0]];
+          const checkOut = record[checkOutKeys[0]];
+          const guestNights = calculateGuestNights(checkIn, checkOut);
+          // Find guest nights field and update it in the record for display
+          const guestNightsKey = keys.find(k => k.toLowerCase().includes('guest night') || k.toLowerCase().includes('guest nights'));
+          if (guestNightsKey && guestNights) {
+            record = { ...record, [guestNightsKey]: guestNights };
+          }
+        }
+      }
+
       html += `<tr>`;
       let actionBorder = (columnGroups[collection] && keys.length === expectedCols) ? 'border-right: 2px solid var(--primary);' : '';
       html += `<td style="${actionBorder}">`;
@@ -609,6 +669,29 @@
     html += '</div>';
     
     container.innerHTML = html;
+  }
+
+  function handleSort(collection, field) {
+    if (currentSort[collection].field === field) {
+      // Toggle direction
+      currentSort[collection].direction = currentSort[collection].direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort[collection].field = field;
+      currentSort[collection].direction = 'asc';
+    }
+    // Re-render
+    const containerMap = {
+      guest_profiles: 'guest-profiles-container',
+      property_lookup: 'property-lookup-container',
+      revenue_tracker: 'revenue-tracker-container'
+    };
+    const container = document.getElementById(containerMap[collection]);
+    renderDataTable(collection, {
+      data: currentCollectionData[collection],
+      columns: currentCollectionColumns[collection],
+      page: currentCollectionPage[collection],
+      totalPages: 1
+    }, container);
   }
 
   function editRecord(recordId) {
