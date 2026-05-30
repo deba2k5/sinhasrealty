@@ -1174,14 +1174,6 @@ def get_guest_client_stats():
         print(traceback.format_exc())
         return jsonify({'success': False, 'message': str(e)}), 500
 
-if __name__ == '__main__':
-    print(f"=====================================")
-    print(f" Sinha's GmbH Portal Backend Started ")
-    print(f"=====================================")
-    print(f" Connected DB: {MONGO_URI}")
-    print(f" Dashboard is live at: http://localhost:5000")
-    # Run the server on port 5000
-    app.run(port=5000, debug=True)
 # ============================================
 # MORTGAGE REGISTER ENDPOINTS
 # ============================================
@@ -1476,3 +1468,11 @@ def get_mortgage_analytics():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+if __name__ == '__main__':
+    print(f"=====================================")
+    print(f" Sinha's GmbH Portal Backend Started ")
+    print(f"=====================================")
+    print(f" Connected DB: {MONGO_URI}")
+    print(f" Dashboard is live at: http://localhost:5000")
+    # Run the server on port 5000
+    app.run(port=5000, debug=True)
