@@ -1,703 +1,968 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mortgage Register Dashboard — Sinha's GmbH</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0a0f1e;
-      --surface: #101728;
-      --surface2: #151d30;
-      --border: rgba(255,255,255,0.08);
-      --primary: #6366f1;
-      --primary-lt: #818cf8;
-      --accent: #22d3ee;
-      --accent2: #a78bfa;
-      --green: #34d399;
-      --red: #f87171;
-      --yellow: #fbbf24;
-      --text: #f1f5f9;
-      --muted: #64748b;
-      --muted2: #94a3b8;
-    }
-
-    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
-    body { background-image: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(34,211,238,0.06) 0%, transparent 60%); }
-
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 2.5rem;
-      height: 64px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(10,15,30,0.95);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      backdrop-filter: blur(12px);
-    }
-    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; color: var(--text); text-decoration: none; }
-    .nav-logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 16px var(--primary); }
-    .nav-actions { display: flex; gap: 12px; align-items: center; }
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 8px; font-family: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
-    .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
-    .btn-ghost:hover { background: var(--surface); color: var(--text); }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover { background: var(--primary-lt); }
-    .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
-
-    .hero {
-      text-align: center;
-      padding: 60px 2.5rem 40px;
-    }
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 3rem);
-      font-weight: 800;
-      letter-spacing: -1.5px;
-      line-height: 1.1;
-      margin-bottom: 1rem;
-      background: linear-gradient(to bottom right, #fff 30%, var(--muted2) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero p { font-size: 1rem; color: var(--muted2); max-width: 560px; margin: 0 auto; }
-
-    .dashboard-container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 2.5rem 80px;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 3rem;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      transition: all 0.3s;
-    }
-    .stat-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
-    .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
-    .stat-value { font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .stat-sub { font-size: 0.85rem; color: var(--muted2); margin-top: 4px; }
-
-    .charts-section {
-      margin-bottom: 4rem;
-    }
-    .section-title {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin-bottom: 2rem;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .section-title-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-    }
-    .section-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      background: rgba(99,102,241,0.15);
-    }
-
-    .chart-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-      gap: 2rem;
-      margin-bottom: 3rem;
-    }
-    @media (max-width: 1200px) {
-      .chart-grid { grid-template-columns: 1fr; }
-    }
-
-    .chart-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 2rem;
-      transition: all 0.3s;
-    }
-    .chart-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
-    .chart-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text); }
-    .chart-container { position: relative; height: 300px; }
-
-    .divider { height: 1px; background: var(--border); margin: 3rem 0; }
-
-    .loading { text-align: center; padding: 2rem; color: var(--muted); }
-    .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: var(--red); padding: 1rem; border-radius: 10px; }
-
-    .table-container {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow: hidden;
-      margin-bottom: 2rem;
-    }
-    .table-wrapper {
-      overflow-x: auto;
-      max-height: 600px;
-      overflow-y: auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-    }
-    th {
-      background: var(--surface2);
-      padding: 12px 14px;
-      text-align: left;
-      font-weight: 700;
-      color: var(--muted2);
-      border-bottom: 1px solid var(--border);
-    }
-    td {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    tr:hover { background: rgba(99,102,241,0.05); }
-    input[type="text"], input[type="number"], input[type="date"], select {
-      width: 100%;
-      padding: 8px 10px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.85rem;
-      transition: border-color 0.2s;
-    }
-    input:focus, select:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-    .action-btn {
-      padding: 6px 12px;
-      margin: 0 2px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-    .btn-save { background: var(--green); color: #fff; }
-    .btn-save:hover { background: #059669; }
-    .btn-delete { background: var(--red); color: #fff; }
-    .btn-delete:hover { background: #ea5555; }
-    .btn-cancel { background: var(--muted); color: #fff; }
-    .btn-cancel:hover { background: #475569; }
-
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.6);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .modal.show { display: flex; }
-    .modal-content {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 2rem;
-      width: 100%;
-      max-width: 500px;
-    }
-    .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; }
-    .file-upload {
-      border: 2px dashed var(--border);
-      border-radius: 10px;
-      padding: 2rem;
-      text-align: center;
-      margin-bottom: 1rem;
-      cursor: pointer;
-    }
-    .file-upload:hover { border-color: var(--primary); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Register Dashboard — Sinha's GmbH</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0a0f1e;
+            --surface: #101728;
+            --surface2: #151d30;
+            --border: rgba(255,255,255,0.1);
+            --primary: #6366f1;
+            --primary-lt: #818cf8;
+            --accent: #22d3ee;
+            --green: #34d399;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --muted2: #94a3b8;
+        }
+        html, body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2.5rem;
+            height: 64px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10,15,30,0.95);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: var(--text);
+            text-decoration: none;
+        }
+        .nav-logo .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 16px var(--primary);
+        }
+        .nav-actions { display: flex; gap: 12px; align-items: center; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 20px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: var(--surface); color: var(--text); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-lt); }
+        .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
+        .hero {
+            text-align: center;
+            padding: 60px 2.5rem 40px;
+        }
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(to bottom right, #fff 30%, var(--muted2) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p { font-size: 1rem; color: var(--muted2); max-width: 560px; margin: 0 auto; }
+        .filter-bar {
+            max-width: 1400px;
+            margin: 0 auto 2rem auto;
+            padding: 0 2.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        .dashboard-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0 2.5rem 80px;
+            overflow-x: auto;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: all 0.3s;
+        }
+        .stat-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
+        .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+        .stat-value { font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-sub { font-size: 0.85rem; color: var(--muted2); margin-top: 4px; }
+        .charts-section { margin-bottom: 4rem; }
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        @media (max-width: 1200px) { .chart-grid { grid-template-columns: 1fr; } }
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+        .chart-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
+        .chart-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text); }
+        .chart-container { position: relative; height: 300px; }
+        .divider { height: 1px; background: var(--border); margin: 3rem 0; }
+        .loading { text-align: center; padding: 2rem; color: var(--muted); }
+        .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: var(--red); padding: 1rem; border-radius: 10px; }
+        .table-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+        .table-wrapper { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.85rem;
+            min-width: 3000px;
+        }
+        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th {
+            background: var(--surface2);
+            font-weight: 700;
+            color: var(--muted2);
+            white-space: nowrap;
+            position: sticky;
+            top: 64px;
+            z-index: 20;
+        }
+        tr:hover td { background: rgba(99,102,241,0.05); }
+        .group-header th {
+            background: rgba(99,102,241,0.15);
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+            border-bottom: 2px solid var(--primary);
+            border-top: 2px solid var(--primary);
+            text-align: center;
+            font-size: 0.8rem;
+            padding: 16px;
+            top: 0;
+            z-index: 25;
+        }
+        .actions-col {
+            position: sticky;
+            left: 0;
+            z-index: 30;
+            background: var(--surface2);
+        }
+        input, select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.85rem;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .column-filter {
+            margin-top: 4px;
+            padding: 6px 8px;
+            font-size: 0.75rem;
+        }
+        .action-btn {
+            padding: 6px 12px;
+            margin: 0 2px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-save { background: var(--green); color: #fff; }
+        .btn-save:hover { background: #059669; }
+        .btn-delete { background: var(--red); color: #fff; }
+        .btn-delete:hover { background: #ea5555; }
+        .btn-cancel { background: var(--muted); color: #fff; }
+        .btn-cancel:hover { background: #475569; }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+        }
+        .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; }
+        .file-upload {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+        .file-upload:hover { border-color: var(--primary); }
+    </style>
 </head>
 <body>
-  <nav>
-    <a href="/" class="nav-logo">
-      <div class="dot"></div>
-      <span>Sinha's GmbH — Mortgage Dashboard</span>
-    </a>
-    <div class="nav-actions">
-      <a href="/admin.html" class="btn btn-ghost">Admin Dashboard</a>
-      <a href="/dashboard.html" class="btn btn-ghost">Guest Dashboard</a>
-      <button id="uploadBtn" class="btn btn-primary">Upload Mortgage Register</button>
+    <nav>
+        <a href="/" class="nav-logo">
+            <div class="dot"></div>
+            <span>Sinha's GmbH — Mortgage Dashboard</span>
+        </a>
+        <div class="nav-actions">
+            <a href="/admin.html" class="btn btn-ghost">Admin Dashboard</a>
+            <a href="/dashboard.html" class="btn btn-ghost">Guest Dashboard</a>
+            <button id="uploadBtn" class="btn btn-primary">Upload Mortgage Register</button>
+        </div>
+    </nav>
+    <section class="hero">
+        <h1>Mortgage Register Analytics</h1>
+        <p>Comprehensive insights into your property portfolio, financing, and mortgage performance.</p>
+    </section>
+
+    <div class="filter-bar">
+        <input type="text" id="globalFilter" class="filter-input" placeholder="Search all columns...">
+        <button id="clearFilters" class="btn btn-ghost">Clear Filters</button>
     </div>
-  </nav>
 
-  <section class="hero">
-    <h1>Mortgage Register Analytics</h1>
-    <p>Comprehensive insights into your property portfolio, financing, and mortgage performance.</p>
-  </section>
+    <div class="dashboard-container">
+        <div id="loading" class="loading"><div class="spinner"></div> Loading mortgage data...</div>
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="content" style="display:none;">
+            <div class="stats-grid" id="statsGrid"></div>
+            
+            <section class="charts-section">
+                <h2 class="section-title">
+                    <span class="section-icon">📊</span>
+                    Portfolio Overview
+                </h2>
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <h3 class="chart-title">By Bank</h3>
+                        <div class="chart-container">
+                            <canvas id="bankChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3 class="chart-title">By Financing Type</h3>
+                        <div class="chart-container">
+                            <canvas id="financingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-  <div class="dashboard-container">
-    <div id="loading" class="loading"><div class="spinner"></div> Loading mortgage data...</div>
-    <div id="error" class="error" style="display:none;"></div>
-    <div id="content" style="display:none;">
-      <!-- STATS -->
-      <div class="stats-grid" id="statsGrid"></div>
-      
-      <!-- CHARTS -->
-      <section class="charts-section">
-        <h2 class="section-title">
-          <span class="section-icon">📊</span>
-          Portfolio Overview
-        </h2>
-        <div class="chart-grid">
-          <div class="chart-card">
-            <h3 class="chart-title">By Bank</h3>
-            <div class="chart-container">
-              <canvas id="bankChart"></canvas>
+            <div class="divider"></div>
+
+            <section>
+                <div class="section-title">
+                    <span class="section-icon">🏠</span>
+                    Mortgage Register
+                </div>
+                <div id="mortgageTableContainer"></div>
+            </section>
+        </div>
+    </div>
+
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Upload Mortgage Register</h3>
+            <div class="file-upload">
+                <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none;">
+                <p id="fileStatus">Click to select or drag & drop a file</p>
             </div>
-          </div>
-          <div class="chart-card">
-            <h3 class="chart-title">By Financing Type</h3>
-            <div class="chart-container">
-              <canvas id="financingChart"></canvas>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="cancelBtn" class="btn btn-ghost">Cancel</button>
+                <button id="confirmUpload" class="btn btn-primary" disabled>Upload</button>
             </div>
-          </div>
         </div>
-      </section>
-
-      <div class="divider"></div>
-
-      <!-- TABLE -->
-      <section>
-        <div class="section-title-row">
-          <h2 class="section-title" style="margin: 0;">
-            <span class="section-icon">🏠</span>
-            Mortgage Register
-          </h2>
-        </div>
-        <div id="mortgageTableContainer"></div>
-      </section>
     </div>
-  </div>
 
-  <!-- UPLOAD MODAL -->
-  <div id="uploadModal" class="modal">
-    <div class="modal-content">
-      <h3 class="modal-title">Upload Mortgage Register</h3>
-      <div class="file-upload">
-        <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none;">
-        <p id="fileStatus">Click to select or drag & drop a file</p>
-      </div>
-      <div style="display:flex; gap: 10px; justify-content:flex-end;">
-        <button id="cancelBtn" class="btn btn-ghost">Cancel</button>
-        <button id="confirmUpload" class="btn btn-primary" disabled>Upload</button>
-      </div>
-    </div>
-  </div>
+    <script>
+        // Exact Excel column order
+        const EXCEL_COLUMN_ORDER = [
+            'Property ID', 'Property Name', 'Type', 'Class', 'Address', 
+            'Coordinates (Lat/Long)', 'Floor', 'Position', 'Rooms', 'Size (sqm)',
+            'Purchase Date', 'Purchase Price (CHF)', 'Notary & Land Reg. Costs (CHF)', 
+            'Total Acquisition Cost (CHF)', 'Own Capital / Equity (CHF)', 'Own Capital %',
+            'Financing Bank', 'Financing Type (SARON/Fixed)', 'Interest Rate % p.a.', 
+            'SARON Margin %', 'Initial Mortgage Amount (CHF)', 'Mortgage Start Date',
+            'Term (Years)', 'Maturity / Renewal Date', 'Amortization Type (Direct/Indirect)',
+            'Annual Amortization (CHF)', 'Current Mortgage Outstanding (CHF)',
+            'Refinanced? (Yes/No)', 'Refinancing / Top-up Date', 
+            'Reason (Renewal/Rate/Top-up/Bank)', 'Top-up Amount – Aufstockung (CHF)',
+            'Financing Bank (Refi)', 'Financing Type (SARON/Fixed) (Refi)',
+            'Interest Rate % p.a. (Refi)', 'SARON Margin % (Refi)',
+            'New Mortgage Amount (CHF)', 'Refinancing Start Date',
+            'Term (Years) (Refi)', 'Maturity / Renewal Date (Refi)',
+            'Amortization Type (Refi)', 'Annual Amortization (CHF) (Refi)',
+            'Current Mortgage Outstanding (Refi) (CHF)',
+            'Effective Current Mortgage (CHF)', 'Effective Interest Rate %',
+            'Loan-to-Value (LTV) %', 'Annual Interest Cost (CHF)',
+            'Monthly Interest Cost (CHF)', 'Remarks'
+        ];
 
-  <script>
-    let analytics = null;
-    let records = [];
-    let keys = [];
-    let editingRecords = {};
-    let currentSort = { field: null, order: 1 };
+        // Column groups with correct colspan
+        const columnGroups = [
+            { title: 'ACTIONS', colspan: 1 },
+            { title: 'IDENTIFICATION', colspan: 4 },
+            { title: 'LOCATION / ADDRESS', colspan: 2 },
+            { title: 'PROPERTY ATTRIBUTES', colspan: 4 },
+            { title: 'PURCHASE', colspan: 6 },
+            { title: 'MORTGAGE / FINANCING (INITIAL)', colspan: 11 },
+            { title: 'REFINANCING / AUFSTOCKUNG', colspan: 15 },
+            { title: 'KPIs / NOTES', colspan: 6 }
+        ];
 
-    const chartColors = [
-      'rgba(99,102,241,0.8)',
-      'rgba(34,211,238,0.8)',
-      'rgba(167,139,250,0.8)',
-      'rgba(52,211,153,0.8)',
-      'rgba(251,191,36,0.8)',
-      'rgba(248,113,113,0.8)'
-    ];
+        let analytics = null;
+        let allRecords = [];
+        let filteredRecords = [];
+        let keys = EXCEL_COLUMN_ORDER;
+        let editingRecords = {};
+        let originalValues = {};
+        let currentSort = { field: null, order: 1 };
+        let columnFilters = {};
+        let globalFilter = '';
 
-    const columnGroups = [
-      { title: 'IDENTIFICATION', colspan: 4 },
-      { title: 'LOCATION / ADDRESS', colspan: 2 },
-      { title: 'PROPERTY ATTRIBUTES', colspan: 4 },
-      { title: 'PURCHASE', colspan: 6 },
-      { title: 'MORTGAGE / FINANCING (INITIAL)', colspan: 11 },
-      { title: 'REFINANCING / AUFSTOCKUNG (IF ANY)', colspan: 13 },
-      { title: 'KPIs / NOTES', colspan: 6 }
-    ];
+        const chartColors = [
+            'rgba(99,102,241,0.8)', 'rgba(34,211,238,0.8)', 'rgba(167,139,250,0.8)',
+            'rgba(52,211,153,0.8)', 'rgba(251,191,36,0.8)', 'rgba(248,113,113,0.8)',
+            'rgba(14,165,233,0.8)', 'rgba(139,92,246,0.8)', 'rgba(244,114,182,0.8)',
+            'rgba(192,132,252,0.8)'
+        ];
 
-    const formatCurrency = (val) => {
-      if (val === null || val === undefined) return '—';
-      return 'CHF ' + Number(val).toLocaleString('de-CH', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-    };
+        const formatCurrency = (val) => {
+            if (val === null || val === undefined || val === '') return '—';
+            return 'CHF ' + Number(val).toLocaleString('de-CH', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+        };
 
-    const formatPercent = (val) => {
-      if (val === null || val === undefined) return '—';
-      return Number(val).toFixed(2) + '%';
-    };
+        const formatPercent = (val) => {
+            if (val === null || val === undefined || val === '') return '—';
+            return Number(val).toFixed(2) + '%';
+        };
 
-    const formatDateForInput = (dateStr) => {
-      if (!dateStr) return '';
-      try {
-        const date = new Date(dateStr);
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      } catch {
-        return '';
-      }
-    };
-
-    async function loadData() {
-      try {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('error').style.display = 'none';
-        document.getElementById('content').style.display = 'none';
-
-        const [analyticsRes, recordsRes] = await Promise.all([
-          fetch('/api/mortgage-analytics'),
-          fetch('/api/mortgage-register')
-        ]);
-
-        const analyticsData = await analyticsRes.json();
-        const recordsData = await recordsRes.json();
-
-        if (!analyticsData.success || !recordsData.success) {
-          throw new Error(analyticsData.message || recordsData.message || 'Failed to load data');
-        }
-
-        analytics = analyticsData.analytics;
-        records = recordsData.data;
-        
-        // Get keys from first record
-        if (records.length > 0) {
-          keys = Object.keys(records[0]).filter(k => k !== '_id' && k !== 'record_type' && k !== 'created_at' && k !== 'updated_at');
-        }
-
-        renderStats();
-        renderCharts();
-        renderTable();
-
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('content').style.display = 'block';
-      } catch (e) {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('error').textContent = e.message;
-        document.getElementById('error').style.display = 'block';
-        console.error(e);
-      }
-    }
-
-    function renderStats() {
-      const grid = document.getElementById('statsGrid');
-      const ps = analytics?.portfolio_summary || {};
-      const stats = [
-        { label: 'Total Properties', value: ps.total_properties || 0, sub: 'In portfolio' },
-        { label: 'Total Acquisition Cost', value: formatCurrency(ps.total_acquisition_cost), sub: 'Purchase + fees' },
-        { label: 'Total Equity', value: formatCurrency(ps.total_equity), sub: formatPercent(ps.avg_equity_percent) + ' average' },
-        { label: 'Total Outstanding Mortgage', value: formatCurrency(ps.total_mortgage), sub: formatPercent(ps.portfolio_ltv_percent) + ' LTV' },
-        { label: 'Annual Interest Cost', value: formatCurrency(ps.total_annual_interest), sub: formatCurrency(ps.avg_monthly_interest) + ' monthly' },
-        { label: 'Average LTV', value: formatPercent(ps.avg_ltv_percent), sub: 'Across all properties' }
-      ];
-
-      grid.innerHTML = stats.map(s => `
-        <div class="stat-card">
-          <div class="stat-label">${s.label}</div>
-          <div class="stat-value">${s.value}</div>
-          ${s.sub ? `<div class="stat-sub">${s.sub}</div>` : ''}
-        </div>
-      `).join('');
-    }
-
-    function renderCharts() {
-      // Bank Chart
-      const bankCtx = document.getElementById('bankChart');
-      if (bankCtx) {
-        const banks = Object.keys(analytics?.by_bank || {});
-        new Chart(bankCtx.getContext('2d'), {
-          type: 'bar',
-          data: {
-            labels: banks,
-            datasets: [{
-              label: 'Total Mortgage (CHF)',
-              data: banks.map(b => analytics?.by_bank?.[b]?.total_mortgage || 0),
-              backgroundColor: chartColors.slice(0, banks.length),
-              borderRadius: 6
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid: { display: false } },
-              y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+        const formatDateForInput = (dateStr) => {
+            if (!dateStr) return '';
+            try {
+                const parts = dateStr.split('.');
+                if (parts.length === 3) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            } catch (e) {
+                console.error(e);
             }
-          }
-        });
-      }
+            return dateStr;
+        };
 
-      // Financing Type Chart
-      const finCtx = document.getElementById('financingChart');
-      if (finCtx) {
-        const types = Object.keys(analytics?.by_financing_type || {});
-        new Chart(finCtx.getContext('2d'), {
-          type: 'doughnut',
-          data: {
-            labels: types,
-            datasets: [{
-              data: types.map(t => analytics?.by_financing_type?.[t]?.total_mortgage || 0),
-              backgroundColor: chartColors.slice(0, types.length),
-              borderWidth: 0
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: { color: 'var(--muted2)' }
-              }
+        // Calculate KPIs for a record
+        function calculateKPIs(record) {
+            const newRecord = { ...record };
+            
+            // Formula 1: Total Acquisition Cost
+            try {
+                const price = parseFloat(newRecord['Purchase Price (CHF)'] || 0);
+                const notary = parseFloat(newRecord['Notary & Land Reg. Costs (CHF)'] || 0);
+                newRecord['Total Acquisition Cost (CHF)'] = price + notary;
+            } catch (e) {
+                newRecord['Total Acquisition Cost (CHF)'] = null;
             }
-          }
-        });
-      }
-    }
 
-    function handleSort(field) {
-      if (currentSort.field === field) {
-        currentSort.order = -currentSort.order;
-      } else {
-        currentSort.field = field;
-        currentSort.order = 1;
-      }
+            // Formula 2: Own Capital %
+            try {
+                const ownCapital = parseFloat(newRecord['Own Capital / Equity (CHF)'] || 0);
+                const totalAcquisition = parseFloat(newRecord['Total Acquisition Cost (CHF)'] || 0);
+                if (totalAcquisition > 0) {
+                    newRecord['Own Capital %'] = (ownCapital / totalAcquisition) * 100;
+                } else {
+                    newRecord['Own Capital %'] = null;
+                }
+            } catch (e) {
+                newRecord['Own Capital %'] = null;
+            }
 
-      records.sort((a, b) => {
-        let aVal = a[field];
-        let bVal = b[field];
-
-        if (typeof aVal === 'number' && typeof bVal === 'number') {
-          return (aVal - bVal) * currentSort.order;
-        }
-
-        aVal = (aVal || '').toString().toLowerCase();
-        bVal = (bVal || '').toString().toLowerCase();
-        return aVal.localeCompare(bVal) * currentSort.order;
-      });
-
-      renderTable();
-    }
-
-    function renderTable() {
-      const container = document.getElementById('mortgageTableContainer');
-      
-      if (!records.length) {
-        container.innerHTML = '<div class="error">No records found</div>';
-        return;
-      }
-
-      // Calculate boundaries for column groups
-      let expectedCols = 0;
-      let boundaries = new Set();
-      let acc = 0;
-      columnGroups.forEach(group => {
-        expectedCols += group.colspan;
-        acc += group.colspan;
-        boundaries.add(acc - 1); // 0-indexed column boundary
-      });
-
-      let html = '<div class="table-container"><div class="table-wrapper"><table>';
-      html += '<thead>';
-      
-      // First header row: groups
-      html += '<tr>';
-      html += '<th rowspan="2" style="vertical-align: middle; border-right: 2px solid var(--primary); top: 0; position: sticky; background: rgba(99,102,241,0.15);">Actions</th>';
-      columnGroups.forEach(group => {
-        html += `<th colspan="${group.colspan}" style="text-align: center; border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); color: #fff; background: rgba(99,102,241,0.15); font-size: 0.95rem; letter-spacing: 0.5px; top: 0; position: sticky;">${group.title}</th>`;
-      });
-      html += '</tr>';
-      
-      // Second header row: individual columns
-      html += '<tr>';
-      keys.forEach((k, idx) => {
-        let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
-        const isSorted = currentSort.field === k;
-        const sortIcon = isSorted ? (currentSort.order === 1 ? ' ↑' : ' ↓') : '';
-        html += `<th style="top: 41px; position: sticky; cursor: pointer; ${bStyle}" onclick="handleSort('${k}')">${k}${sortIcon}</th>`;
-      });
-      html += '</tr>';
-      html += '</thead><tbody>';
-
-      // Render data rows
-      records.forEach((record, idx) => {
-        const recordId = record._id;
-        const isEditing = editingRecords[recordId];
-        
-        html += `<tr>`;
-        html += `<td style="border-right: 2px solid var(--primary);">`;
-        if (isEditing) {
-          html += `<button class="action-btn btn-save" onclick="saveRecord('${recordId}')">✓ Save</button>`;
-          html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
-        } else {
-          html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
-          html += `<button class="action-btn btn-delete" onclick="deleteRecord('${recordId}')">Delete</button>`;
-        }
-        html += `</td>`;
-        
-        keys.forEach((k, colIdx) => {
-          const value = record[k];
-          let bStyle = boundaries.has(colIdx) ? 'border-right: 2px solid var(--primary);' : '';
-          
-          if (isEditing) {
-            const lowerK = k.toLowerCase();
-            if (lowerK.includes('date')) {
-              html += `<td style="${bStyle}"><input type="date" value="${formatDateForInput(value)}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
-            } else if (lowerK.includes('%') || lowerK.includes('price') || lowerK.includes('cost') || lowerK.includes('amount') || lowerK.includes('outstanding')) {
-              html += `<td style="${bStyle}"><input type="number" step="0.01" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+            // Formula 3: Effective Current Mortgage
+            let effectiveMortgage = newRecord['Current Mortgage Outstanding (Refi) (CHF)'] || newRecord['Current Mortgage Outstanding (CHF)'];
+            if (effectiveMortgage === '' || effectiveMortgage === null || effectiveMortgage === undefined) {
+                effectiveMortgage = null;
             } else {
-              html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+                effectiveMortgage = parseFloat(effectiveMortgage);
             }
-          } else {
-            html += `<td style="${bStyle}">${value || '—'}</td>`;
-          }
-        });
-        html += `</tr>`;
-      });
+            newRecord['Effective Current Mortgage (CHF)'] = effectiveMortgage;
 
-      html += '</tbody></table></div></div>';
-      container.innerHTML = html;
-    }
+            // Formula 4: Effective Interest Rate
+            let effectiveRate = newRecord['Interest Rate % p.a. (Refi)'] || newRecord['Interest Rate % p.a.'];
+            if (effectiveRate === '' || effectiveRate === null || effectiveRate === undefined) {
+                effectiveRate = null;
+            } else {
+                effectiveRate = parseFloat(effectiveRate);
+            }
+            newRecord['Effective Interest Rate %'] = effectiveRate;
 
-    function editRecord(recordId) {
-      editingRecords[recordId] = true;
-      renderTable();
-    }
+            // Formula 5: LTV %
+            try {
+                const totalAcquisition = parseFloat(newRecord['Total Acquisition Cost (CHF)'] || 0);
+                if (totalAcquisition > 0 && effectiveMortgage) {
+                    newRecord['Loan-to-Value (LTV) %'] = (effectiveMortgage / totalAcquisition) * 100;
+                } else {
+                    newRecord['Loan-to-Value (LTV) %'] = null;
+                }
+            } catch (e) {
+                newRecord['Loan-to-Value (LTV) %'] = null;
+            }
 
-    function cancelEdit(recordId) {
-      delete editingRecords[recordId];
-      renderTable();
-    }
+            // Formula 6: Annual Interest Cost
+            try {
+                if (effectiveMortgage && effectiveRate) {
+                    newRecord['Annual Interest Cost (CHF)'] = effectiveMortgage * (effectiveRate / 100);
+                } else {
+                    newRecord['Annual Interest Cost (CHF)'] = null;
+                }
+            } catch (e) {
+                newRecord['Annual Interest Cost (CHF)'] = null;
+            }
 
-    async function saveRecord(recordId) {
-      try {
-        const fields = document.querySelectorAll(`.edit-field[data-record="${recordId}"]`);
-        const updateData = {};
-        
-        fields.forEach(field => {
-          updateData[field.dataset.field] = field.value;
-        });
-        
-        const response = await fetch(`/api/mortgage-register/${recordId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updateData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          delete editingRecords[recordId];
-          loadData();
-        } else {
-          alert('Error saving record: ' + (result.message || 'Unknown error'));
+            // Formula 7: Monthly Interest Cost
+            try {
+                const annualInterest = parseFloat(newRecord['Annual Interest Cost (CHF)'] || 0);
+                if (annualInterest > 0) {
+                    newRecord['Monthly Interest Cost (CHF)'] = annualInterest / 12;
+                } else {
+                    newRecord['Monthly Interest Cost (CHF)'] = null;
+                }
+            } catch (e) {
+                newRecord['Monthly Interest Cost (CHF)'] = null;
+            }
+
+            return newRecord;
         }
-      } catch (error) {
-        alert('Error saving record: ' + error.message);
-      }
-    }
 
-    async function deleteRecord(recordId) {
-      if (!confirm('Are you sure you want to delete this record?')) return;
-      
-      try {
-        const response = await fetch(`/api/mortgage-register/${recordId}`, {
-          method: 'DELETE'
+        async function loadData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('content').style.display = 'none';
+
+                const [analyticsRes, recordsRes] = await Promise.all([
+                    fetch('/api/mortgage-analytics'),
+                    fetch('/api/mortgage-register?limit=100')
+                ]);
+
+                const analyticsData = await analyticsRes.json();
+                const recordsData = await recordsRes.json();
+
+                if (!analyticsData.success || !recordsData.success) {
+                    throw new Error(analyticsData.message || recordsData.message || 'Failed to load data');
+                }
+
+                analytics = analyticsData.analytics;
+                allRecords = recordsData.data;
+
+                // Ensure each record has all columns in exact order
+                allRecords = allRecords.map(record => {
+                    const orderedRecord = {};
+                    for (const col of EXCEL_COLUMN_ORDER) {
+                        orderedRecord[col] = record[col];
+                    }
+                    orderedRecord['_id'] = record['_id'];
+                    return orderedRecord;
+                });
+
+                applyFilters();
+
+                renderStats();
+                renderCharts();
+                renderTable();
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = e.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function applyFilters() {
+            filteredRecords = [...allRecords];
+
+            // Global filter
+            if (globalFilter) {
+                const filterLower = globalFilter.toLowerCase();
+                filteredRecords = filteredRecords.filter(record => {
+                    for (const col of EXCEL_COLUMN_ORDER) {
+                        const val = record[col];
+                        if (val !== null && val !== undefined && String(val).toLowerCase().includes(filterLower)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+
+            // Column filters
+            for (const col in columnFilters) {
+                if (columnFilters[col]) {
+                    const filterVal = columnFilters[col].toLowerCase();
+                    filteredRecords = filteredRecords.filter(record => {
+                        const val = record[col];
+                        return val !== null && val !== undefined && String(val).toLowerCase().includes(filterVal);
+                    });
+                }
+            }
+
+            if (currentSort.field) {
+                filteredRecords.sort((a, b) => {
+                    const aVal = a[currentSort.field];
+                    const bVal = b[currentSort.field];
+
+                    if (typeof aVal === 'number' && typeof bVal === 'number') {
+                        return (aVal - bVal) * currentSort.order;
+                    }
+
+                    return String(aVal || '').localeCompare(String(bVal || '')) * currentSort.order;
+                });
+            }
+        }
+
+        function renderStats() {
+            const grid = document.getElementById('statsGrid');
+            const ps = analytics?.portfolio_summary || {};
+            const stats = [
+                { label: 'Total Properties', value: ps.total_properties || 0, sub: 'In portfolio' },
+                { label: 'Total Acquisition Cost', value: formatCurrency(ps.total_acquisition_cost), sub: 'Purchase + fees' },
+                { label: 'Total Equity', value: formatCurrency(ps.total_equity), sub: formatPercent(ps.avg_equity_percent) + ' average' },
+                { label: 'Total Outstanding Mortgage', value: formatCurrency(ps.total_mortgage), sub: formatPercent(ps.portfolio_ltv_percent) + ' LTV' },
+                { label: 'Annual Interest Cost', value: formatCurrency(ps.total_annual_interest), sub: formatCurrency(ps.avg_monthly_interest) + ' monthly' },
+                { label: 'Average LTV', value: formatPercent(ps.avg_ltv_percent), sub: 'Across all properties' }
+            ];
+
+            grid.innerHTML = stats.map(s => `
+                <div class="stat-card">
+                    <div class="stat-label">${s.label}</div>
+                    <div class="stat-value">${s.value}</div>
+                    ${s.sub ? `<div class="stat-sub">${s.sub}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderCharts() {
+            const bankCtx = document.getElementById('bankChart');
+            if (bankCtx) {
+                const banks = Object.keys(analytics?.by_bank || {});
+                const existingChart = Chart.getChart(bankCtx);
+                if (existingChart) existingChart.destroy();
+                new Chart(bankCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: banks,
+                        datasets: [{
+                            label: 'Total Mortgage (CHF)',
+                            data: banks.map(b => analytics?.by_bank?.[b]?.total_mortgage || 0),
+                            backgroundColor: chartColors.slice(0, banks.length),
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: {
+                                    callback: value => formatCurrency(value).replace('CHF ', '')
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            const finCtx = document.getElementById('financingChart');
+            if (finCtx) {
+                const types = Object.keys(analytics?.by_financing_type || {});
+                const existingChart = Chart.getChart(finCtx);
+                if (existingChart) existingChart.destroy();
+                new Chart(finCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: types,
+                        datasets: [{
+                            data: types.map(t => analytics?.by_financing_type?.[t]?.total_mortgage || 0),
+                            backgroundColor: chartColors.slice(0, types.length),
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: 'var(--muted2)' }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => `${ctx.label}: ${formatCurrency(ctx.raw)}`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function handleSort(field) {
+            if (currentSort.field === field) {
+                currentSort.order = -currentSort.order;
+            } else {
+                currentSort.field = field;
+                currentSort.order = 1;
+            }
+            applyFilters();
+            renderTable();
+        }
+
+        function handleColumnFilter(col, value) {
+            columnFilters[col] = value;
+            applyFilters();
+            renderTable();
+        }
+
+        function handleGlobalFilter(value) {
+            globalFilter = value;
+            applyFilters();
+            renderTable();
+        }
+
+        function clearFilters() {
+            globalFilter = '';
+            columnFilters = {};
+            document.getElementById('globalFilter').value = '';
+            applyFilters();
+            renderTable();
+        }
+
+        function renderTable() {
+            const container = document.getElementById('mortgageTableContainer');
+            
+            if (!filteredRecords.length) {
+                container.innerHTML = '<div class="error">No records found</div>';
+                return;
+            }
+
+            // Calculate group end indices
+            const groupEndIndices = [0];
+            let current = 0;
+            for (let i = 0; i < columnGroups.length; i++) {
+                current += columnGroups[i].colspan;
+                groupEndIndices.push(current - 1);
+            }
+
+            let html = `
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr class="group-header">
+            `;
+            columnGroups.forEach((group, idx) => {
+                const borderRight = idx < columnGroups.length - 1 ? 'border-right: 2px solid var(--primary);' : '';
+                html += `<th colspan="${group.colspan}" style="${borderRight}">${group.title}</th>`;
+            });
+            html += `
+                                </tr>
+                                <tr>
+                                    <th class="actions-col" style="border-right: 2px solid var(--primary);">
+                                        Actions
+                                    </th>
+            `;
+            keys.forEach((col, idx) => {
+                const isSorted = currentSort.field === col;
+                const sortIcon = isSorted ? (currentSort.order === 1 ? ' ↑' : ' ↓');
+                const colIndex = idx + 1;
+                const isLastInGroup = groupEndIndices.includes(colIndex);
+                const borderRight = isLastInGroup ? 'border-right: 2px solid var(--primary);' : '';
+                html += `<th style="cursor:pointer; ${borderRight}">
+                    <div>${col}${sortIcon}</div>
+                    <input type="text" class="column-filter" placeholder="Filter..." value="${columnFilters[col] || ''}" onchange="handleColumnFilter('${col}', this.value)">
+                </th>`;
+            });
+            html += `
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            filteredRecords.forEach((record) => {
+                const recordId = record['_id'];
+                const isEditing = editingRecords[recordId];
+                
+                html += `<tr>`;
+                html += `<td class="actions-col" style="border-right: 2px solid var(--primary);">`;
+                if (isEditing) {
+                    html += `<button class="action-btn btn-save" onclick="saveRecord('${recordId}')">✓ Save</button>`;
+                    html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
+                } else {
+                    html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
+                    html += `<button class="action-btn btn-delete" onclick="deleteRecord('${recordId}')">Delete</button>`;
+                }
+                html += `</td>`;
+
+                keys.forEach((col, idx) => {
+                    const value = record[col];
+                    const colIndex = idx + 1;
+                    const isLastInGroup = groupEndIndices.includes(colIndex);
+                    const borderRight = isLastInGroup ? 'border-right: 2px solid var(--primary);' : '';
+                    
+                    // KPI columns are read-only
+                    const isKPI = [
+                        'Total Acquisition Cost (CHF)', 'Own Capital %', 'Effective Current Mortgage (CHF)',
+                        'Effective Interest Rate %', 'Loan-to-Value (LTV) %',
+                        'Annual Interest Cost (CHF)', 'Monthly Interest Cost (CHF)'
+                    ].includes(col);
+
+                    if (isEditing && !isKPI) {
+                        const lowerCol = col.toLowerCase();
+                        if (lowerCol.includes('date')) {
+                            html += `<td style="${borderRight}"><input type="date" value="${formatDateForInput(value)}" data-field="${col}" data-record="${recordId}" class="edit-field" onchange="updateTempEdit('${recordId}', '${col}', this.value)"></td>`;
+                        } else if (lowerCol.includes('%') || lowerCol.includes('price') || lowerCol.includes('cost') || lowerCol.includes('amount') || lowerCol.includes('outstanding')) {
+                            html += `<td style="${borderRight}"><input type="number" step="0.01" value="${value || ''}" data-field="${col}" data-record="${recordId}" class="edit-field" onchange="updateTempEdit('${recordId}', '${col}', this.value)"></td>`;
+                        } else {
+                            html += `<td style="${borderRight}"><input type="text" value="${value || ''}" data-field="${col}" data-record="${recordId}" class="edit-field" onchange="updateTempEdit('${recordId}', '${col}', this.value)"></td>`;
+                        }
+                    } else {
+                        let displayValue = value;
+                        if (col.toLowerCase().includes('price') || col.toLowerCase().includes('cost') || col.toLowerCase().includes('amount') || col.toLowerCase().includes('outstanding')) {
+                            displayValue = formatCurrency(value);
+                        } else if (col.toLowerCase().includes('%')) {
+                            displayValue = formatPercent(value);
+                        }
+                        html += `<td style="${borderRight}">${displayValue !== null && displayValue !== undefined ? displayValue : '—'}</td>`;
+                    }
+                });
+
+                html += `</tr>`;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        function editRecord(recordId) {
+            const record = allRecords.find(r => r['_id'] === recordId);
+            originalValues[recordId] = { ...record };
+            editingRecords[recordId] = true;
+            renderTable();
+        }
+
+        function cancelEdit(recordId) {
+            const record = allRecords.find(r => r['_id'] === recordId);
+            if (record && originalValues[recordId]) {
+                const idx = allRecords.findIndex(r => r['_id'] === recordId);
+                allRecords[idx] = originalValues[recordId];
+            }
+            delete editingRecords[recordId];
+            delete originalValues[recordId];
+            applyFilters();
+            renderTable();
+        }
+
+        function updateTempEdit(recordId, field, value) {
+            const record = allRecords.find(r => r['_id'] === recordId);
+            if (record) {
+                record[field] = value;
+            }
+        }
+
+        async function saveRecord(recordId) {
+            try {
+                const record = allRecords.find(r => r['_id'] === recordId);
+                const updatedRecord = calculateKPIs(record);
+                // Find index
+                const idx = allRecords.findIndex(r => r['_id'] === recordId);
+                allRecords[idx] = updatedRecord;
+
+                const response = await fetch(`/api/mortgage-register/${recordId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedRecord)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    delete editingRecords[recordId];
+                    delete originalValues[recordId];
+                    applyFilters();
+                    loadData(); // Refresh analytics
+                } else {
+                    alert('Error saving record: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error saving record: ' + error.message);
+            }
+        }
+
+        async function deleteRecord(recordId) {
+            if (!confirm('Are you sure you want to delete this record?')) return;
+            try {
+                const response = await fetch(`/api/mortgage-register/${recordId}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    loadData();
+                } else {
+                    alert('Error deleting record: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting record: ' + error.message);
+            }
+        }
+
+        // Event listeners
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadModal = document.getElementById('uploadModal');
+        const fileInput = document.getElementById('fileInput');
+        const fileStatus = document.getElementById('fileStatus');
+        const confirmUpload = document.getElementById('confirmUpload');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const globalFilterInput = document.getElementById('globalFilter');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        let selectedFile = null;
+
+        uploadBtn.addEventListener('click', () => uploadModal.classList.add('show'));
+        cancelBtn.addEventListener('click', () => uploadModal.classList.remove('show'));
+        uploadModal.addEventListener('click', (e) => { if (e.target === uploadModal) uploadModal.classList.remove('show'); });
+        document.querySelector('.file-upload').addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                selectedFile = e.target.files[0];
+                fileStatus.textContent = selectedFile.name;
+                confirmUpload.disabled = false;
+            }
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          loadData();
-        } else {
-          alert('Error deleting record: ' + (result.message || 'Unknown error'));
-        }
-      } catch (error) {
-        alert('Error deleting record: ' + error.message);
-      }
-    }
 
-    // Upload modal
-    const uploadBtn = document.getElementById('uploadBtn');
-    const uploadModal = document.getElementById('uploadModal');
-    const fileInput = document.getElementById('fileInput');
-    const fileStatus = document.getElementById('fileStatus');
-    const confirmUpload = document.getElementById('confirmUpload');
-    const cancelBtn = document.getElementById('cancelBtn');
-    let selectedFile = null;
+        confirmUpload.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            try {
+                const res = await fetch('/upload_mortgage_register', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Upload successful!');
+                    uploadModal.classList.remove('show');
+                    loadData();
+                } else {
+                    alert(data.message || 'Upload failed');
+                }
+            } catch (e) {
+                alert('Upload error: ' + e.message);
+            }
+        });
 
-    uploadBtn.addEventListener('click', () => uploadModal.classList.add('show'));
-    cancelBtn.addEventListener('click', () => uploadModal.classList.remove('show'));
-    uploadModal.addEventListener('click', (e) => { if (e.target === uploadModal) uploadModal.classList.remove('show'); });
+        globalFilterInput.addEventListener('input', (e) => handleGlobalFilter(e.target.value));
+        clearFiltersBtn.addEventListener('click', clearFilters);
 
-    document.querySelector('.file-upload').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files[0]) {
-        selectedFile = e.target.files[0];
-        fileStatus.textContent = selectedFile.name;
-        confirmUpload.disabled = false;
-      }
-    });
-
-    confirmUpload.addEventListener('click', async () => {
-      if (!selectedFile) return;
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      
-      try {
-        const res = await fetch('/upload_mortgage_register', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.success) {
-          alert('Upload successful!');
-          uploadModal.classList.remove('show');
-          loadData();
-        } else {
-          alert(data.message || 'Upload failed');
-        }
-      } catch (e) {
-        alert('Upload error: ' + e.message);
-      }
-    });
-
-    // Load initial data
-    loadData();
-  </script>
+        loadData();
+    </script>
 </body>
 </html>

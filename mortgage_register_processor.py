@@ -7,61 +7,28 @@ import re
 class MortgageRegisterProcessor:
     """Process Own Property Purchase & Mortgage Register Excel data"""
     
-    # Field mapping based on BRD
-    FIELD_MAPPING = {
-        # Identification
-        'Property ID': 'property_id',
-        'Property Name / Type / Class': 'property_name',
-        
-        # Location/Address
-        'Address (combined)': 'address',
-        'Coordinates (Lat/Long)': 'coordinates',
-        
-        # Physical Attributes
-        'Floor': 'floor',
-        'Position': 'position',
-        'Rooms': 'rooms',
-        'Size (sqm)': 'size_sqm',
-        
-        # Purchase
-        'Purchase Date': 'purchase_date',
-        'Purchase Price (CHF)': 'purchase_price',
-        'Notary & Land Reg. Costs (CHF)': 'notary_costs',
-        'Own Capital / Equity (CHF)': 'own_capital',
-        
-        # Initial Mortgage
-        'Financing Bank (Initial)': 'initial_bank',
-        'Financing Type (Initial)': 'initial_financing_type',
-        'Interest Rate (Initial) %': 'initial_interest_rate',
-        'SARON Margin (Initial) %': 'initial_saron_margin',
-        'Initial Mortgage Amount (CHF)': 'initial_mortgage_amount',
-        'Mortgage Start Date (Initial)': 'initial_start_date',
-        'Mortgage Term (years)': 'initial_term_years',
-        'Maturity/Renewal Date (Initial)': 'initial_maturity_date',
-        'Amortization Type (Initial)': 'initial_amortization_type',
-        'Annual Amortization (Initial) (CHF)': 'initial_annual_amortization',
-        'Current Mortgage Outstanding (Initial) (CHF)': 'initial_current_outstanding',
-        
-        # Refinancing
-        'Refinanced? (Yes/No)': 'refinanced_flag',
-        'Refinancing Date': 'refinancing_date',
-        'Refinancing Reason': 'refinancing_reason',
-        'Top-up / Aufstockung (CHF)': 'refinancing_topup',
-        'Financing Bank (Refinancing)': 'refinancing_bank',
-        'Financing Type (Refinancing)': 'refinancing_financing_type',
-        'Interest Rate (Refinancing) %': 'refinancing_interest_rate',
-        'SARON Margin (Refinancing) %': 'refinancing_saron_margin',
-        'Refinancing Mortgage Amount (CHF)': 'refinancing_mortgage_amount',
-        'Refinancing Start Date': 'refinancing_start_date',
-        'Refinancing Term (years)': 'refinancing_term_years',
-        'Maturity/Renewal Date (Refinancing)': 'refinancing_maturity_date',
-        'Amortization Type (Refinancing)': 'refinancing_amortization_type',
-        'Annual Amortization (Refinancing) (CHF)': 'refinancing_annual_amortization',
-        'Current Mortgage Outstanding (Refinancing) (CHF)': 'refinancing_current_outstanding',
-        
-        # KPIs
-        'Remarks': 'remarks'
-    }
+    # Exact column order from Excel
+    EXCEL_COLUMN_ORDER = [
+        'Property ID', 'Property Name', 'Type', 'Class', 'Address', 
+        'Coordinates (Lat/Long)', 'Floor', 'Position', 'Rooms', 'Size (sqm)',
+        'Purchase Date', 'Purchase Price (CHF)', 'Notary & Land Reg. Costs (CHF)', 
+        'Total Acquisition Cost (CHF)', 'Own Capital / Equity (CHF)', 'Own Capital %',
+        'Financing Bank', 'Financing Type (SARON/Fixed)', 'Interest Rate % p.a.', 
+        'SARON Margin %', 'Initial Mortgage Amount (CHF)', 'Mortgage Start Date',
+        'Term (Years)', 'Maturity / Renewal Date', 'Amortization Type (Direct/Indirect)',
+        'Annual Amortization (CHF)', 'Current Mortgage Outstanding (CHF)',
+        'Refinanced? (Yes/No)', 'Refinancing / Top-up Date', 
+        'Reason (Renewal/Rate/Top-up/Bank)', 'Top-up Amount – Aufstockung (CHF)',
+        'Financing Bank (Refi)', 'Financing Type (SARON/Fixed) (Refi)',
+        'Interest Rate % p.a. (Refi)', 'SARON Margin % (Refi)',
+        'New Mortgage Amount (CHF)', 'Refinancing Start Date',
+        'Term (Years) (Refi)', 'Maturity / Renewal Date (Refi)',
+        'Amortization Type (Refi)', 'Annual Amortization (CHF) (Refi)',
+        'Current Mortgage Outstanding (Refi) (CHF)',
+        'Effective Current Mortgage (CHF)', 'Effective Interest Rate %',
+        'Loan-to-Value (LTV) %', 'Annual Interest Cost (CHF)',
+        'Monthly Interest Cost (CHF)', 'Remarks'
+    ]
     
     def __init__(self, excel_file):
         self.excel_file = excel_file
@@ -69,24 +36,20 @@ class MortgageRegisterProcessor:
         
     def extract_real_headers(self):
         """Extract actual column headers from the Excel sheet"""
-        # Read the first 3 rows to understand structure
         df_headers = pd.read_excel(self.excel_file, sheet_name='Own Property Register', header=None, nrows=3)
         print("Header rows:")
         for i, row in df_headers.iterrows():
-            print(f"Row {i}: {row.tolist()[:15]}...")
+            print(f"Row {i}: {row.tolist()[:20]}...")
         
     def process_register(self):
         """Process the Own Property Register sheet"""
-        # Read with correct header row (row 3 contains actual column names)
         df = pd.read_excel(self.excel_file, sheet_name='Own Property Register', header=3)
         
         print(f"✓ Loaded {len(df)} rows")
-        print(f"✓ Columns ({len(df.columns)}): {list(df.columns[:15])}...\n")
+        print(f"✓ Columns ({len(df.columns)}): {list(df.columns)}...\n")
         
-        # Clean and process records
         records = []
         for idx, row in df.iterrows():
-            # Skip rows without Property ID
             if pd.isna(row.iloc[0]) or str(row.iloc[0]).strip() == '':
                 continue
                 
@@ -97,55 +60,38 @@ class MortgageRegisterProcessor:
         return records
     
     def process_row(self, row):
-        """Process a single row into a structured record"""
         record = {
             'record_type': 'own_property_mortgage_register',
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
         
-        # Extract all fields from the row
-        for idx, col in enumerate(row.index):
-            field_name = str(col).strip()
-            value = row.iloc[idx]
-            
-            # Skip NaN values
-            if pd.isna(value):
-                continue
-            
-            # Use original field name for display purposes
-            record[field_name] = self.convert_value(field_name, value)
+        # Add all columns in exact Excel order
+        for col in self.EXCEL_COLUMN_ORDER:
+            if col in row.index:
+                value = row[col]
+                record[col] = self.convert_value(col, value)
+            else:
+                record[col] = None
         
-        # Calculate KPIs (we'll use the original column names here)
+        # Calculate KPIs
         record = self.calculate_kpis(record)
         
         return record if record.get('Property ID') else None
     
-    def clean_field_name(self, field_name):
-        """Convert field name to database-safe format"""
-        # Remove special chars, convert to snake_case
-        name = str(field_name).strip()
-        name = re.sub(r'[^\w\s]', '', name)  # Remove special chars
-        name = re.sub(r'\s+', '_', name)  # Replace spaces with underscore
-        name = name.lower()
-        return name
-    
     def convert_value(self, field_name, value):
-        """Convert value to appropriate type"""
         if pd.isna(value):
             return None
         
-        # Handle dates
         if 'date' in field_name.lower():
             try:
                 if isinstance(value, str):
-                    return pd.to_datetime(value).strftime('%d.%m.%Y')
+                    return pd.to_datetime(value, dayfirst=True).strftime('%d.%m.%Y')
                 else:
-                    return pd.to_datetime(value).strftime('%d.%m.%Y')
+                    return pd.to_datetime(value, dayfirst=True).strftime('%d.%m.%Y')
             except:
                 return str(value)
         
-        # Handle percentages and numbers
         if any(x in field_name.lower() for x in ['%', 'rate', 'price', 'cost', 'amount', 'outstanding']):
             try:
                 return float(value)
@@ -155,78 +101,100 @@ class MortgageRegisterProcessor:
         return str(value)
     
     def calculate_kpis(self, record):
-        """Calculate derived KPIs based on BRD requirements"""
+        """Calculate derived KPIs based on Excel formulas"""
         
-        # Total Acquisition Cost = Purchase Price + Notary & Land Registry Costs
+        # Formula 1: Total Acquisition Cost = Purchase Price + Notary & Land Reg. Costs
         try:
-            price = record.get('Purchase Price (CHF)', 0) or 0
-            notary = record.get('Notary & Land Reg. Costs (CHF)', 0) or 0
+            price = float(record.get('Purchase Price (CHF)') or 0)
+            notary = float(record.get('Notary & Land Reg. Costs (CHF)') or 0)
             record['Total Acquisition Cost (CHF)'] = price + notary
         except:
-            pass
+            record['Total Acquisition Cost (CHF)'] = None
         
-        # Own Capital % = Own Capital / Purchase Price
+        # Formula 2: Own Capital % = (Own Capital / Total Acquisition Cost) * 100
         try:
-            own_capital = record.get('Own Capital / Equity (CHF)', 0) or 0
-            price = record.get('Purchase Price (CHF)', 0) or 1
-            if price > 0:
-                record['Own Capital %'] = (own_capital / price) * 100
+            own_capital = float(record.get('Own Capital / Equity (CHF)') or 0)
+            total_acquisition = float(record.get('Total Acquisition Cost (CHF)') or 0)
+            if total_acquisition > 0:
+                record['Own Capital %'] = (own_capital / total_acquisition) * 100
+            else:
+                record['Own Capital %'] = None
         except:
-            pass
+            record['Own Capital %'] = None
         
-        # Determine Effective Mortgage (use refinancing if available, else initial)
-        effective_mortgage = record.get('Current Mortgage Outstanding (Refinancing) (CHF)') or record.get('Current Mortgage Outstanding (Initial) (CHF)', 0)
-        effective_rate = record.get('Interest Rate % p.a. (Refi)') or record.get('Interest Rate % p.a.', 0)
-        
+        # Formula 3: Effective Current Mortgage - use Refi if available, else Initial
+        effective_mortgage = record.get('Current Mortgage Outstanding (Refi) (CHF)') or record.get('Current Mortgage Outstanding (CHF)')
+        if effective_mortgage is None or effective_mortgage == '':
+            effective_mortgage = None
+        else:
+            try:
+                effective_mortgage = float(effective_mortgage)
+            except:
+                effective_mortgage = None
         record['Effective Current Mortgage (CHF)'] = effective_mortgage
+        
+        # Formula 4: Effective Interest Rate - use Refi if available, else Initial
+        effective_rate = record.get('Interest Rate % p.a. (Refi)') or record.get('Interest Rate % p.a.')
+        if effective_rate is None or effective_rate == '':
+            effective_rate = None
+        else:
+            try:
+                effective_rate = float(effective_rate)
+            except:
+                effective_rate = None
         record['Effective Interest Rate %'] = effective_rate
         
-        # LTV % = Effective Mortgage / Purchase Price
+        # Formula 5: Loan-to-Value (LTV) % = (Effective Current Mortgage / Total Acquisition Cost) * 100
         try:
-            price = record.get('Purchase Price (CHF)', 0) or 1
-            if price > 0 and effective_mortgage:
-                record['Loan-to-Value (LTV) %'] = (effective_mortgage / price) * 100
+            total_acquisition = float(record.get('Total Acquisition Cost (CHF)') or 0)
+            if total_acquisition > 0 and effective_mortgage:
+                record['Loan-to-Value (LTV) %'] = (effective_mortgage / total_acquisition) * 100
+            else:
+                record['Loan-to-Value (LTV) %'] = None
         except:
-            pass
+            record['Loan-to-Value (LTV) %'] = None
         
-        # Annual Interest Cost = Effective Mortgage × Effective Rate
+        # Formula 6: Annual Interest Cost = Effective Current Mortgage * (Effective Interest Rate / 100)
         try:
             if effective_mortgage and effective_rate:
                 record['Annual Interest Cost (CHF)'] = effective_mortgage * (effective_rate / 100)
-                record['Monthly Interest Cost (CHF)'] = record['Annual Interest Cost (CHF)'] / 12
+            else:
+                record['Annual Interest Cost (CHF)'] = None
         except:
-            pass
+            record['Annual Interest Cost (CHF)'] = None
+        
+        # Formula 7: Monthly Interest Cost = Annual Interest Cost / 12
+        try:
+            annual_interest = float(record.get('Annual Interest Cost (CHF)') or 0)
+            if annual_interest > 0:
+                record['Monthly Interest Cost (CHF)'] = annual_interest / 12
+            else:
+                record['Monthly Interest Cost (CHF)'] = None
+        except:
+            record['Monthly Interest Cost (CHF)'] = None
         
         return record
     
     def get_data_dictionary(self):
-        """Extract data dictionary and rules from the second sheet"""
         df_dict = pd.read_excel(self.excel_file, sheet_name='Data Dictionary & Rules', header=1)
         return df_dict.to_dict('records')
 
-# Main execution
 if __name__ == "__main__":
-    excel_file = r"c:\Users\Debangshu05\Downloads\sinharealty\SINHAS_Own_Property_Purchase_Mortgage_Register-2 (1).xlsx"
-    
+    excel_file = r"C:\Users\Debangshu05\Downloads\SINHAS_Own_Property_Purchase_Mortgage_Register-2 (1).xlsx"
     processor = MortgageRegisterProcessor(excel_file)
     
-    print("=" * 80)
+    print("="*80)
     print("PROCESSING MORTGAGE REGISTER")
-    print("=" * 80)
+    print("="*80)
     
     processor.extract_real_headers()
     
     try:
         records = processor.process_register()
-        
         print(f"\n✓ Processed {len(records)} properties\n")
-        
         if records:
             print("Sample record:")
             print(json.dumps(records[0], indent=2, default=str))
-            
-            print(f"\n✓ Ready for MongoDB upload ({len(records)} properties)")
-            
     except Exception as e:
         print(f"✗ Error: {str(e)}")
         import traceback
