@@ -82,4 +82,5 @@ def mortgage_stats():
 def mortgage_dashboard():
     return send_from_directory('.', 'mortgage_dashboard.html')
 
-# Existing routes continue unchanged...
+def handler(event, context):
+    return app
