@@ -1230,7 +1230,7 @@ def get_mortgage_register():
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
-        sort_field = request.args.get('sort', 'property_id')
+        sort_field = request.args.get('sort', 'Property ID')
         sort_order = int(request.args.get('order', 1))
         search = request.args.get('search', '').strip()
         city_filter = request.args.get('city', '').strip()
@@ -1250,27 +1250,27 @@ def get_mortgage_register():
         if search:
             regex = re.compile(search, re.IGNORECASE)
             query['$or'] = [
-                {'property_id': {'$regex': regex}},
-                {'property_name': {'$regex': regex}},
-                {'address': {'$regex': regex}}
+                {'Property ID': {'$regex': regex}},
+                {'Property Name': {'$regex': regex}},
+                {'Address': {'$regex': regex}}
             ]
         
         # Filters
         if city_filter:
-            query['address'] = {'$regex': city_filter, '$options': 'i'}
+            query['Address'] = {'$regex': city_filter, '$options': 'i'}
         if canton_filter:
-            if 'address' in query and isinstance(query['address'], dict):
-                query['$and'] = [{'address': query.pop('address')}, {'address': {'$regex': canton_filter, '$options': 'i'}}]
+            if 'Address' in query and isinstance(query['Address'], dict):
+                query['$and'] = [{'Address': query.pop('Address')}, {'Address': {'$regex': canton_filter, '$options': 'i'}}]
             else:
-                query['address'] = {'$regex': canton_filter, '$options': 'i'}
+                query['Address'] = {'$regex': canton_filter, '$options': 'i'}
         if bank_filter:
             query['$or'] = query.get('$or', [])
             query['$or'].extend([
-                {'initial_bank': {'$regex': bank_filter, '$options': 'i'}},
-                {'refinancing_bank': {'$regex': bank_filter, '$options': 'i'}}
+                {'Financing Bank': {'$regex': bank_filter, '$options': 'i'}},
+                {'Financing Bank (Refi)': {'$regex': bank_filter, '$options': 'i'}}
             ])
         if financing_type_filter:
-            query['initial_financing_type'] = financing_type_filter
+            query['Financing Type (SARON/Fixed)'] = financing_type_filter
         
         # Get total and records
         total = col.count_documents(query)
@@ -1385,20 +1385,20 @@ def get_mortgage_analytics():
         if not all_records:
             return jsonify({'success': True, 'analytics': {}})
         
-        total_acquisition_cost = sum(float(r.get('total_acquisition_cost', 0) or 0) for r in all_records)
-        total_equity = sum(float(r.get('own_capital', 0) or 0) for r in all_records)
-        total_mortgage = sum(float(r.get('effective_current_mortgage', 0) or 0) for r in all_records)
-        total_annual_interest = sum(float(r.get('annual_interest_cost', 0) or 0) for r in all_records)
+        total_acquisition_cost = sum(float(r.get('Total Acquisition Cost (CHF)', 0) or 0) for r in all_records)
+        total_equity = sum(float(r.get('Own Capital / Equity (CHF)', 0) or 0) for r in all_records)
+        total_mortgage = sum(float(r.get('Effective Current Mortgage (CHF)', 0) or 0) for r in all_records)
+        total_annual_interest = sum(float(r.get('Annual Interest Cost (CHF)', 0) or 0) for r in all_records)
         
         # Aggregate stats
-        avg_ltv = sum(float(r.get('ltv_percent', 0) or 0) for r in all_records) / len(all_records) if all_records else 0
+        avg_ltv = sum(float(r.get('Loan-to-Value (LTV) %', 0) or 0) for r in all_records) / len(all_records) if all_records else 0
         avg_equity_pct = (total_equity / total_acquisition_cost * 100) if total_acquisition_cost > 0 else 0
         portfolio_ltv = (total_mortgage / total_acquisition_cost * 100) if total_acquisition_cost > 0 else 0
         
         # By Bank
         bank_summary = {}
         for rec in all_records:
-            bank = rec.get('initial_bank') or 'Unknown'
+            bank = rec.get('Financing Bank') or 'Unknown'
             if bank not in bank_summary:
                 bank_summary[bank] = {
                     'count': 0,
@@ -1406,13 +1406,13 @@ def get_mortgage_analytics():
                     'total_interest': 0
                 }
             bank_summary[bank]['count'] += 1
-            bank_summary[bank]['total_mortgage'] += float(rec.get('effective_current_mortgage', 0) or 0)
-            bank_summary[bank]['total_interest'] += float(rec.get('annual_interest_cost', 0) or 0)
+            bank_summary[bank]['total_mortgage'] += float(rec.get('Effective Current Mortgage (CHF)', 0) or 0)
+            bank_summary[bank]['total_interest'] += float(rec.get('Annual Interest Cost (CHF)', 0) or 0)
         
         # By Financing Type
         financing_type_summary = {}
         for rec in all_records:
-            ftype = rec.get('initial_financing_type') or 'Unknown'
+            ftype = rec.get('Financing Type (SARON/Fixed)') or 'Unknown'
             if ftype not in financing_type_summary:
                 financing_type_summary[ftype] = {
                     'count': 0,
@@ -1420,19 +1420,19 @@ def get_mortgage_analytics():
                     'avg_rate': 0
                 }
             financing_type_summary[ftype]['count'] += 1
-            financing_type_summary[ftype]['total_mortgage'] += float(rec.get('effective_current_mortgage', 0) or 0)
+            financing_type_summary[ftype]['total_mortgage'] += float(rec.get('Effective Current Mortgage (CHF)', 0) or 0)
         
         # Upcoming renewals (within 12 months)
         upcoming_renewals = []
         today = datetime.datetime.now()
         for rec in all_records:
-            maturity = rec.get('initial_maturity_date') or rec.get('refinancing_maturity_date')
+            maturity = rec.get('Maturity / Renewal Date') or rec.get('Maturity / Renewal Date (Refi)')
             if maturity:
                 try:
-                    mat_date = pd.to_datetime(maturity)
+                    mat_date = pd.to_datetime(maturity, dayfirst=True)
                     if today <= mat_date <= today + datetime.timedelta(days=365):
                         upcoming_renewals.append({
-                            'property_id': rec.get('property_id'),
+                            'property_id': rec.get('Property ID'),
                             'maturity_date': maturity,
                             'days_until_renewal': (mat_date - today).days
                         })

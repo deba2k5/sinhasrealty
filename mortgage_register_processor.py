@@ -113,14 +113,13 @@ class MortgageRegisterProcessor:
             if pd.isna(value):
                 continue
             
-            # Clean field name and add to record
-            clean_name = self.clean_field_name(field_name)
-            record[clean_name] = self.convert_value(field_name, value)
+            # Use original field name for display purposes
+            record[field_name] = self.convert_value(field_name, value)
         
-        # Calculate KPIs
+        # Calculate KPIs (we'll use the original column names here)
         record = self.calculate_kpis(record)
         
-        return record if record.get('property_id') else None
+        return record if record.get('Property ID') else None
     
     def clean_field_name(self, field_name):
         """Convert field name to database-safe format"""
@@ -140,9 +139,9 @@ class MortgageRegisterProcessor:
         if 'date' in field_name.lower():
             try:
                 if isinstance(value, str):
-                    return pd.to_datetime(value).isoformat()
+                    return pd.to_datetime(value).strftime('%d.%m.%Y')
                 else:
-                    return pd.to_datetime(value).isoformat()
+                    return pd.to_datetime(value).strftime('%d.%m.%Y')
             except:
                 return str(value)
         
@@ -160,41 +159,41 @@ class MortgageRegisterProcessor:
         
         # Total Acquisition Cost = Purchase Price + Notary & Land Registry Costs
         try:
-            price = record.get('purchase_price', 0) or 0
-            notary = record.get('notary_costs', 0) or 0
-            record['total_acquisition_cost'] = price + notary
+            price = record.get('Purchase Price (CHF)', 0) or 0
+            notary = record.get('Notary & Land Reg. Costs (CHF)', 0) or 0
+            record['Total Acquisition Cost (CHF)'] = price + notary
         except:
             pass
         
         # Own Capital % = Own Capital / Purchase Price
         try:
-            own_capital = record.get('own_capital', 0) or 0
-            price = record.get('purchase_price', 0) or 1
+            own_capital = record.get('Own Capital / Equity (CHF)', 0) or 0
+            price = record.get('Purchase Price (CHF)', 0) or 1
             if price > 0:
-                record['own_capital_percent'] = (own_capital / price) * 100
+                record['Own Capital %'] = (own_capital / price) * 100
         except:
             pass
         
         # Determine Effective Mortgage (use refinancing if available, else initial)
-        effective_mortgage = record.get('refinancing_current_outstanding') or record.get('initial_current_outstanding', 0)
-        effective_rate = record.get('refinancing_interest_rate') or record.get('initial_interest_rate', 0)
+        effective_mortgage = record.get('Current Mortgage Outstanding (Refinancing) (CHF)') or record.get('Current Mortgage Outstanding (Initial) (CHF)', 0)
+        effective_rate = record.get('Interest Rate % p.a. (Refi)') or record.get('Interest Rate % p.a.', 0)
         
-        record['effective_current_mortgage'] = effective_mortgage
-        record['effective_interest_rate'] = effective_rate
+        record['Effective Current Mortgage (CHF)'] = effective_mortgage
+        record['Effective Interest Rate %'] = effective_rate
         
         # LTV % = Effective Mortgage / Purchase Price
         try:
-            price = record.get('purchase_price', 0) or 1
+            price = record.get('Purchase Price (CHF)', 0) or 1
             if price > 0 and effective_mortgage:
-                record['ltv_percent'] = (effective_mortgage / price) * 100
+                record['Loan-to-Value (LTV) %'] = (effective_mortgage / price) * 100
         except:
             pass
         
         # Annual Interest Cost = Effective Mortgage × Effective Rate
         try:
             if effective_mortgage and effective_rate:
-                record['annual_interest_cost'] = effective_mortgage * (effective_rate / 100)
-                record['monthly_interest_cost'] = record['annual_interest_cost'] / 12
+                record['Annual Interest Cost (CHF)'] = effective_mortgage * (effective_rate / 100)
+                record['Monthly Interest Cost (CHF)'] = record['Annual Interest Cost (CHF)'] / 12
         except:
             pass
         
