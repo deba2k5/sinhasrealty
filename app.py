@@ -1,5 +1,8 @@
 import os
+from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
 
 # Existing imports from app.py (kept for context) 
 # ... (the rest of app.py unchanged up to line 46)
