@@ -347,10 +347,10 @@
             <div class="divider"></div>
 
             <section>
-                <div class="section-title">
+                <h2 class="section-title">
                     <span class="section-icon">🏠</span>
                     Mortgage Register
-                </div>
+                </h2>
                 <div id="mortgageTableContainer"></div>
             </section>
         </div>
@@ -371,17 +371,17 @@
     </div>
 
     <script>
-        // Exact Excel column order
+        // EXACT Excel column order
         const EXCEL_COLUMN_ORDER = [
-            'Property ID', 'Property Name', 'Type', 'Class', 'Address', 
+            'Property ID', 'Property Name', 'Type', 'Class', 'Address',
             'Coordinates (Lat/Long)', 'Floor', 'Position', 'Rooms', 'Size (sqm)',
-            'Purchase Date', 'Purchase Price (CHF)', 'Notary & Land Reg. Costs (CHF)', 
+            'Purchase Date', 'Purchase Price (CHF)', 'Notary & Land Reg. Costs (CHF)',
             'Total Acquisition Cost (CHF)', 'Own Capital / Equity (CHF)', 'Own Capital %',
-            'Financing Bank', 'Financing Type (SARON/Fixed)', 'Interest Rate % p.a.', 
+            'Financing Bank', 'Financing Type (SARON/Fixed)', 'Interest Rate % p.a.',
             'SARON Margin %', 'Initial Mortgage Amount (CHF)', 'Mortgage Start Date',
             'Term (Years)', 'Maturity / Renewal Date', 'Amortization Type (Direct/Indirect)',
             'Annual Amortization (CHF)', 'Current Mortgage Outstanding (CHF)',
-            'Refinanced? (Yes/No)', 'Refinancing / Top-up Date', 
+            'Refinanced? (Yes/No)', 'Refinancing / Top-up Date',
             'Reason (Renewal/Rate/Top-up/Bank)', 'Top-up Amount – Aufstockung (CHF)',
             'Financing Bank (Refi)', 'Financing Type (SARON/Fixed) (Refi)',
             'Interest Rate % p.a. (Refi)', 'SARON Margin % (Refi)',
@@ -409,7 +409,6 @@
         let analytics = null;
         let allRecords = [];
         let filteredRecords = [];
-        let keys = EXCEL_COLUMN_ORDER;
         let editingRecords = {};
         let originalValues = {};
         let currentSort = { field: null, order: 1 };
@@ -547,15 +546,12 @@
                 }
 
                 analytics = analyticsData.analytics;
-                allRecords = recordsData.data;
-
-                // Ensure each record has all columns in exact order
-                allRecords = allRecords.map(record => {
-                    const orderedRecord = {};
+                allRecords = recordsData.data.map(record => {
+                    // Build a new record in EXACT Excel column order
+                    const orderedRecord = { _id: record['_id'] };
                     for (const col of EXCEL_COLUMN_ORDER) {
                         orderedRecord[col] = record[col];
                     }
-                    orderedRecord['_id'] = record['_id'];
                     return orderedRecord;
                 });
 
@@ -691,15 +687,8 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: { color: 'var(--muted2)' }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: ctx => `${ctx.label}: ${formatCurrency(ctx.raw)}`
-                                }
-                            }
+                            legend: { position: 'bottom', labels: { color: 'var(--muted2)' } },
+                            tooltip: { callbacks: { label: ctx => `${ctx.label}: ${formatCurrency(ctx.raw)}` } }
                         }
                     }
                 });
@@ -771,9 +760,9 @@
                                         Actions
                                     </th>
             `;
-            keys.forEach((col, idx) => {
+            EXCEL_COLUMN_ORDER.forEach((col, idx) => {
                 const isSorted = currentSort.field === col;
-                const sortIcon = isSorted ? (currentSort.order === 1 ? ' ↑' : ' ↓');
+                const sortIcon = isSorted ? (currentSort.order === 1 ? ' ↑' : ' ↓') : '';
                 const colIndex = idx + 1;
                 const isLastInGroup = groupEndIndices.includes(colIndex);
                 const borderRight = isLastInGroup ? 'border-right: 2px solid var(--primary);' : '';
@@ -803,7 +792,7 @@
                 }
                 html += `</td>`;
 
-                keys.forEach((col, idx) => {
+                EXCEL_COLUMN_ORDER.forEach((col, idx) => {
                     const value = record[col];
                     const colIndex = idx + 1;
                     const isLastInGroup = groupEndIndices.includes(colIndex);
