@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mortgage Register Dashboard — Sinha's GmbH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0f1e;
+      --surface: #101728;
+      --surface2: #151d30;
+      --border: rgba(255,255,255,0.08);
+      --primary: #6366f1;
+      --primary-lt: #818cf8;
+      --accent: #22d3ee;
+      --accent2: #a78bfa;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+    }
+
+    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    body { background-image: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(34,211,238,0.06) 0%, transparent 60%); }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,15,30,0.95);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; color: var(--text); text-decoration: none; }
+    .nav-logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 16px var(--primary); }
+    .nav-actions { display: flex; gap: 12px; align-items: center; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 8px; font-family: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface); color: var(--text); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-lt); }
+    .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
+
+    .hero {
+      text-align: center;
+      padding: 60px 2.5rem 40px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      background: linear-gradient(to bottom right, #fff 30%, var(--muted2) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p { font-size: 1rem; color: var(--muted2); max-width: 560px; margin: 0 auto; }
+
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 2.5rem 80px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.3s;
+    }
+    .stat-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
+    .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+    .stat-value { font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-sub { font-size: 0.85rem; color: var(--muted2); margin-top: 4px; }
+
+    .charts-section {
+      margin-bottom: 4rem;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      background: rgba(99,102,241,0.15);
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    @media (max-width: 1200px) {
+      .chart-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      transition: all 0.3s;
+    }
+    .chart-card:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 12px 48px rgba(0,0,0,0.35); transform: translateY(-2px); }
+    .chart-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text); }
+    .chart-container { position: relative; height: 300px; }
+
+    .divider { height: 1px; background: var(--border); margin: 3rem 0; }
+
+    .loading { text-align: center; padding: 2rem; color: var(--muted); }
+    .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: var(--red); padding: 1rem; border-radius: 10px; }
+
+    /* TABLE STYLES */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    th {
+      background: var(--surface2);
+      color: var(--muted2);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+    }
+    th:hover { background: rgba(99,102,241,0.08); }
+    td { color: var(--text); }
+    tr:hover { background: rgba(99,102,241,0.04); }
+    .sort-icon { font-size: 0.7em; margin-left: 4px; }
+
+    /* UPLOAD MODAL */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.show { display: flex; }
+    .modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 500px;
+    }
+    .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; }
+    .file-upload {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      cursor: pointer;
+    }
+    .file-upload:hover { border-color: var(--primary); }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">
+      <div class="dot"></div>
+      <span>Sinha's GmbH — Mortgage Dashboard</span>
+    </a>
+    <div class="nav-actions">
+      <a href="/admin.html" class="btn btn-ghost">Admin Dashboard</a>
+      <a href="/dashboard.html" class="btn btn-ghost">Guest Dashboard</a>
+      <button id="uploadBtn" class="btn btn-primary">Upload Mortgage Register</button>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <h1>Mortgage Register Analytics</h1>
+    <p>Comprehensive insights into your property portfolio, financing, and mortgage performance.</p>
+  </section>
+
+  <div class="dashboard-container">
+    <div id="loading" class="loading"><div class="spinner"></div> Loading mortgage data...</div>
+    <div id="error" class="error" style="display:none;"></div>
+    <div id="content" style="display:none;">
+      <!-- STATS -->
+      <div class="stats-grid" id="statsGrid"></div>
+      
+      <!-- CHARTS -->
+      <section class="charts-section">
+        <h2 class="section-title">
+          <span class="section-icon">📊</span>
+          Portfolio Overview
+        </h2>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3 class="chart-title">By Bank</h3>
+            <div class="chart-container">
+              <canvas id="bankChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3 class="chart-title">By Financing Type</h3>
+            <div class="chart-container">
+              <canvas id="financingChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="divider"></div>
+
+      <!-- TABLE -->
+      <section>
+        <h2 class="section-title">
+          <span class="section-icon">🏠</span>
+          Mortgage Register
+        </h2>
+        <div class="table-container">
+          <div class="table-wrapper">
+            <table id="mortgageTable">
+              <thead id="tableHead"></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- UPLOAD MODAL -->
+  <div id="uploadModal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">Upload Mortgage Register</h3>
+      <div class="file-upload">
+        <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none;">
+        <p id="fileStatus">Click to select or drag & drop a file</p>
+      </div>
+      <div style="display:flex; gap: 10px; justify-content:flex-end;">
+        <button id="cancelBtn" class="btn btn-ghost">Cancel</button>
+        <button id="confirmUpload" class="btn btn-primary" disabled>Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let analytics = null;
+    let records = [];
+    let currentSort = { field: null, order: 1 };
+
+    const chartColors = [
+      'rgba(99,102,241,0.8)',
+      'rgba(34,211,238,0.8)',
+      'rgba(167,139,250,0.8)',
+      'rgba(52,211,153,0.8)',
+      'rgba(251,191,36,0.8)',
+      'rgba(248,113,113,0.8)'
+    ];
+
+    const formatCurrency = (val) => {
+      if (val === null || val === undefined) return '—';
+      return 'CHF ' + Number(val).toLocaleString('de-CH', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+    };
+
+    const formatPercent = (val) => {
+      if (val === null || val === undefined) return '—';
+      return Number(val).toFixed(2) + '%';
+    };
+
+    async function loadData() {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('error').style.display = 'none';
+        document.getElementById('content').style.display = 'none';
+
+        const [analyticsRes, recordsRes] = await Promise.all([
+          fetch('/api/mortgage-analytics'),
+          fetch('/api/mortgage-register')
+        ]);
+
+        const analyticsData = await analyticsRes.json();
+        const recordsData = await recordsRes.json();
+
+        if (!analyticsData.success || !recordsData.success) {
+          throw new Error(analyticsData.message || recordsData.message || 'Failed to load data');
+        }
+
+        analytics = analyticsData.analytics;
+        records = recordsData.data;
+
+        renderStats();
+        renderCharts();
+        renderTable();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+      } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').textContent = e.message;
+        document.getElementById('error').style.display = 'block';
+        console.error(e);
+      }
+    }
+
+    function renderStats() {
+      const grid = document.getElementById('statsGrid');
+      const ps = analytics.portfolio_summary;
+      const stats = [
+        { label: 'Total Properties', value: ps.total_properties, sub: 'In portfolio' },
+        { label: 'Total Acquisition Cost', value: formatCurrency(ps.total_acquisition_cost), sub: 'Purchase + fees' },
+        { label: 'Total Equity', value: formatCurrency(ps.total_equity), sub: formatPercent(ps.avg_equity_percent) + ' average' },
+        { label: 'Total Outstanding Mortgage', value: formatCurrency(ps.total_mortgage), sub: formatPercent(ps.portfolio_ltv_percent) + ' LTV' },
+        { label: 'Annual Interest Cost', value: formatCurrency(ps.total_annual_interest), sub: formatCurrency(ps.avg_monthly_interest) + ' monthly' },
+        { label: 'Average LTV', value: formatPercent(ps.avg_ltv_percent), sub: 'Across all properties' }
+      ];
+
+      grid.innerHTML = stats.map(s => `
+        <div class="stat-card">
+          <div class="stat-label">${s.label}</div>
+          <div class="stat-value">${s.value}</div>
+          ${s.sub ? `<div class="stat-sub">${s.sub}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function renderCharts() {
+      // Bank Chart
+      const bankCtx = document.getElementById('bankChart').getContext('2d');
+      const banks = Object.keys(analytics.by_bank);
+      new Chart(bankCtx, {
+        type: 'bar',
+        data: {
+          labels: banks,
+          datasets: [{
+            label: 'Total Mortgage (CHF)',
+            data: banks.map(b => analytics.by_bank[b].total_mortgage),
+            backgroundColor: chartColors.slice(0, banks.length),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+
+      // Financing Type Chart
+      const finCtx = document.getElementById('financingChart').getContext('2d');
+      const types = Object.keys(analytics.by_financing_type);
+      new Chart(finCtx, {
+        type: 'doughnut',
+        data: {
+          labels: types,
+          datasets: [{
+            data: types.map(t => analytics.by_financing_type[t].total_mortgage),
+            backgroundColor: chartColors.slice(0, types.length),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: 'var(--muted2)' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const head = document.getElementById('tableHead');
+      const body = document.getElementById('tableBody');
+
+      if (!records.length) {
+        body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 3rem;">No data available</td></tr>';
+        return;
+      }
+
+      const headers = Object.keys(records[0]).filter(h => h !== '_id' && h !== 'record_type' && h !== 'created_at' && h !== 'updated_at');
+
+      // Render header
+      head.innerHTML = `
+        <tr>
+          ${headers.map(h => `<th data-field="${h}">${h.replace(/_/g, ' ').toUpperCase()}<span class="sort-icon"></span></th>`).join('')}
+        </tr>
+      `;
+
+      // Add sort listeners
+      document.querySelectorAll('#tableHead th').forEach(th => {
+        th.addEventListener('click', () => {
+          sortTable(th.dataset.field);
+        });
+      });
+
+      renderTableBody();
+    }
+
+    function sortTable(field) {
+      if (currentSort.field === field) {
+        currentSort.order = -currentSort.order;
+      } else {
+        currentSort.field = field;
+        currentSort.order = 1;
+      }
+
+      records.sort((a, b) => {
+        let aVal = a[field];
+        let bVal = b[field];
+
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return (aVal - bVal) * currentSort.order;
+        }
+
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+        return aVal.localeCompare(bVal) * currentSort.order;
+      });
+
+      renderTableBody();
+
+      // Update sort icon
+      document.querySelectorAll('#tableHead th .sort-icon').forEach(i => i.textContent = '');
+      const icon = document.querySelector(`#tableHead th[data-field="${currentSort.field}"] .sort-icon`);
+      if (icon) icon.textContent = currentSort.order === 1 ? ' ↑' : ' ↓';
+    }
+
+    function renderTableBody() {
+      const body = document.getElementById('tableBody');
+      const headers = Object.keys(records[0]).filter(h => h !== '_id' && h !== 'record_type' && h !== 'created_at' && h !== 'updated_at');
+
+      body.innerHTML = records.map(rec => `
+        <tr>
+          ${headers.map(h => `<td>${rec[h] || '—'}</td>`).join('')}
+        </tr>
+      `).join('');
+    }
+
+    // Upload modal
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadModal = document.getElementById('uploadModal');
+    const fileInput = document.getElementById('fileInput');
+    const fileStatus = document.getElementById('fileStatus');
+    const confirmUpload = document.getElementById('confirmUpload');
+    const cancelBtn = document.getElementById('cancelBtn');
+    let selectedFile = null;
+
+    uploadBtn.addEventListener('click', () => uploadModal.classList.add('show'));
+    cancelBtn.addEventListener('click', () => uploadModal.classList.remove('show'));
+    uploadModal.addEventListener('click', (e) => { if (e.target === uploadModal) uploadModal.classList.remove('show'); });
+
+    document.querySelector('.file-upload').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        selectedFile = e.target.files[0];
+        fileStatus.textContent = selectedFile.name;
+        confirmUpload.disabled = false;
+      }
+    });
+
+    confirmUpload.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      
+      try {
+        const res = await fetch('/upload_mortgage_register', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          alert('Upload successful!');
+          uploadModal.classList.remove('show');
+          loadData();
+        } else {
+          alert(data.message || 'Upload failed');
+        }
+      } catch (e) {
+        alert('Upload error: ' + e.message);
+      }
+    });
+
+    // Load initial data
+    loadData();
+  </script>
+</body>
+</html>
