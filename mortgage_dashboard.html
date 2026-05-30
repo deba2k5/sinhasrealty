@@ -355,9 +355,9 @@
 
     function renderStats() {
       const grid = document.getElementById('statsGrid');
-      const ps = analytics.portfolio_summary;
+      const ps = analytics?.portfolio_summary || {};
       const stats = [
-        { label: 'Total Properties', value: ps.total_properties, sub: 'In portfolio' },
+        { label: 'Total Properties', value: ps.total_properties || 0, sub: 'In portfolio' },
         { label: 'Total Acquisition Cost', value: formatCurrency(ps.total_acquisition_cost), sub: 'Purchase + fees' },
         { label: 'Total Equity', value: formatCurrency(ps.total_equity), sub: formatPercent(ps.avg_equity_percent) + ' average' },
         { label: 'Total Outstanding Mortgage', value: formatCurrency(ps.total_mortgage), sub: formatPercent(ps.portfolio_ltv_percent) + ' LTV' },
@@ -377,14 +377,14 @@
     function renderCharts() {
       // Bank Chart
       const bankCtx = document.getElementById('bankChart').getContext('2d');
-      const banks = Object.keys(analytics.by_bank);
+      const banks = Object.keys(analytics?.by_bank || {});
       new Chart(bankCtx, {
         type: 'bar',
         data: {
           labels: banks,
           datasets: [{
             label: 'Total Mortgage (CHF)',
-            data: banks.map(b => analytics.by_bank[b].total_mortgage),
+            data: banks.map(b => (analytics?.by_bank?.[b]?.total_mortgage) || 0),
             backgroundColor: chartColors.slice(0, banks.length),
             borderRadius: 6
           }]
@@ -402,13 +402,13 @@
 
       // Financing Type Chart
       const finCtx = document.getElementById('financingChart').getContext('2d');
-      const types = Object.keys(analytics.by_financing_type);
+      const types = Object.keys(analytics?.by_financing_type || {});
       new Chart(finCtx, {
         type: 'doughnut',
         data: {
           labels: types,
           datasets: [{
-            data: types.map(t => analytics.by_financing_type[t].total_mortgage),
+            data: types.map(t => (analytics?.by_financing_type?.[t]?.total_mortgage) || 0),
             backgroundColor: chartColors.slice(0, types.length),
             borderWidth: 0
           }]
