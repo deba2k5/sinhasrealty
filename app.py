@@ -1,16 +1,40 @@
-import os
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+import os
 
-app = Flask(__name__)
+# Initialize Flask app
+app = Flask(__name__, static_folder='.', static_url_path='')
 
-# Existing imports from app.py (kept for context) 
-# ... (the rest of app.py unchanged up to line 46)
+# MongoDB client setup (adjust connection string if needed)
+mongo_client = MongoClient('mongodb://localhost:27017/')
 
-# Add new route for mortgage register upload
+def get_db():
+    # Replace 'sinhasrealty' with your actual database name if different
+    return mongo_client['sinhasrealty']
+
+# Serve main landing page
+@app.route('/')
+def home():
+    return send_from_directory('.', 'index.html')
+
+# Optional static pages
+@app.route('/dashboard')
+def dashboard_page():
+    return send_from_directory('.', 'dashboard.html')
+
+@app.route('/login')
+def login_page():
+    return send_from_directory('.', 'login.html')
+
+@app.route('/mortgage_dashboard')
+def mortgage_dashboard():
+    return send_from_directory('.', 'mortgage_dashboard.html')
+
+# Upload mortgage register Excel file
 @app.route('/upload_mortgage_register', methods=['POST'])
 def upload_mortgage_register():
-    """Upload SINHAS mortgage register Excel, process, and store in MongoDB"""
+    """Upload SINHA's mortgage register Excel, process, and store in MongoDB"""
     if 'file' not in request.files:
         return jsonify({"success": False, "message": "No file uploaded."}), 400
     file = request.files['file']
@@ -18,8 +42,7 @@ def upload_mortgage_register():
         return jsonify({"success": False, "message": "No file selected."}), 400
     filename = secure_filename(file.filename)
     tmp_dir = os.path.join(os.getcwd(), 'tmp')
-    if not os.path.isdir(tmp_dir):
-        os.makedirs(tmp_dir, exist_ok=True)
+    os.makedirs(tmp_dir, exist_ok=True)
     tmp_path = os.path.join(tmp_dir, filename)
     file.save(tmp_path)
     # Process using existing processor
@@ -34,7 +57,7 @@ def upload_mortgage_register():
     db['mortgage_register'].insert_many(records)
     return jsonify({"success": True, "message": f"Inserted {len(records)} mortgage records.", "records_inserted": len(records)})
 
-# Add stats endpoint for mortgage data
+# Mortgage statistics endpoint
 @app.route('/api/mortgage/stats', methods=['GET'])
 def mortgage_stats():
     coll = get_db()['mortgage_register']
@@ -77,10 +100,32 @@ def mortgage_stats():
         "mortgage_type": type_data
     })
 
-# Serve mortgage dashboard page
-@app.route('/mortgage_dashboard')
-def mortgage_dashboard():
+# Admin page
+@app.route('/admin')
+def admin_page():
+    return send_from_directory('.', 'admin.html')
+
+# Mortgage page (alias)
+@app.route('/mortgage')
+def mortgage_page():
     return send_from_directory('.', 'mortgage_dashboard.html')
 
+# Generic static file fallback (placed after specific routes)
+@app.route('/<path:filename>')
+def serve_static(filename):
+    if os.path.isfile(filename):
+        return send_from_directory('.', filename)
+    else:
+        return "File not found", 404
+
+# 404 error handler for unmatched routes
+@app.errorhandler(404)
+def not_found(e):
+    return "Page not found", 404
+
+# For serverless deployments
 def handler(event, context):
     return app
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
