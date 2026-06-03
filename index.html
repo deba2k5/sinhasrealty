@@ -479,9 +479,38 @@
       <input id="m_key" type="text" placeholder="e.g. 1234#">
     </div>
 
-    <!-- Section 5: Assets & AI -->
+    <!-- Section 5: Invoice Calculation -->
     <div style="margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
-      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">5. Assets &amp; AI</h4>
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">5. Invoice Calculation</h4>
+    </div>
+    <div class="form-3col">
+      <div class="form-row">
+        <label>Total Rent (CHF)</label>
+        <input id="m_rent" type="number" step="0.01" placeholder="0.00" oninput="calculateInvoice()">
+      </div>
+      <div class="form-row">
+        <label>Cleaning (CHF)</label>
+        <input id="m_cleaning" type="number" step="0.01" placeholder="0.00" oninput="calculateInvoice()">
+      </div>
+      <div class="form-row">
+        <label>City Tax (CHF)</label>
+        <input id="m_tax" type="number" step="0.01" placeholder="0.00" oninput="calculateInvoice()">
+      </div>
+    </div>
+    <div class="form-3col">
+      <div class="form-row">
+        <label>Commission (CHF)</label>
+        <input id="m_commission" type="number" step="0.01" placeholder="0.00" oninput="calculateInvoice()">
+      </div>
+      <div class="form-row">
+        <label style="color: var(--primary-lt); font-weight: 700;">Total Invoice (CHF)</label>
+        <input id="m_invoice" type="number" step="0.01" placeholder="0.00" readonly style="background: var(--surface3); cursor: not-allowed;">
+      </div>
+    </div>
+
+    <!-- Section 6: Assets & AI -->
+    <div style="margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase;">6. Assets &amp; AI</h4>
     </div>
     <div class="form-row">
       <label>GDrive URL (Images/Videos)</label>
@@ -524,6 +553,15 @@
   }
   wireDropZone('dz1','fi1','dz1-label', f => f1 = f);
   wireDropZone('dz2','fi2','dz2-label', f => f2 = f);
+
+  function calculateInvoice() {
+    const rent = parseFloat(document.getElementById('m_rent').value) || 0;
+    const cleaning = parseFloat(document.getElementById('m_cleaning').value) || 0;
+    const tax = parseFloat(document.getElementById('m_tax').value) || 0;
+    const commission = parseFloat(document.getElementById('m_commission').value) || 0;
+    const total = rent + cleaning + tax + commission;
+    document.getElementById('m_invoice').value = total.toFixed(2);
+  }
 
   function showStatus(id, msg, ok) {
     const el = document.getElementById(id);
@@ -631,6 +669,11 @@
       'RENT START DATE': document.getElementById('m_rentstart').value,
       'RENT END DATE': document.getElementById('m_rentend').value,
       'KEYSAFE CODE': document.getElementById('m_key').value,
+      'Total Rent\n(CHF)': document.getElementById('m_rent').value ? parseFloat(document.getElementById('m_rent').value) : null,
+      'Cleaning\nDue (CHF)': document.getElementById('m_cleaning').value ? parseFloat(document.getElementById('m_cleaning').value) : null,
+      'City Tax\n(CHF)': document.getElementById('m_tax').value ? parseFloat(document.getElementById('m_tax').value) : null,
+      'Commission\n(CHF)': document.getElementById('m_commission').value ? parseFloat(document.getElementById('m_commission').value) : null,
+      'Total Invoice\n(CHF)': document.getElementById('m_invoice').value ? parseFloat(document.getElementById('m_invoice').value) : null,
       'Blob for AI': document.getElementById('m_aiblob').value,
       'GDRIVE URL FOR IMAGES & VIDEOS': document.getElementById('m_gdrive').value,
       'REMARKS': document.getElementById('m_remarks').value

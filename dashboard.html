@@ -423,6 +423,53 @@
     <div id="revenue-tracker-container"></div>
   </div>
 
+  <!-- ─── REVENUE TRACKER FORM MODAL ─── -->
+  <div id="revenueTrackerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin: 40px auto; max-width: 600px; padding: 2rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.2rem; font-weight: 700;">Add Revenue Record</h3>
+        <button onclick="closeRevenueModal()" style="background: transparent; border: none; color: var(--muted2); font-size: 1.5rem; cursor: pointer;">×</button>
+      </div>
+
+      <!-- Invoice Calculation Section -->
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase; margin-bottom: 1rem; font-weight: 700; letter-spacing: 0.5px;">💰 Invoice Calculation</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Total Rent (CHF)</label>
+            <input id="rt_rent" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Cleaning (CHF)</label>
+            <input id="rt_cleaning" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">City Tax (CHF)</label>
+            <input id="rt_tax" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Commission (CHF)</label>
+            <input id="rt_commission" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--primary-lt); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 700;">Total Invoice (CHF)</label>
+          <input id="rt_invoice" type="number" step="0.01" placeholder="0.00" readonly style="width: 100%; padding: 10px; background: var(--surface3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; cursor: not-allowed;">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 1rem;">
+        <button onclick="closeRevenueModal()" style="flex: 1; padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 600; cursor: pointer;">Cancel</button>
+        <button onclick="saveRevenueRecord()" style="flex: 1; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">Save Record</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -744,6 +791,17 @@
           autoCalculateGuestNightsInEdit(e.target, container, keys);
         });
       });
+
+      // Add event listeners to invoice fields (Rent, Cleaning, Tax, Commission) to auto-calculate Total Invoice
+      const invoiceFields = container.querySelectorAll('[data-field*="Rent"], [data-field*="Cleaning"], [data-field*="Tax"], [data-field*="Commission"]');
+      invoiceFields.forEach(field => {
+        field.addEventListener('change', (e) => {
+          autoCalculateInvoiceInEdit(e.target, container, keys);
+        });
+        field.addEventListener('input', (e) => {
+          autoCalculateInvoiceInEdit(e.target, container, keys);
+        });
+      });
     }
   }
 
@@ -800,6 +858,40 @@
     }
 
     console.log("=== autoCalculateGuestNightsInEdit END ===");
+  }
+
+  function autoCalculateInvoiceInEdit(changedField, container, keys) {
+    const recordId = changedField.dataset.record;
+    
+    // Find the field names for invoice calculation - be specific to avoid matching wrong fields
+    const rentKey = keys.find(k => k.toLowerCase().includes('total rent'));
+    const cleaningKey = keys.find(k => k.toLowerCase().includes('cleaning due')) || 
+                        keys.find(k => k.toLowerCase().includes('cleaning'));
+    const taxKey = keys.find(k => k.toLowerCase().includes('city tax'));
+    const commissionKey = keys.find(k => k.toLowerCase().includes('commission'));
+    const invoiceKey = keys.find(k => k.toLowerCase().includes('total invoice'));
+
+    if (!rentKey || !cleaningKey || !taxKey || !commissionKey || !invoiceKey) {
+      return; // Missing required fields
+    }
+
+    // Get all the input fields for this record
+    const rentField = container.querySelector(`[data-record="${recordId}"][data-field="${rentKey}"]`);
+    const cleaningField = container.querySelector(`[data-record="${recordId}"][data-field="${cleaningKey}"]`);
+    const taxField = container.querySelector(`[data-record="${recordId}"][data-field="${taxKey}"]`);
+    const commissionField = container.querySelector(`[data-record="${recordId}"][data-field="${commissionKey}"]`);
+    const invoiceField = container.querySelector(`[data-record="${recordId}"][data-field="${invoiceKey}"]`);
+
+    if (rentField && cleaningField && taxField && commissionField && invoiceField) {
+      const rent = parseFloat(rentField.value) || 0;
+      const cleaning = parseFloat(cleaningField.value) || 0;
+      const tax = parseFloat(taxField.value) || 0;
+      const commission = parseFloat(commissionField.value) || 0;
+      const total = rent + cleaning + tax + commission;
+      
+      // Update the Total Invoice field with formatted value
+      invoiceField.value = total.toFixed(2);
+    }
   }
 
   function handleSort(collection, field) {
@@ -917,9 +1009,77 @@
   }
 
   function addNewRecord(collection) {
-    // For now, show an alert - in production, you'd open a form
-    alert('Add new record feature will be added soon. You can manually add records through MongoDB.');
+    if (collection === 'revenue_tracker') {
+      // Show revenue tracker form
+      document.getElementById('revenueTrackerModal').style.display = 'block';
+    } else {
+      // For other collections, show alert for now
+      alert('Add new record feature will be added soon. You can manually add records through MongoDB.');
+    }
   }
+
+  function closeRevenueModal() {
+    document.getElementById('revenueTrackerModal').style.display = 'none';
+    // Reset form
+    document.getElementById('rt_rent').value = '';
+    document.getElementById('rt_cleaning').value = '';
+    document.getElementById('rt_tax').value = '';
+    document.getElementById('rt_commission').value = '';
+    document.getElementById('rt_invoice').value = '';
+  }
+
+  function calculateRevenueInvoice() {
+    const rent = parseFloat(document.getElementById('rt_rent').value) || 0;
+    const cleaning = parseFloat(document.getElementById('rt_cleaning').value) || 0;
+    const tax = parseFloat(document.getElementById('rt_tax').value) || 0;
+    const commission = parseFloat(document.getElementById('rt_commission').value) || 0;
+    const total = rent + cleaning + tax + commission;
+    document.getElementById('rt_invoice').value = total.toFixed(2);
+  }
+
+  async function saveRevenueRecord() {
+    const rent = parseFloat(document.getElementById('rt_rent').value) || 0;
+    const cleaning = parseFloat(document.getElementById('rt_cleaning').value) || 0;
+    const tax = parseFloat(document.getElementById('rt_tax').value) || 0;
+    const commission = parseFloat(document.getElementById('rt_commission').value) || 0;
+    const invoice = parseFloat(document.getElementById('rt_invoice').value) || 0;
+
+    const payload = {
+      'Total Rent\n(CHF)': rent,
+      'Cleaning\nDue (CHF)': cleaning,
+      'City Tax\n(CHF)': tax,
+      'Commission\n(CHF)': commission,
+      'Total Invoice\n(CHF)': invoice
+    };
+
+    try {
+      const response = await fetch('/api/create/revenue_tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('Revenue record saved successfully!');
+        closeRevenueModal();
+        // Refresh dashboard
+        loadDashboard();
+      } else {
+        alert('Error saving record: ' + result.message);
+      }
+    } catch (error) {
+      alert('Failed to save record: ' + error.message);
+    }
+  }
+
+  // Close modal when clicking outside of it
+  document.addEventListener('click', function(event) {
+    const modal = document.getElementById('revenueTrackerModal');
+    if (event.target === modal) {
+      closeRevenueModal();
+    }
+  });
 
   async function loadDashboard() {
     try {
