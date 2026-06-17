@@ -12,4 +12,13 @@ tmp_verify.py
 temp_analyze_new_excel.py
 temp_analyze_sheets.py
 verify_new_upload.py
+check_file_exists.py
+check_mortgage_data.py
+check_mortgage_headers.py
+fix_app.py
+fix_revenue_order.py
+list_revenue_columns.py
+inspect_excel.py
+inspect_both_excels.py
+tmp/
 .vercel
