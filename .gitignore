@@ -5,6 +5,7 @@ venv/
 env/
 .venv/
 *.xlsx
+!SINHAS_Guest_Client_Database_V2.xlsx
 
 .env
 tmp_verify.py
