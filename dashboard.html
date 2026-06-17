@@ -197,6 +197,16 @@
       position: sticky;
       top: 0;
     }
+    
+    /* Section header styling with horizontal lines */
+    .section-header-th {
+      background: rgba(99, 102, 241, 0.15);
+      color: #fff;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      border-top: 3px solid var(--primary);
+      border-bottom: 2px solid var(--primary);
+    }
     td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
@@ -661,7 +671,7 @@
         { title: 'GUEST SUMMARY', colspan: 5 },
         { title: 'PROPERTY SUMMARY', colspan: 7 },
         { title: 'STAY DETAILS', colspan: 8 },
-        { title: 'REVENUE & FINANCIALS (CHF)', colspan: 23 },
+        { title: 'REVENUE & FINANCIALS (CHF)', colspan: 21 },
         { title: 'STATUS & NOTES', colspan: 5 }
       ]
     };
@@ -684,7 +694,7 @@
        html += '<tr>';
        html += '<th rowspan="2" style="vertical-align: middle; border-right: 2px solid var(--primary);">Actions</th>';
        columnGroups[collection].forEach(group => {
-           html += `<th colspan="${group.colspan}" style="text-align: center; border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); color: #fff; background: rgba(99,102,241,0.15); font-size: 0.95rem; letter-spacing: 0.5px;">${group.title}</th>`;
+           html += `<th colspan="${group.colspan}" class="section-header-th" style="text-align: center; border-right: 2px solid var(--primary);">${group.title}</th>`;
        });
        html += '</tr><tr>';
        keys.forEach((k, idx) => {
