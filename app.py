@@ -869,8 +869,16 @@ def get_guest_client_collections():
         if col_order_doc:
             column_order = col_order_doc.get('columns', [])
         else:
-            # Fallback: extract column order from first document
-            if docs:
+            # Fallback: extract column order from first document or use predefined for reservation_details
+            if collection_name == 'reservation_details':
+                column_order = [
+                    'SL NO', 'Address', 'Room Specification', 'Guests', 'Guest Name', 'Booker',
+                    'Reservation ID', 'Reservation Code', 'Partner', 'Check In Date', 'Check Out Date',
+                    'Amount Due', 'Paid Amount', 'No of Adults', 'No of Children', 'No of Infants',
+                    'No of Male', 'No of Female', 'Email', 'Contact No', 'Company Name', 'Purpose of Travel',
+                    'Monthly Rent', 'Cleaning Fee', 'Deposit Amt', 'Notice Period', 'Minimum Stay'
+                ]
+            elif docs:
                 column_order = [k for k in docs[0].keys() if k != '_id']
         
         return jsonify({

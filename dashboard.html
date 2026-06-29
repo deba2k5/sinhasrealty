@@ -291,6 +291,7 @@
     <button class="tab-btn" onclick="switchTab('guest-profiles', this)">👥 Guest Profiles</button>
     <button class="tab-btn" onclick="switchTab('property-lookup', this)">🏢 Property Lookup</button>
     <button class="tab-btn" onclick="switchTab('revenue-tracker', this)">💰 Revenue Tracker</button>
+    <button class="tab-btn" onclick="switchTab('reservation-details', this)">📋 Reservation Details</button>
   </div>
 
   <!-- ─── ANALYTICS TAB (READ-ONLY) ─── -->
@@ -434,6 +435,14 @@
     <div id="revenue-tracker-container"></div>
   </div>
 
+  <div id="reservation-details" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 class="section-title" style="margin: 0;">Reservation Details</h2>
+      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('reservation_details')">+ Add New</button>
+    </div>
+    <div id="reservation-details-container"></div>
+  </div>
+
   <!-- ─── REVENUE TRACKER FORM MODAL ─── -->
   <div id="revenueTrackerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin: 40px auto; max-width: 600px; padding: 2rem;">
@@ -481,6 +490,166 @@
     </div>
   </div>
 
+  <!-- ─── RESERVATION DETAILS FORM MODAL ─── -->
+  <div id="reservationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin: 40px auto; max-width: 800px; padding: 2rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.2rem; font-weight: 700;">Add Reservation Details</h3>
+        <button onclick="closeReservationModal()" style="background: transparent; border: none; color: var(--muted2); font-size: 1.5rem; cursor: pointer;">×</button>
+      </div>
+
+      <!-- Form Fields -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">SL NO</label>
+          <input id="res_slno" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Address</label>
+          <input id="res_address" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Room Specification</label>
+          <input id="res_roomspec" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Guests</label>
+          <input id="res_guests" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Guest Name</label>
+          <input id="res_guestname" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Booker</label>
+          <input id="res_booker" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Reservation ID</label>
+          <input id="res_resid" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Reservation Code</label>
+          <input id="res_rescode" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Partner</label>
+          <input id="res_partner" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Company Name</label>
+          <input id="res_company" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Check In Date</label>
+          <input id="res_checkin" type="date" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Check Out Date</label>
+          <input id="res_checkout" type="date" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">No of Adults</label>
+          <input id="res_adults" type="number" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">No of Children</label>
+          <input id="res_children" type="number" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">No of Infants</label>
+          <input id="res_infants" type="number" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">No of Male</label>
+          <input id="res_male" type="number" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">No of Female</label>
+          <input id="res_female" type="number" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Email</label>
+          <input id="res_email" type="email" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Contact No</label>
+          <input id="res_contact" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Purpose of Travel</label>
+          <input id="res_purpose" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Monthly Rent</label>
+          <input id="res_monthlyrent" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Cleaning Fee</label>
+          <input id="res_cleaningfee" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Deposit Amt</label>
+          <input id="res_deposit" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Amount Due</label>
+          <input id="res_amountdue" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Paid Amount</label>
+          <input id="res_paidamount" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Notice Period</label>
+          <input id="res_notice" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Minimum Stay</label>
+          <input id="res_minstay" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 1rem;">
+        <button onclick="closeReservationModal()" style="flex: 1; padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 600; cursor: pointer;">Cancel</button>
+        <button onclick="saveReservationRecord()" style="flex: 1; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">Save Record</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -508,14 +677,15 @@
     }
   };
 
-  let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1 };
-  let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
-  let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [] };
+  let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
+  let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
+  let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let editingRecords = {};
   let currentSort = {
     guest_profiles: { field: null, direction: 'asc' },
     property_lookup: { field: null, direction: 'asc' },
-    revenue_tracker: { field: null, direction: 'asc' }
+    revenue_tracker: { field: null, direction: 'asc' },
+    reservation_details: { field: null, direction: 'asc' }
   };
 
   function switchTab(tabName, btn) {
@@ -528,11 +698,12 @@
     btn.classList.add('active');
     
     // Load data if it's a data table tab
-    if (['guest-profiles', 'property-lookup', 'revenue-tracker'].includes(tabName)) {
+    if (['guest-profiles', 'property-lookup', 'revenue-tracker', 'reservation-details'].includes(tabName)) {
       const collectionMap = {
         'guest-profiles': 'guest_profiles',
         'property-lookup': 'property_lookup',
-        'revenue-tracker': 'revenue_tracker'
+        'revenue-tracker': 'revenue_tracker',
+        'reservation-details': 'reservation_details'
       };
       loadCollectionData(collectionMap[tabName], 1);
     }
@@ -543,7 +714,8 @@
       const containerMap = {
         guest_profiles: 'guest-profiles-container',
         property_lookup: 'property-lookup-container',
-        revenue_tracker: 'revenue-tracker-container'
+        revenue_tracker: 'revenue-tracker-container',
+        reservation_details: 'reservation-details-container'
       };
       
       const container = document.getElementById(containerMap[collection]);
@@ -674,6 +846,13 @@
         { title: 'STAY DETAILS', colspan: 8 },
         { title: 'REVENUE & FINANCIALS (CHF)', colspan: 19 },
         { title: 'STATUS & NOTES', colspan: 5 }
+      ],
+      'reservation_details': [
+        { title: 'IDENTIFICATION', colspan: 8 },
+        { title: 'PROPERTY & ROOM', colspan: 3 },
+        { title: 'GUEST INFO', colspan: 7 },
+        { title: 'STAY DETAILS', colspan: 3 },
+        { title: 'FINANCIAL DETAILS', colspan: 6 }
       ]
     };
     
@@ -917,7 +1096,8 @@
     const containerMap = {
       guest_profiles: 'guest-profiles-container',
       property_lookup: 'property-lookup-container',
-      revenue_tracker: 'revenue-tracker-container'
+      revenue_tracker: 'revenue-tracker-container',
+      reservation_details: 'reservation-details-container'
     };
     const container = document.getElementById(containerMap[collection]);
     renderDataTable(collection, {
@@ -936,7 +1116,8 @@
         const containerMap = {
           guest_profiles: 'guest-profiles-container',
           property_lookup: 'property-lookup-container',
-          revenue_tracker: 'revenue-tracker-container'
+          revenue_tracker: 'revenue-tracker-container',
+          reservation_details: 'reservation-details-container'
         };
         const container = document.getElementById(containerMap[col]);
         renderDataTable(col, { 
@@ -957,7 +1138,8 @@
         const containerMap = {
           guest_profiles: 'guest-profiles-container',
           property_lookup: 'property-lookup-container',
-          revenue_tracker: 'revenue-tracker-container'
+          revenue_tracker: 'revenue-tracker-container',
+          reservation_details: 'reservation-details-container'
         };
         const container = document.getElementById(containerMap[col]);
         renderDataTable(col, { 
@@ -1023,6 +1205,9 @@
     if (collection === 'revenue_tracker') {
       // Show revenue tracker form
       document.getElementById('revenueTrackerModal').style.display = 'block';
+    } else if (collection === 'reservation_details') {
+      // Show reservation details form
+      document.getElementById('reservationModal').style.display = 'block';
     } else {
       // For other collections, show alert for now
       alert('Add new record feature will be added soon. You can manually add records through MongoDB.');
@@ -1084,11 +1269,99 @@
     }
   }
 
-  // Close modal when clicking outside of it
+  function closeReservationModal() {
+    document.getElementById('reservationModal').style.display = 'none';
+    // Reset all form fields
+    document.getElementById('res_slno').value = '';
+    document.getElementById('res_address').value = '';
+    document.getElementById('res_roomspec').value = '';
+    document.getElementById('res_guests').value = '';
+    document.getElementById('res_guestname').value = '';
+    document.getElementById('res_booker').value = '';
+    document.getElementById('res_resid').value = '';
+    document.getElementById('res_rescode').value = '';
+    document.getElementById('res_partner').value = '';
+    document.getElementById('res_checkin').value = '';
+    document.getElementById('res_checkout').value = '';
+    document.getElementById('res_amountdue').value = '';
+    document.getElementById('res_paidamount').value = '';
+    document.getElementById('res_adults').value = '';
+    document.getElementById('res_children').value = '';
+    document.getElementById('res_infants').value = '';
+    document.getElementById('res_male').value = '';
+    document.getElementById('res_female').value = '';
+    document.getElementById('res_email').value = '';
+    document.getElementById('res_contact').value = '';
+    document.getElementById('res_company').value = '';
+    document.getElementById('res_purpose').value = '';
+    document.getElementById('res_monthlyrent').value = '';
+    document.getElementById('res_cleaningfee').value = '';
+    document.getElementById('res_deposit').value = '';
+    document.getElementById('res_notice').value = '';
+    document.getElementById('res_minstay').value = '';
+  }
+
+  async function saveReservationRecord() {
+    const payload = {
+      'SL NO': document.getElementById('res_slno').value,
+      'Address': document.getElementById('res_address').value,
+      'Room Specification': document.getElementById('res_roomspec').value,
+      'Guests': document.getElementById('res_guests').value,
+      'Guest Name': document.getElementById('res_guestname').value,
+      'Booker': document.getElementById('res_booker').value,
+      'Reservation ID': document.getElementById('res_resid').value,
+      'Reservation Code': document.getElementById('res_rescode').value,
+      'Partner': document.getElementById('res_partner').value,
+      'Check In Date': document.getElementById('res_checkin').value,
+      'Check Out Date': document.getElementById('res_checkout').value,
+      'Amount Due': parseFloat(document.getElementById('res_amountdue').value) || null,
+      'Paid Amount': parseFloat(document.getElementById('res_paidamount').value) || null,
+      'No of Adults': parseInt(document.getElementById('res_adults').value) || null,
+      'No of Children': parseInt(document.getElementById('res_children').value) || null,
+      'No of Infants': parseInt(document.getElementById('res_infants').value) || null,
+      'No of Male': parseInt(document.getElementById('res_male').value) || null,
+      'No of Female': parseInt(document.getElementById('res_female').value) || null,
+      'Email': document.getElementById('res_email').value,
+      'Contact No': document.getElementById('res_contact').value,
+      'Company Name': document.getElementById('res_company').value,
+      'Purpose of Travel': document.getElementById('res_purpose').value,
+      'Monthly Rent': parseFloat(document.getElementById('res_monthlyrent').value) || null,
+      'Cleaning Fee': parseFloat(document.getElementById('res_cleaningfee').value) || null,
+      'Deposit Amt': parseFloat(document.getElementById('res_deposit').value) || null,
+      'Notice Period': document.getElementById('res_notice').value,
+      'Minimum Stay': document.getElementById('res_minstay').value
+    };
+
+    try {
+      const response = await fetch('/api/create/reservation_details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('Reservation details saved successfully!');
+        closeReservationModal();
+        // Refresh the reservation details tab
+        loadCollectionData('reservation_details', 1);
+      } else {
+        alert('Error saving record: ' + result.message);
+      }
+    } catch (error) {
+      alert('Failed to save record: ' + error.message);
+    }
+  }
+
+  // Close modals when clicking outside of them
   document.addEventListener('click', function(event) {
-    const modal = document.getElementById('revenueTrackerModal');
-    if (event.target === modal) {
+    const revenueModal = document.getElementById('revenueTrackerModal');
+    const reservationModal = document.getElementById('reservationModal');
+    if (event.target === revenueModal) {
       closeRevenueModal();
+    }
+    if (event.target === reservationModal) {
+      closeReservationModal();
     }
   });
 
