@@ -116,11 +116,30 @@ def handle_upload_occupancy():
         
     try:
         xls = pd.ExcelFile(file.stream, engine='openpyxl')
-        sheet_name = 'Sheet 1' if 'Sheet 1' in xls.sheet_names else xls.sheet_names[0]
-        
-        df = pd.read_excel(xls, sheet_name=sheet_name, header=1)
-        # Clean headers specifically for MongoDB compatibility
-        df.columns = [str(c).replace('.', '').strip() for c in df.columns]
+
+        # Property_Details_V4 files use "PROPERTY MASTER" with headers in row 1 (header=0),
+        # while legacy occupancy files often use "Sheet 1" with headers in row 2 (header=1).
+        if 'PROPERTY MASTER' in xls.sheet_names:
+            sheet_name = 'PROPERTY MASTER'
+            header_row = 0
+        elif 'OCCUPANCY -Apartment' in xls.sheet_names:
+            sheet_name = 'OCCUPANCY -Apartment'
+            header_row = 1
+        elif 'Sheet 1' in xls.sheet_names:
+            sheet_name = 'Sheet 1'
+            header_row = 1
+        else:
+            sheet_name = xls.sheet_names[0]
+            header_row = 0
+
+        df = pd.read_excel(xls, sheet_name=sheet_name, header=header_row)
+
+        # Clean headers specifically for MongoDB compatibility and UI key matching.
+        # This removes dots, tabs, and repeated spaces (e.g., "NO. OF ROOMS", "Location\t-").
+        df.columns = [
+            re.sub(r'\s+', ' ', str(c).replace('.', '').replace('\t', ' ')).strip()
+            for c in df.columns
+        ]
         
         # Filter out empty rows
         df = df.dropna(how='all')
@@ -136,7 +155,7 @@ def handle_upload_occupancy():
             
         return jsonify({
             "success": True, 
-            "message": f"Success! Uploaded {len(records)} records directly into 'property details data'."
+            "message": f"Success! Uploaded {len(records)} records from '{sheet_name}' into 'property details data'."
         })
     except Exception as e:
         return jsonify({"success": False, "message": f"ETL Error: {str(e)}"}), 500
