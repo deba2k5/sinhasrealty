@@ -618,6 +618,30 @@
       font-weight: 500;
     }
 
+    .inline-select {
+      width: 100%;
+      min-width: 170px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .inline-select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    .inline-select.pending {
+      opacity: 0.65;
+      pointer-events: none;
+    }
+
     .badge-ok {
       background: rgba(52, 211, 153, 0.12);
       color: var(--green);
@@ -795,7 +819,8 @@
       color: var(--muted);
     }
 
-    .field-row input {
+    .field-row input,
+    .field-row select {
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 9px;
@@ -807,7 +832,8 @@
       transition: all 0.2s;
     }
 
-    .field-row input:focus {
+    .field-row input:focus,
+    .field-row select:focus {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
@@ -1537,6 +1563,79 @@
       { id: 'PROPERTY_IDS', label: 'Property IDs' }
     ];
 
+    const PROPERTY_DETAILS_COLLECTION = 'property details data';
+    const PROPERTY_DROPDOWN_FIELDS = {
+      'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE': ['OCCUPIED', 'VACANT', 'PARTIALLY OCCUPIED', 'MAINTENANCE'],
+      'INDEPENDENT / SHARING': ['INDEPENDENT', 'SHARING'],
+      'OWN/SUBLET': ['OWN', 'SUBLET'],
+      'OTA/NON OTA': ['OTA', 'NON OTA']
+    };
+
+    let lastPropertyDetailsUpdate = null;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function isPropertyDropdownField(fieldName) {
+      return curCol === PROPERTY_DETAILS_COLLECTION && Object.prototype.hasOwnProperty.call(PROPERTY_DROPDOWN_FIELDS, fieldName);
+    }
+
+    function normalizeDropdownValue(fieldName, rawValue) {
+      if (rawValue === null || rawValue === undefined) return '';
+      const trimmed = String(rawValue).trim();
+      if (!trimmed) return '';
+
+      const options = PROPERTY_DROPDOWN_FIELDS[fieldName] || [];
+      const compact = trimmed.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+
+      for (const option of options) {
+        const optionCompact = option.toUpperCase().replace(/\s+/g, ' ').trim();
+        if (compact === optionCompact) return option;
+      }
+
+      return trimmed;
+    }
+
+    function createDropdownElement(fieldName, currentValue, recordId) {
+      const select = document.createElement('select');
+      select.className = 'inline-select';
+      select.dataset.key = fieldName;
+      select.dataset.docId = recordId;
+
+      const normalized = normalizeDropdownValue(fieldName, currentValue);
+      const options = PROPERTY_DROPDOWN_FIELDS[fieldName] || [];
+      const hasCurrentInOptions = options.includes(normalized);
+
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.innerText = 'Select';
+      select.appendChild(emptyOption);
+
+      options.forEach(option => {
+        const opt = document.createElement('option');
+        opt.value = option;
+        opt.innerText = option;
+        select.appendChild(opt);
+      });
+
+      if (!hasCurrentInOptions && normalized) {
+        const customOpt = document.createElement('option');
+        customOpt.value = normalized;
+        customOpt.innerText = normalized;
+        select.appendChild(customOpt);
+      }
+
+      select.value = normalized;
+      select.dataset.original = normalized;
+      return select;
+    }
+
 
     const loader = document.getElementById('loader-bar');
     const showLoader = () => loader.style.display = 'block';
@@ -1547,6 +1646,7 @@
       document.getElementById('view-table').style.display = 'none';
       await loadCollections();
       await loadStats();
+      await checkPropertyDetailsSync(true);
     };
 
 
@@ -1636,12 +1736,43 @@
       }
     }
 
+    async function checkPropertyDetailsSync(forceRefresh = false) {
+      try {
+        const res = await fetch(`/api/collection-last-updated?collection=${encodeURIComponent(PROPERTY_DETAILS_COLLECTION)}`);
+        const payload = await res.json();
+        if (!payload.success) return;
+
+        const token = payload.lastUpdated || null;
+        const changed = token !== lastPropertyDetailsUpdate;
+        if (lastPropertyDetailsUpdate === null) {
+          lastPropertyDetailsUpdate = token;
+          if (forceRefresh) {
+            await loadStats();
+            if (curCol === PROPERTY_DETAILS_COLLECTION) await loadData();
+          }
+          return;
+        }
+
+        if (changed) {
+          lastPropertyDetailsUpdate = token;
+          await loadStats();
+          if (curCol === PROPERTY_DETAILS_COLLECTION) await loadData();
+        }
+      } catch (e) {
+        console.error('Sync check failed:', e);
+      }
+    }
+
     // ─── REAL-TIME HEARTBEAT ───
     setInterval(() => {
       console.log('Real-time sync triggered...');
       loadStats();
       if (curCol) loadData();
     }, 30000);
+
+    setInterval(() => {
+      checkPropertyDetailsSync(false);
+    }, 5000);
 
     window.manualRefresh = () => {
       loadStats();
@@ -2137,7 +2268,11 @@
           if (typeof v === 'object' && v !== null) v = JSON.stringify(v);
           if (v === null || v === undefined || v === '') v = '—';
 
-          if (col.id === 'Status' || col.id === 'OCCUPIED/VACANT/PARTIALLY OCCUPIED' || col.id.toLowerCase().includes('status')) {
+          if (isPropertyDropdownField(col.id)) {
+            const select = createDropdownElement(col.id, v === '—' ? '' : v, row._id);
+            select.onchange = () => updatePropertyDropdown(select);
+            td.appendChild(select);
+          } else if (col.id === 'Status' || col.id === 'OCCUPIED/VACANT/PARTIALLY OCCUPIED' || col.id.toLowerCase().includes('status')) {
             const isOk = String(v).toLowerCase().includes('available') || String(v).toLowerCase() === 'true';
             td.innerHTML = `<span class="${isOk ? 'badge-ok' : 'badge-err'}">${v}</span>`;
           } else {
@@ -2153,7 +2288,56 @@
       });
     }
 
+    async function updatePropertyDropdown(selectEl) {
+      const docId = selectEl.dataset.docId;
+      const fieldName = selectEl.dataset.key;
+      const previous = selectEl.dataset.original || '';
+      const nextValue = (selectEl.value || '').trim();
+
+      if (!docId || !fieldName || nextValue === previous) return;
+
+      selectEl.classList.add('pending');
+      try {
+        const payload = {};
+        payload[fieldName] = nextValue || null;
+
+        const response = await fetch(`/api/update/${encodeURIComponent(PROPERTY_DETAILS_COLLECTION)}/${docId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to update dropdown value');
+        }
+
+        selectEl.dataset.original = nextValue;
+        await loadStats();
+        await checkPropertyDetailsSync(false);
+      } catch (e) {
+        selectEl.value = previous;
+        alert(`Update failed: ${e.message}`);
+      } finally {
+        selectEl.classList.remove('pending');
+      }
+    }
+
     function pg(d) { curPage += d; loadData(); }
+
+    function buildModalFieldControl(col, value) {
+      if (isPropertyDropdownField(col.id)) {
+        const select = createDropdownElement(col.id, value, 'modal');
+        select.id = `ef_${col.id}`;
+        return select;
+      }
+
+      const input = document.createElement('input');
+      input.id = `ef_${col.id}`;
+      input.dataset.key = col.id;
+      input.value = value !== null && value !== undefined ? String(value) : '';
+      return input;
+    }
 
     // ─── MODAL ───
     function openModal(row) {
@@ -2183,7 +2367,10 @@
         }
         const div = document.createElement('div');
         div.className = 'field-row';
-        div.innerHTML = `<label>${col.label}</label><input id="ef_${col.id}" data-key="${col.id}" value="${v !== null && v !== undefined ? String(v).replace(/"/g, '&quot;') : ''}">`;
+        const label = document.createElement('label');
+        label.innerText = col.label;
+        div.appendChild(label);
+        div.appendChild(buildModalFieldControl(col, v));
         body.appendChild(div);
       });
 
@@ -2226,7 +2413,16 @@
       colMap.forEach(col => {
         const div = document.createElement('div');
         div.className = 'field-row';
-        div.innerHTML = `<label title="${col.desc || ''}">${col.label} <small style="display:block;color:var(--muted2);font-weight:400;">${col.dtype || ''}</small></label><input id="ef_${CSS.escape(col.id)}" data-key="${col.id}" value="" placeholder="${col.allowed ? 'e.g. '+col.allowed : 'Enter value…'}">`;
+        const label = document.createElement('label');
+        label.title = col.desc || '';
+        label.innerHTML = `${escapeHtml(col.label)} <small style="display:block;color:var(--muted2);font-weight:400;">${escapeHtml(col.dtype || '')}</small>`;
+        div.appendChild(label);
+
+        const control = buildModalFieldControl(col, '');
+        if (control.tagName === 'INPUT') {
+          control.placeholder = col.allowed ? `e.g. ${col.allowed}` : 'Enter value…';
+        }
+        div.appendChild(control);
         body.appendChild(div);
       });
     }
@@ -2235,22 +2431,27 @@
 
     async function saveRecord() {
       const data = {};
-      document.querySelectorAll('#modal-body input').forEach(inp => {
-        let v = inp.value.trim();
+      document.querySelectorAll('#modal-body [data-key]').forEach(inp => {
+        const key = inp.dataset.key;
+        let v = (inp.value || '').trim();
         if (v === '') {
-          data[inp.dataset.key] = null;
+          data[key] = null;
+          return;
+        }
+        if (Object.prototype.hasOwnProperty.call(PROPERTY_DROPDOWN_FIELDS, key)) {
+          data[key] = v;
           return;
         }
         // Improved type detection
         if (!isNaN(v) && v !== '') {
-          if (v.includes('.')) data[inp.dataset.key] = parseFloat(v);
-          else data[inp.dataset.key] = parseInt(v);
+          if (v.includes('.')) data[key] = parseFloat(v);
+          else data[key] = parseInt(v);
         } else if (v.toLowerCase() === 'true') {
-          data[inp.dataset.key] = true;
+          data[key] = true;
         } else if (v.toLowerCase() === 'false') {
-          data[inp.dataset.key] = false;
+          data[key] = false;
         } else {
-          data[inp.dataset.key] = v;
+          data[key] = v;
         }
       });
 

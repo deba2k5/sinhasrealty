@@ -466,6 +466,8 @@ def admin():
 @app.route('/api/data/<path:collection>', methods=['GET'])
 def get_data(collection):
     collection = unquote(collection)  # Fix Vercel not decoding %20 in path params
+    print("=== /api/data DEBUG ===")
+    print(f"Collection name received: {collection}")
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
@@ -509,6 +511,7 @@ def get_data(collection):
         db_inst = get_db()
         cursor = db_inst[collection].find(query).sort(sort_field, sort_order)
         total = db_inst[collection].count_documents(query)
+        print(f"DEBUG: query={query}, total count={total}")
 
         docs = list(cursor.skip(skip).limit(limit))
         for doc in docs:
@@ -921,9 +924,13 @@ def get_guest_client_collections():
         limit = int(request.args.get('limit', 20))
         skip = (page - 1) * limit
         
-        cursor = db_inst[collection_name].find({}).skip(skip).limit(limit)
+        print("=== DEBUG: Inside get_guest_client_collections ===")
+        print("Collection:", collection_name)
+        
+        cursor = db_inst[collection_name].find({}).sort('_id', -1).skip(skip).limit(limit)
         docs = list(cursor)
         total = db_inst[collection_name].count_documents({})
+        print("DEBUG: total docs:", total)
         
         for doc in docs:
             doc['_id'] = str(doc['_id'])
@@ -1554,4 +1561,4 @@ if __name__ == '__main__':
     print(f" Connected DB: {MONGO_URI}")
     print(f" Dashboard is live at: http://localhost:5000")
     # Run the server on port 5000
-    app.run(port=5000, debug=True)
+    app.run(port=5000, debug=False)
