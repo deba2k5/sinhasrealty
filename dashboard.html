@@ -414,7 +414,10 @@
   <div id="guest-profiles" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Guest Profiles</h2>
-      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('guest_profiles')">+ Add New</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('guest_profiles')">⬇ Export as Excel</button>
+        <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('guest_profiles')">+ Add New</button>
+      </div>
     </div>
     <div id="guest-profiles-container"></div>
   </div>
@@ -422,7 +425,10 @@
   <div id="property-lookup" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Property Lookup</h2>
-      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('property_lookup')">+ Add New</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('property_lookup')">⬇ Export as Excel</button>
+        <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('property_lookup')">+ Add New</button>
+      </div>
     </div>
     <div id="property-lookup-container"></div>
   </div>
@@ -430,7 +436,10 @@
   <div id="revenue-tracker" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Revenue Tracker</h2>
-      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('revenue_tracker')">+ Add New</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('revenue_tracker')">⬇ Export as Excel</button>
+        <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('revenue_tracker')">+ Add New</button>
+      </div>
     </div>
     <div id="revenue-tracker-container"></div>
   </div>
@@ -438,7 +447,10 @@
   <div id="reservation-details" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Reservation Details</h2>
-      <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('reservation_details')">+ Add New</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('reservation_details')">⬇ Export as Excel</button>
+        <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('reservation_details')">+ Add New</button>
+      </div>
     </div>
     <div id="reservation-details-container"></div>
   </div>
@@ -1199,6 +1211,11 @@
     } catch (error) {
       alert('Error deleting record: ' + error.message);
     }
+  }
+
+  function exportCollectionExcel(collection) {
+    const url = `/api/export-excel?collection=${encodeURIComponent(collection)}`;
+    window.location.href = url;
   }
 
   function addNewRecord(collection) {
