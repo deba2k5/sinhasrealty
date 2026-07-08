@@ -1198,15 +1198,13 @@
         });
       });
 
-      // Add event listeners to invoice fields (Rent, Cleaning, Tax, Commission) to auto-calculate Total Invoice
-      const invoiceFields = container.querySelectorAll('[data-field*="Rent"], [data-field*="Cleaning"], [data-field*="Tax"], [data-field*="Commission"]');
-      invoiceFields.forEach(field => {
-        field.addEventListener('change', (e) => {
-          autoCalculateInvoiceInEdit(e.target, container, keys);
-        });
-        field.addEventListener('input', (e) => {
-          autoCalculateInvoiceInEdit(e.target, container, keys);
-        });
+      // Add event listeners to the source fields behind each auto-calculated
+      // revenue formula (see REVENUE_FORMULA_SOURCES / recalculateRevenueFormulas).
+      const formulaFieldNames = new Set(Object.values(REVENUE_FORMULA_SOURCES).flat());
+      container.querySelectorAll('.edit-field').forEach(field => {
+        if (!formulaFieldNames.has((field.dataset.field || '').trim())) return;
+        field.addEventListener('change', (e) => recalculateRevenueFormulas(e.target, container, keys));
+        field.addEventListener('input', (e) => recalculateRevenueFormulas(e.target, container, keys));
       });
     }
   }
@@ -1264,39 +1262,81 @@
     }
 
     console.log("=== autoCalculateGuestNightsInEdit END ===");
+    recalculateRevenueFormulas(changedField, container, keys);
   }
 
-  function autoCalculateInvoiceInEdit(changedField, container, keys) {
-    const recordId = changedField.dataset.record;
-    
-    // Find the field names for invoice calculation - be specific to avoid matching wrong fields
-    const rentKey = keys.find(k => k.toLowerCase().includes('total rent'));
-    const cleaningKey = keys.find(k => k.toLowerCase().includes('cleaning due')) || 
-                        keys.find(k => k.toLowerCase().includes('cleaning'));
-    const taxKey = keys.find(k => k.toLowerCase().includes('city tax'));
-    const commissionKey = keys.find(k => k.toLowerCase().includes('commission'));
-    const invoiceKey = keys.find(k => k.toLowerCase().includes('total invoice'));
+  // Revenue Tracker auto-calculated fields, and the source fields each one
+  // is derived from. Every field here stays a normal editable input — this
+  // only pre-fills a suggested value, which can still be typed over by hand
+  // before Save.
+  //   Pro-Rate Daily Rate (CHF)  = Monthly Rent (CHF) / 30
+  //   Total Rent Received        = Pro-Rate Daily Rate (CHF) x Guest Nights
+  //   Cleaning Due                = Actual Cleaning - Cleaning Paid
+  //   Fnf Settlement Amount       = Actual Deposit - Cleaning Due - Pet Fee - Others
+  //   (Refund Amount)               - Adhoc Cleaning - Transfer Charges
+  //                                  - Adjsuted to next deposit + Reimbursement
+  const REVENUE_FORMULA_SOURCES = {
+    'Pro-Rate Daily Rate (CHF)': ['Monthly Rent (CHF)'],
+    'Total Rent Received': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)'],
+    'Cleaning Due': ['Actual Cleaning', 'Cleaning Paid'],
+    'Fnf Settlement Amount (Refund Amount)': [
+      'Actual Deposit', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Pet Fee', 'Others',
+      'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
+    ]
+  };
 
-    if (!rentKey || !cleaningKey || !taxKey || !commissionKey || !invoiceKey) {
-      return; // Missing required fields
+  function recalculateRevenueFormulas(changedField, container, keys) {
+    const recordId = changedField.dataset.record;
+    const getField = (name) => {
+      const key = keys.find(k => k.trim() === name) || name;
+      return container.querySelector(`[data-record="${recordId}"][data-field="${key}"]`);
+    };
+    const num = (field) => field ? (parseFloat(field.value) || 0) : 0;
+
+    const monthlyRentField = getField('Monthly Rent (CHF)');
+    const proRateField = getField('Pro-Rate Daily Rate (CHF)');
+    const guestNightsField = getField('Guest Nights');
+    const totalRentField = getField('Total Rent Received');
+    const actualCleaningField = getField('Actual Cleaning');
+    const cleaningPaidField = getField('Cleaning Paid');
+    const cleaningDueField = getField('Cleaning Due');
+    const actualDepositField = getField('Actual Deposit');
+    const petFeeField = getField('Pet Fee');
+    const othersField = getField('Others');
+    const adhocCleaningField = getField('Adhoc Cleaning');
+    const transferChargesField = getField('Transfer Charges');
+    const adjustedDepositField = getField('Adjsuted to next deposit');
+    const reimbursementField = getField('Reimbursement');
+    const fnfField = getField('Fnf Settlement Amount (Refund Amount)');
+
+    let proRate = null;
+    if (monthlyRentField && proRateField) {
+      proRate = num(monthlyRentField) / 30;
+      proRateField.value = proRate.toFixed(2);
     }
 
-    // Get all the input fields for this record
-    const rentField = container.querySelector(`[data-record="${recordId}"][data-field="${rentKey}"]`);
-    const cleaningField = container.querySelector(`[data-record="${recordId}"][data-field="${cleaningKey}"]`);
-    const taxField = container.querySelector(`[data-record="${recordId}"][data-field="${taxKey}"]`);
-    const commissionField = container.querySelector(`[data-record="${recordId}"][data-field="${commissionKey}"]`);
-    const invoiceField = container.querySelector(`[data-record="${recordId}"][data-field="${invoiceKey}"]`);
+    if (totalRentField && (proRate !== null || proRateField) && guestNightsField) {
+      const rate = proRate !== null ? proRate : num(proRateField);
+      totalRentField.value = (rate * num(guestNightsField)).toFixed(2);
+    }
 
-    if (rentField && cleaningField && taxField && commissionField && invoiceField) {
-      const rent = parseFloat(rentField.value) || 0;
-      const cleaning = parseFloat(cleaningField.value) || 0;
-      const tax = parseFloat(taxField.value) || 0;
-      const commission = parseFloat(commissionField.value) || 0;
-      const total = rent + cleaning + tax + commission;
-      
-      // Update the Total Invoice field with formatted value
-      invoiceField.value = total.toFixed(2);
+    let cleaningDue = null;
+    if (actualCleaningField && cleaningPaidField && cleaningDueField) {
+      cleaningDue = Math.max(0, num(actualCleaningField) - num(cleaningPaidField));
+      cleaningDueField.value = cleaningDue.toFixed(2);
+    }
+
+    if (fnfField && actualDepositField) {
+      const due = cleaningDue !== null ? cleaningDue : num(cleaningDueField);
+      const fnf = num(actualDepositField)
+        - due
+        - num(petFeeField)
+        - num(othersField)
+        - num(adhocCleaningField)
+        - num(transferChargesField)
+        - num(adjustedDepositField)
+        + num(reimbursementField);
+      fnfField.value = Math.max(0, fnf).toFixed(2);
     }
   }
 
