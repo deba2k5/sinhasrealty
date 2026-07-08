@@ -11,6 +11,9 @@ import re
 from urllib.parse import unquote
 from dotenv import load_dotenv
 import datetime
+from openpyxl.styles import Border, Side, Font
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.utils import get_column_letter
 
 # Load connection string from .env
 load_dotenv()
@@ -429,6 +432,19 @@ def download_csv():
     except Exception as e:
         return f"Error exporting CSV: {str(e)}", 500
 
+
+# Columns that get an in-cell dropdown (Excel data validation) on export,
+# keyed by collection name, so editing common enum-like fields in the
+# exported spreadsheet stays consistent instead of free-text typos.
+DROPDOWN_COLUMNS = {
+    'revenue_tracker': {
+        'Own/Sublet': ['Own', 'Sublet'],
+        'Payment Status': ['Paid', 'Unpaid'],
+        'Payment Method': ['Cash', 'Bank Transfer'],
+    }
+}
+
+
 @app.route('/api/export-excel', methods=['GET'])
 def export_excel():
     """Exports the entire property details collection to a real Excel (.xlsx) file."""
@@ -438,17 +454,60 @@ def export_excel():
         docs = list(cursor)
         if not docs:
             return "No data found for collection.", 404
-            
+
         # Convert to DataFrame
         df = pd.DataFrame(docs)
         if '_id' in df.columns:
             df.drop(columns=['_id'], inplace=True)
-            
+
+        # Respect the saved column order for this collection, if any
+        col_order_doc = get_db()['column_order'].find_one({'collection': collection_name})
+        if col_order_doc and col_order_doc.get('columns'):
+            ordered = [c for c in col_order_doc['columns'] if c in df.columns]
+            ordered += [c for c in df.columns if c not in ordered]
+            df = df[ordered]
+
         # Output to BytesIO as Excel
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Data Export')
-        
+
+            ws = writer.sheets['Data Export']
+            n_rows = len(df) + 1  # +1 for header row
+            n_cols = len(df.columns)
+
+            # Thin border on every cell so each column reads as visually separated
+            thin_side = Side(style='thin', color='B0B0B0')
+            border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+            for row in ws.iter_rows(min_row=1, max_row=n_rows, min_col=1, max_col=n_cols):
+                for cell in row:
+                    cell.border = border
+
+            header_font = Font(bold=True)
+            for cell in ws[1]:
+                cell.font = header_font
+
+            for i, col_name in enumerate(df.columns, start=1):
+                letter = get_column_letter(i)
+                max_len = max([len(str(col_name))] + [len(str(v)) for v in df[col_name].astype(str).head(200)])
+                ws.column_dimensions[letter].width = min(max(max_len + 2, 10), 45)
+
+            # Dropdown data validation for known enum-like columns
+            dropdowns = DROPDOWN_COLUMNS.get(collection_name, {})
+            for col_name, options in dropdowns.items():
+                if col_name not in df.columns:
+                    continue
+                col_idx = list(df.columns).index(col_name) + 1
+                letter = get_column_letter(col_idx)
+                dv = DataValidation(
+                    type='list',
+                    formula1=f'"{",".join(options)}"',
+                    allow_blank=True,
+                    showDropDown=False
+                )
+                ws.add_data_validation(dv)
+                dv.add(f'{letter}2:{letter}{n_rows}')
+
         output.seek(0)
         return Response(
             output.getvalue(),
