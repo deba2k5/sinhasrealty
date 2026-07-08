@@ -215,6 +215,74 @@
       border-right: 1px solid var(--border);
     }
     tr:hover { background: rgba(99,102,241,0.05); }
+    .filter-icon {
+      display: inline-block;
+      margin-left: 6px;
+      cursor: pointer;
+      color: var(--muted2);
+      font-size: 0.75rem;
+    }
+    .filter-icon:hover { color: var(--primary); }
+    .filter-icon.filter-active { color: var(--primary); font-weight: 700; }
+    .column-filter-menu {
+      position: absolute;
+      z-index: 2000;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      width: 220px;
+      max-height: 320px;
+      display: flex;
+      flex-direction: column;
+      font-size: 0.85rem;
+      cursor: default;
+    }
+    .filter-menu-actions {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-menu-actions button {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 2px 4px;
+    }
+    .filter-menu-items {
+      overflow-y: auto;
+      padding: 6px 10px;
+      flex: 1;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 400;
+    }
+    .filter-item input { width: auto; }
+    .filter-menu-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--border);
+    }
+    .filter-menu-footer button {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-apply-filter { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-cancel-filter { background: var(--surface2); color: var(--text); }
     input[type="text"], input[type="number"], input[type="date"], input[type="email"], select {
       width: 100%;
       padding: 8px 10px;
@@ -697,6 +765,116 @@
     'Payment Method': ['Cash', 'Bank Transfer']
   };
 
+  // Excel-style per-column filters: { collection: { fieldName: Set(allowedValues) } }
+  let columnFilters = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {} };
+
+  function getUniqueColumnValues(collection, field) {
+    const values = (currentCollectionData[collection] || []).map(r => {
+      const v = r[field];
+      return (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
+    });
+    return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  }
+
+  function closeFilterMenu() {
+    const menu = document.getElementById('columnFilterMenu');
+    if (menu) menu.remove();
+  }
+
+  function toggleFilterMenu(event, collection, field) {
+    event.stopPropagation();
+    const existing = document.getElementById('columnFilterMenu');
+    if (existing && existing.dataset.field === field) {
+      closeFilterMenu();
+      return;
+    }
+    closeFilterMenu();
+
+    const uniqueValues = getUniqueColumnValues(collection, field);
+    const activeSet = columnFilters[collection][field];
+
+    const menu = document.createElement('div');
+    menu.id = 'columnFilterMenu';
+    menu.className = 'column-filter-menu';
+    menu.dataset.field = field;
+
+    const rect = event.target.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    menu.style.left = `${rect.left + window.scrollX}px`;
+
+    let itemsHtml = uniqueValues.map(v => {
+      const checked = !activeSet || activeSet.has(v) ? 'checked' : '';
+      const escaped = v.replace(/"/g, '&quot;');
+      return `<label class="filter-item"><input type="checkbox" value="${escaped}" ${checked}> ${v}</label>`;
+    }).join('');
+
+    menu.innerHTML = `
+      <div class="filter-menu-actions">
+        <button type="button" onclick="setAllFilterChecks(true)">Select All</button>
+        <button type="button" onclick="setAllFilterChecks(false)">Clear</button>
+      </div>
+      <div class="filter-menu-items">${itemsHtml}</div>
+      <div class="filter-menu-footer">
+        <button type="button" class="btn-cancel-filter" onclick="closeFilterMenu()">Cancel</button>
+        <button type="button" class="btn-apply-filter" onclick="applyColumnFilter('${collection}', '${field.replace(/'/g, "\\'")}')">Apply</button>
+      </div>
+    `;
+    document.body.appendChild(menu);
+
+    setTimeout(() => {
+      document.addEventListener('click', closeFilterMenuOnOutsideClick);
+    }, 0);
+  }
+
+  function closeFilterMenuOnOutsideClick(e) {
+    const menu = document.getElementById('columnFilterMenu');
+    if (menu && !menu.contains(e.target)) {
+      closeFilterMenu();
+      document.removeEventListener('click', closeFilterMenuOnOutsideClick);
+    }
+  }
+
+  function setAllFilterChecks(checked) {
+    const menu = document.getElementById('columnFilterMenu');
+    if (!menu) return;
+    menu.querySelectorAll('.filter-item input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
+  }
+
+  function applyColumnFilter(collection, field) {
+    const menu = document.getElementById('columnFilterMenu');
+    if (!menu) return;
+    const checkboxes = [...menu.querySelectorAll('.filter-item input[type="checkbox"]')];
+    const checkedValues = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+
+    if (checkedValues.length === checkboxes.length || checkedValues.length === 0) {
+      delete columnFilters[collection][field];
+    } else {
+      columnFilters[collection][field] = new Set(checkedValues);
+    }
+    closeFilterMenu();
+    document.removeEventListener('click', closeFilterMenuOnOutsideClick);
+
+    const containerMap = {
+      guest_profiles: 'guest-profiles-container',
+      property_lookup: 'property-lookup-container',
+      revenue_tracker: 'revenue-tracker-container',
+      reservation_details: 'reservation-details-container'
+    };
+    renderDataTable(collection, { data: currentCollectionData[collection], columns: currentCollectionColumns[collection] }, document.getElementById(containerMap[collection]));
+  }
+
+  function applyDataFilters(collection, data) {
+    const filters = columnFilters[collection];
+    if (!filters || Object.keys(filters).length === 0) return data;
+    return data.filter(record => {
+      return Object.entries(filters).every(([field, allowed]) => {
+        const v = record[field];
+        const normalized = (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
+        return allowed.has(normalized);
+      });
+    });
+  }
+
   let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
@@ -741,7 +919,8 @@
       const container = document.getElementById(containerMap[collection]);
       container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
       
-      const response = await fetch(`/api/guest-client-collections?collection=${collection}&page=${page}&limit=20`);
+      const limit = collection === 'revenue_tracker' ? 5000 : 20;
+      const response = await fetch(`/api/guest-client-collections?collection=${collection}&page=${page}&limit=${limit}`);
       const data = await response.json();
       
       if (!data.success) {
@@ -847,8 +1026,9 @@
       ? data.columns 
       : Object.keys(data.data[0]).filter(k => k !== '_id');
       
-    // Sort data if needed
-    let sortedData = sortData(collection, currentSort[collection].field, data.data);
+    // Apply column filters, then sort
+    let filteredData = applyDataFilters(collection, data.data);
+    let sortedData = sortData(collection, currentSort[collection].field, filteredData);
 
     const columnGroups = {
       'guest_profiles': [
@@ -901,7 +1081,11 @@
            let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
            const isSorted = currentSort[collection].field === k;
            const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
-           html += `<th style="top: 41px; cursor: pointer; ${bStyle}" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}</th>`;
+           const isFiltered = collection === 'revenue_tracker' && columnFilters[collection][k];
+           const filterIcon = collection === 'revenue_tracker'
+             ? `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, '${collection}', '${k.replace(/'/g, "\\'")}')">⏷</span>`
+             : '';
+           html += `<th style="top: 41px; cursor: pointer; ${bStyle}" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
        }); // offset sticky top
        html += '</tr>';
     } else {
@@ -910,7 +1094,11 @@
        keys.forEach(k => {
          const isSorted = currentSort[collection].field === k;
          const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
-         html += `<th style="cursor: pointer;" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}</th>`;
+         const isFiltered = collection === 'revenue_tracker' && columnFilters[collection][k];
+         const filterIcon = collection === 'revenue_tracker'
+           ? `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, '${collection}', '${k.replace(/'/g, "\\'")}')">⏷</span>`
+           : '';
+         html += `<th style="cursor: pointer;" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
        });
        html += '</tr>';
     }
