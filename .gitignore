@@ -6,6 +6,8 @@ env/
 .venv/
 *.xlsx
 !SINHAS_Guest_Client_Database_V2.xlsx
+!Property_Details_V4-RS-04.04.2026-v2.xlsx
+!APARTMENTS AND AVAILIBILITY 6.7.26 (1).xlsx
 
 .env
 tmp_verify.py
