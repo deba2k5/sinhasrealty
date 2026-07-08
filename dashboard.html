@@ -195,6 +195,7 @@
       font-weight: 700;
       color: var(--muted2);
       border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
       position: sticky;
       top: 0;
     }
@@ -211,6 +212,7 @@
     td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
     }
     tr:hover { background: rgba(99,102,241,0.05); }
     input[type="text"], input[type="number"], input[type="date"], input[type="email"], select {
@@ -689,6 +691,12 @@
     }
   };
 
+  const REVENUE_TRACKER_DROPDOWNS = {
+    'Own/Sublet': ['Own', 'Sublet'],
+    'Payment Status': ['Paid', 'Unpaid'],
+    'Payment Method': ['Cash', 'Bank Transfer']
+  };
+
   let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
@@ -946,11 +954,19 @@
         if (isEditing) {
           // Check if this is a check-in/check-out field for revenue tracker
           const lowerK = k.toLowerCase();
-          const isDateField = collection === 'revenue_tracker' && 
-            (lowerK.includes('check-in') || lowerK.includes('check in') || lowerK.includes('checkin') || 
+          const isDateField = collection === 'revenue_tracker' &&
+            (lowerK.includes('check-in') || lowerK.includes('check in') || lowerK.includes('checkin') ||
              lowerK.includes('check-out') || lowerK.includes('check out') || lowerK.includes('checkout'));
+          const dropdownOptions = collection === 'revenue_tracker' ? REVENUE_TRACKER_DROPDOWNS[k] : null;
           console.log("Rendering field:", k, "isDateField:", isDateField, "value:", value);
-          if (isDateField) {
+          if (dropdownOptions) {
+            let opts = `<option value="">—</option>`;
+            dropdownOptions.forEach(opt => {
+              const selected = String(value || '').trim().toLowerCase() === opt.toLowerCase() ? 'selected' : '';
+              opts += `<option value="${opt}" ${selected}>${opt}</option>`;
+            });
+            html += `<td style="${bStyle}"><select data-field="${k}" data-record="${recordId}" class="edit-field">${opts}</select></td>`;
+          } else if (isDateField) {
             const parsedDate = parseDateString(value);
             const inputValue = formatDateForInput(parsedDate);
             console.log("Creating date input with value:", inputValue);
