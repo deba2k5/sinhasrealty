@@ -593,6 +593,75 @@
       color: var(--primary);
     }
 
+    .filter-icon {
+      display: inline-block;
+      margin-left: 6px;
+      cursor: pointer;
+      color: var(--muted2);
+      font-size: 0.75rem;
+    }
+    .filter-icon:hover { color: var(--primary); }
+    .filter-icon.filter-active { color: var(--primary); font-weight: 700; }
+    .column-filter-menu {
+      position: absolute;
+      z-index: 2000;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      width: 220px;
+      max-height: 320px;
+      display: flex;
+      flex-direction: column;
+      font-size: 0.85rem;
+      cursor: default;
+    }
+    .filter-menu-actions {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-menu-actions button {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 2px 4px;
+    }
+    .filter-menu-items {
+      overflow-y: auto;
+      padding: 6px 10px;
+      flex: 1;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 400;
+    }
+    .filter-item input { width: auto; }
+    .filter-menu-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--border);
+    }
+    .filter-menu-footer button {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-apply-filter { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-cancel-filter { background: var(--surface2); color: var(--text); }
+
     td {
       padding: 13px 18px;
       border-bottom: 1px solid var(--border);
@@ -1500,6 +1569,104 @@
     let curFilterCol = '';
     let curFilterVal = '';
     let charts = {};
+
+    // Excel-style per-column filters for the Property Details table, mirroring
+    // the Revenue Tracker dashboard: { fieldName: Set(allowedValues) }
+    let propertyColumnFilters = {};
+    let lastLoadedRows = [];
+
+    function getUniquePropertyValues(field) {
+      const values = lastLoadedRows.map(r => {
+        const v = r[field];
+        return (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
+      });
+      return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+    }
+
+    function applyPropertyColumnFilters(rows) {
+      if (curCol !== PROPERTY_DETAILS_COLLECTION || Object.keys(propertyColumnFilters).length === 0) return rows;
+      return rows.filter(row => {
+        return Object.entries(propertyColumnFilters).every(([field, allowed]) => {
+          const v = row[field];
+          const normalized = (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
+          return allowed.has(normalized);
+        });
+      });
+    }
+
+    function closePropertyFilterMenu() {
+      const menu = document.getElementById('propertyFilterMenu');
+      if (menu) menu.remove();
+      document.removeEventListener('click', closePropertyFilterMenuOnOutsideClick);
+    }
+
+    function closePropertyFilterMenuOnOutsideClick(e) {
+      const menu = document.getElementById('propertyFilterMenu');
+      if (menu && !menu.contains(e.target)) closePropertyFilterMenu();
+    }
+
+    function togglePropertyFilterMenu(event, field) {
+      event.stopPropagation();
+      const existing = document.getElementById('propertyFilterMenu');
+      if (existing && existing.dataset.field === field) {
+        closePropertyFilterMenu();
+        return;
+      }
+      closePropertyFilterMenu();
+
+      const uniqueValues = getUniquePropertyValues(field);
+      const activeSet = propertyColumnFilters[field];
+
+      const menu = document.createElement('div');
+      menu.id = 'propertyFilterMenu';
+      menu.className = 'column-filter-menu';
+      menu.dataset.field = field;
+
+      const rect = event.target.getBoundingClientRect();
+      menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+      menu.style.left = `${rect.left + window.scrollX}px`;
+
+      const itemsHtml = uniqueValues.map(v => {
+        const checked = !activeSet || activeSet.has(v) ? 'checked' : '';
+        const escaped = v.replace(/"/g, '&quot;');
+        return `<label class="filter-item"><input type="checkbox" value="${escaped}" ${checked}> ${escapeHtml(v)}</label>`;
+      }).join('');
+
+      menu.innerHTML = `
+        <div class="filter-menu-actions">
+          <button type="button" onclick="setAllPropertyFilterChecks(true)">Select All</button>
+          <button type="button" onclick="setAllPropertyFilterChecks(false)">Clear</button>
+        </div>
+        <div class="filter-menu-items">${itemsHtml}</div>
+        <div class="filter-menu-footer">
+          <button type="button" class="btn-cancel-filter" onclick="closePropertyFilterMenu()">Cancel</button>
+          <button type="button" class="btn-apply-filter" onclick="applyPropertyFilter('${field.replace(/'/g, "\\'")}')">Apply</button>
+        </div>
+      `;
+      document.body.appendChild(menu);
+      setTimeout(() => document.addEventListener('click', closePropertyFilterMenuOnOutsideClick), 0);
+    }
+
+    function setAllPropertyFilterChecks(checked) {
+      const menu = document.getElementById('propertyFilterMenu');
+      if (!menu) return;
+      menu.querySelectorAll('.filter-item input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
+    }
+
+    function applyPropertyFilter(field) {
+      const menu = document.getElementById('propertyFilterMenu');
+      if (!menu) return;
+      const checkboxes = [...menu.querySelectorAll('.filter-item input[type="checkbox"]')];
+      const checkedValues = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+
+      if (checkedValues.length === checkboxes.length || checkedValues.length === 0) {
+        delete propertyColumnFilters[field];
+      } else {
+        propertyColumnFilters[field] = new Set(checkedValues);
+      }
+      closePropertyFilterMenu();
+      renderTable(applyPropertyColumnFilters(lastLoadedRows));
+    }
     let curSchema = [];
 
     // Standardized key mapping for property records (shared between Manual Entry and Admin)
@@ -1568,7 +1735,7 @@
 
     const PROPERTY_DETAILS_COLLECTION = 'property details data';
     const PROPERTY_DROPDOWN_FIELDS = {
-      'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE': ['OCCUPIED', 'VACANT', 'PARTIALLY OCCUPIED', 'MAINTENANCE'],
+      'OCCUPIED/VACANT/PARTIALLY OCCUPIED/MAINTENANCE': ['OCCUPIED', 'VACANT', 'PARTIALLY OCCUPIED', 'MAINTENANCE', 'NEW APARTMENT', 'SURRENDERED'],
       'INDEPENDENT / SHARING': ['INDEPENDENT', 'SHARING'],
       'OWN/SUBLET': ['OWN', 'SUBLET'],
       'OTA/NON OTA': ['OTA', 'NON OTA']
@@ -1709,7 +1876,12 @@
       document.getElementById('searchInput').value = '';
       document.getElementById('page-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
       document.getElementById('page-sub').innerText = `Browsing collection: ${tab}`;
-      loadData();
+      // Property Details gets the same single-page, filterable view as Revenue Tracker
+      if (tab === PROPERTY_DETAILS_COLLECTION) {
+        loadData(9999);
+      } else {
+        loadData();
+      }
     }
 
 
@@ -2119,7 +2291,7 @@
     // ─── TABLE DATA ───
     function debounce() {
       clearTimeout(dTimer);
-      dTimer = setTimeout(() => { curPage = 1; loadData(); }, 450);
+      dTimer = setTimeout(() => { curPage = 1; loadData(curCol === PROPERTY_DETAILS_COLLECTION ? 9999 : null); }, 450);
     }
 
     async function loadData(force = null) {
@@ -2157,7 +2329,10 @@
       document.getElementById('page-info').innerText = `Page ${res.page} of ${res.totalPages}  ·  ${res.total} records`;
       document.getElementById('prev-btn').disabled = res.page <= 1;
       document.getElementById('next-btn').disabled = res.page >= res.totalPages;
-      renderTable(res.data);
+
+      lastLoadedRows = res.data;
+      if (curCol !== PROPERTY_DETAILS_COLLECTION) propertyColumnFilters = {};
+      renderTable(applyPropertyColumnFilters(res.data));
     }
 
     function clearFilter() {
@@ -2238,14 +2413,19 @@
          thead.appendChild(trField);
       } else {
         const tr = document.createElement('tr');
+        const isPropertyDetails = curCol === PROPERTY_DETAILS_COLLECTION;
         displayCols.forEach(col => {
           const th = document.createElement('th');
+          const isFiltered = isPropertyDetails && propertyColumnFilters[col.id];
+          const filterIconHtml = isPropertyDetails
+            ? `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="event.stopPropagation(); togglePropertyFilterMenu(event, '${col.id.replace(/'/g, "\\'")}')">⏷</span>`
+            : '';
           if (curSortBy === col.id) {
             th.classList.add('sort-active');
             const icon = curSortOrder === 1 ? '▲' : '▼';
-            th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">${icon}</span>`;
+            th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">${icon}</span>${filterIconHtml}`;
           } else {
-            th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">↕</span>`;
+            th.innerHTML = `${col.label.toUpperCase()} <span class="sort-icon">↕</span>${filterIconHtml}`;
           }
           th.onclick = () => handleSort(col.id);
           tr.appendChild(th);
@@ -2326,7 +2506,7 @@
       }
     }
 
-    function pg(d) { curPage += d; loadData(); }
+    function pg(d) { curPage += d; loadData(curCol === PROPERTY_DETAILS_COLLECTION ? 9999 : null); }
 
     function buildModalFieldControl(col, value) {
       if (isPropertyDropdownField(col.id)) {
@@ -2485,7 +2665,7 @@
         curSortOrder = 1;
       }
       curPage = 1;
-      loadData();
+      loadData(curCol === PROPERTY_DETAILS_COLLECTION ? 9999 : null);
     }
 
     // ─── EXPORT LOGIC ───
