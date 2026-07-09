@@ -311,6 +311,15 @@
       outline: none;
       border-color: var(--primary);
     }
+    .edit-field-wide {
+      min-width: 260px;
+    }
+    .edit-field-wide:focus {
+      position: relative;
+      z-index: 50;
+      min-width: 420px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    }
     .action-btn {
       padding: 6px 12px;
       margin: 0 2px;
@@ -1174,7 +1183,9 @@
             console.log("Creating date input with value:", inputValue);
             html += `<td style="${bStyle}"><input type="date" value="${inputValue}" data-field="${k}" data-record="${recordId}" class="edit-field edit-date-field"></td>`;
           } else {
-            html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field"></td>`;
+            const isWideField = collection === 'revenue_tracker' && k.trim() === 'IBAN details';
+            const widthClass = isWideField ? ' edit-field-wide' : '';
+            html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field${widthClass}"></td>`;
           }
         } else {
           html += `<td style="${bStyle}">${value || '—'}</td>`;
