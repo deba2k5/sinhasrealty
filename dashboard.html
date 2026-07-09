@@ -171,6 +171,19 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
+    .tab-content.fullscreen-mode {
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: var(--bg, #0b0f1a);
+      padding: 24px;
+      overflow-y: auto;
+      margin: 0;
+    }
+    .tab-content.fullscreen-mode .table-wrapper {
+      max-height: calc(100vh - 160px);
+    }
+
     .table-container {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -507,6 +520,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Revenue Tracker</h2>
       <div style="display: flex; gap: 10px;">
+        <button class="btn" id="revenueFullscreenBtn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="toggleRevenueTrackerFullscreen()">⛶ Full Screen</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('revenue_tracker')">⬇ Export as Excel</button>
         <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('revenue_tracker')">+ Add New</button>
       </div>
@@ -1275,6 +1289,7 @@
   //   Fnf Settlement Amount       = Actual Deposit - Cleaning Due - Pet Fee - Others
   //   (Refund Amount)               - Adhoc Cleaning - Transfer Charges
   //                                  - Adjsuted to next deposit + Reimbursement
+  //   Rent Due/Payable            = 0 if Payment Status is "Paid", else Total Rent Received
   const REVENUE_FORMULA_SOURCES = {
     'Pro-Rate Daily Rate (CHF)': ['Monthly Rent (CHF)'],
     'Total Rent Received': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)'],
@@ -1282,7 +1297,8 @@
     'Fnf Settlement Amount (Refund Amount)': [
       'Actual Deposit', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Pet Fee', 'Others',
       'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
-    ]
+    ],
+    'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status']
   };
 
   function recalculateRevenueFormulas(changedField, container, keys) {
@@ -1308,6 +1324,8 @@
     const adjustedDepositField = getField('Adjsuted to next deposit');
     const reimbursementField = getField('Reimbursement');
     const fnfField = getField('Fnf Settlement Amount (Refund Amount)');
+    const paymentStatusField = getField('Payment Status');
+    const rentDueField = getField('Rent Due/Payable');
 
     let proRate = null;
     if (monthlyRentField && proRateField) {
@@ -1315,9 +1333,17 @@
       proRateField.value = proRate.toFixed(2);
     }
 
+    let totalRent = null;
     if (totalRentField && (proRate !== null || proRateField) && guestNightsField) {
       const rate = proRate !== null ? proRate : num(proRateField);
-      totalRentField.value = (rate * num(guestNightsField)).toFixed(2);
+      totalRent = rate * num(guestNightsField);
+      totalRentField.value = totalRent.toFixed(2);
+    }
+
+    if (rentDueField) {
+      const rent = totalRent !== null ? totalRent : num(totalRentField);
+      const isPaid = paymentStatusField && paymentStatusField.value.trim().toLowerCase() === 'paid';
+      rentDueField.value = (isPaid ? 0 : rent).toFixed(2);
     }
 
     let cleaningDue = null;
@@ -1456,6 +1482,23 @@
       alert('Error deleting record: ' + error.message);
     }
   }
+
+  function toggleRevenueTrackerFullscreen() {
+    const el = document.getElementById('revenue-tracker');
+    const btn = document.getElementById('revenueFullscreenBtn');
+    const isFullscreen = el.classList.toggle('fullscreen-mode');
+    btn.innerHTML = isFullscreen ? '✕ Exit Full Screen' : '⛶ Full Screen';
+    document.body.style.overflow = isFullscreen ? 'hidden' : '';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const el = document.getElementById('revenue-tracker');
+      if (el && el.classList.contains('fullscreen-mode')) {
+        toggleRevenueTrackerFullscreen();
+      }
+    }
+  });
 
   function exportCollectionExcel(collection) {
     const url = `/api/export-excel?collection=${encodeURIComponent(collection)}`;
