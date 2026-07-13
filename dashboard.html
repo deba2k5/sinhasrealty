@@ -791,12 +791,50 @@
   // Excel-style per-column filters: { collection: { fieldName: Set(allowedValues) } }
   let columnFilters = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {} };
 
+  // Check-in/Check-out Date filter by month+year instead of exact date, so
+  // "June 2026" matches every booking that month rather than listing every
+  // individual date as its own checkbox.
+  const DATE_FILTER_FIELDS = new Set(['Check-in Date', 'Check-out Date']);
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  function isDateFilterField(field) {
+    return DATE_FILTER_FIELDS.has(String(field).trim());
+  }
+
+  function monthYearKey(dateStr) {
+    const d = parseDateString(dateStr);
+    if (!d) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function monthYearLabel(key) {
+    const [y, m] = key.split('-');
+    return `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
+  }
+
+  // Returns [{ value, label }] - value is what gets stored/matched against,
+  // label is what the checkbox shows. For plain fields these are identical;
+  // for date filter fields, value is a "YYYY-MM" key and label is "Month YYYY".
   function getUniqueColumnValues(collection, field) {
-    const values = (currentCollectionData[collection] || []).map(r => {
-      const v = r[field];
-      return (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
+    const dateField = isDateFilterField(field);
+    const seen = new Map();
+    (currentCollectionData[collection] || []).forEach(r => {
+      const raw = r[field];
+      if (dateField) {
+        const key = monthYearKey(raw);
+        if (key === null) {
+          seen.set('(Blank)', '(Blank)');
+        } else {
+          seen.set(key, monthYearLabel(key));
+        }
+      } else {
+        const v = (raw === null || raw === undefined || raw === '') ? '(Blank)' : String(raw).trim();
+        seen.set(v, v);
+      }
     });
-    return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+    return [...seen.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.value.localeCompare(b.value));
   }
 
   function closeFilterMenu() {
@@ -825,10 +863,10 @@
     menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
     menu.style.left = `${rect.left + window.scrollX}px`;
 
-    let itemsHtml = uniqueValues.map(v => {
-      const checked = !activeSet || activeSet.has(v) ? 'checked' : '';
-      const escaped = v.replace(/"/g, '&quot;');
-      return `<label class="filter-item"><input type="checkbox" value="${escaped}" ${checked}> ${v}</label>`;
+    let itemsHtml = uniqueValues.map(({ value, label }) => {
+      const checked = !activeSet || activeSet.has(value) ? 'checked' : '';
+      const escaped = value.replace(/"/g, '&quot;');
+      return `<label class="filter-item"><input type="checkbox" value="${escaped}" ${checked}> ${label}</label>`;
     }).join('');
 
     menu.innerHTML = `
@@ -892,6 +930,10 @@
     return data.filter(record => {
       return Object.entries(filters).every(([field, allowed]) => {
         const v = record[field];
+        if (isDateFilterField(field)) {
+          const key = monthYearKey(v);
+          return allowed.has(key === null ? '(Blank)' : key);
+        }
         const normalized = (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
         return allowed.has(normalized);
       });
