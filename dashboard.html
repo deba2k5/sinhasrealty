@@ -898,6 +898,7 @@
     });
   }
 
+  let lastRevenueTrackerKeys = null;
   let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
@@ -1153,6 +1154,9 @@
       if (isEditing) {
         html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
         html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
+        if (collection === 'revenue_tracker') {
+          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Cleaning Due, Fnf Settlement Amount and Rent Due/Payable from the formulas below - you can still type over any of them by hand.">⚡ Auto-Calc</button>`;
+        }
       } else {
         html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
         html += `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
@@ -1207,41 +1211,17 @@
     
     container.innerHTML = html;
 
-    // Add event listeners to date fields to auto-calculate guest nights when changed
+    // Revenue Tracker fields are always plain manual inputs - see runAutoCalc()
+    // for the on-demand "⚡ Auto-Calc" button that fills in the formula-derived
+    // fields without silently overwriting anything as you type.
     if (collection === 'revenue_tracker') {
-      const dateFields = container.querySelectorAll('.edit-date-field');
-      console.log("Found", dateFields.length, "edit-date-field elements");
-      dateFields.forEach(field => {
-        console.log("Adding event listeners to field:", field.dataset.field);
-        field.addEventListener('change', (e) => {
-          console.log("CHANGE event fired");
-          autoCalculateGuestNightsInEdit(e.target, container, keys);
-        });
-        field.addEventListener('input', (e) => {
-          console.log("INPUT event fired");
-          autoCalculateGuestNightsInEdit(e.target, container, keys);
-        });
-      });
-
-      // Add event listeners to the source fields behind each auto-calculated
-      // revenue formula (see REVENUE_FORMULA_SOURCES / recalculateRevenueFormulas).
-      const formulaFieldNames = new Set(Object.values(REVENUE_FORMULA_SOURCES).flat());
-      container.querySelectorAll('.edit-field').forEach(field => {
-        if (!formulaFieldNames.has((field.dataset.field || '').trim())) return;
-        field.addEventListener('change', (e) => recalculateRevenueFormulas(e.target, container, keys));
-        field.addEventListener('input', (e) => recalculateRevenueFormulas(e.target, container, keys));
-      });
+      lastRevenueTrackerKeys = keys;
     }
   }
 
-  function autoCalculateGuestNightsInEdit(changedField, container, keys) {
+  function autoCalculateGuestNightsInEdit(recordId, container, keys) {
     console.log("=== autoCalculateGuestNightsInEdit START ===");
-    
-    // Get record ID from the changed field
-    const recordId = changedField.dataset.record;
     console.log("Record ID:", recordId);
-    console.log("Changed field:", changedField.dataset.field);
-    console.log("Changed value:", changedField.value);
 
     // Find all fields for this specific record
     const checkInKeys = keys.filter(k => {
@@ -1287,7 +1267,18 @@
     }
 
     console.log("=== autoCalculateGuestNightsInEdit END ===");
-    recalculateRevenueFormulas(changedField, container, keys);
+    recalculateRevenueFormulas(recordId, container, keys);
+  }
+
+  // Called by the "⚡ Auto-Calc" button on a Revenue Tracker row being edited.
+  // Every field stays a normal manual input the rest of the time - this just
+  // pulls in the formula-derived values on demand instead of forcing them in
+  // automatically as you type (which used to silently overwrite hand-typed
+  // corrections whenever a sibling field changed).
+  function runAutoCalc(recordId) {
+    const container = document.getElementById('revenue-tracker-container');
+    if (!container || !lastRevenueTrackerKeys) return;
+    autoCalculateGuestNightsInEdit(recordId, container, lastRevenueTrackerKeys);
   }
 
   // Revenue Tracker auto-calculated fields, and the source fields each one
@@ -1312,8 +1303,7 @@
     'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status']
   };
 
-  function recalculateRevenueFormulas(changedField, container, keys) {
-    const recordId = changedField.dataset.record;
+  function recalculateRevenueFormulas(recordId, container, keys) {
     const getField = (name) => {
       const key = keys.find(k => k.trim() === name) || name;
       return container.querySelector(`[data-record="${recordId}"][data-field="${key}"]`);
