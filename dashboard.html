@@ -251,6 +251,19 @@
       font-size: 0.85rem;
       cursor: default;
     }
+    .filter-menu-search {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-menu-search input {
+      width: 100%;
+      padding: 6px 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.8rem;
+    }
     .filter-menu-actions {
       display: flex;
       justify-content: space-between;
@@ -884,6 +897,9 @@
     }).join('');
 
     menu.innerHTML = `
+      <div class="filter-menu-search">
+        <input type="text" placeholder="Search..." oninput="filterFilterMenuItems(this.value)">
+      </div>
       <div class="filter-menu-actions">
         <button type="button" onclick="setAllFilterChecks(true)">Select All</button>
         <button type="button" onclick="setAllFilterChecks(false)">Clear</button>
@@ -895,10 +911,21 @@
       </div>
     `;
     document.body.appendChild(menu);
+    menu.querySelector('.filter-menu-search input').focus();
 
     setTimeout(() => {
       document.addEventListener('click', closeFilterMenuOnOutsideClick);
     }, 0);
+  }
+
+  function filterFilterMenuItems(query) {
+    const menu = document.getElementById('columnFilterMenu');
+    if (!menu) return;
+    const q = query.trim().toLowerCase();
+    menu.querySelectorAll('.filter-menu-items .filter-item').forEach(item => {
+      const text = item.textContent.trim().toLowerCase();
+      item.style.display = !q || text.includes(q) ? 'flex' : 'none';
+    });
   }
 
   function closeFilterMenuOnOutsideClick(e) {
@@ -912,7 +939,12 @@
   function setAllFilterChecks(checked) {
     const menu = document.getElementById('columnFilterMenu');
     if (!menu) return;
-    menu.querySelectorAll('.filter-item input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
+    // Only affects items currently visible (i.e. matching the search box, if any)
+    menu.querySelectorAll('.filter-item').forEach(item => {
+      if (item.style.display === 'none') return;
+      const cb = item.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = checked;
+    });
   }
 
   function applyColumnFilter(collection, field) {
