@@ -1243,7 +1243,7 @@
         html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
         html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
         if (collection === 'revenue_tracker') {
-          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Cleaning Due, Fnf Settlement Amount and Rent Due/Payable from the formulas below - you can still type over any of them by hand.">⚡ Auto-Calc</button>`;
+          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Cleaning Due, Fnf Settlement Amount, Rent Due/Payable and Refund Due By from the formulas below - you can still type over any of them by hand.">⚡ Auto-Calc</button>`;
         }
       } else {
         html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
@@ -1380,6 +1380,7 @@
   //   (Refund Amount)               - Adhoc Cleaning - Transfer Charges
   //                                  - Adjsuted to next deposit + Reimbursement
   //   Rent Due/Payable            = 0 if Payment Status is "Paid", else Total Rent Received
+  //   Refund Due By               = Check-out Date + 30 days
   const REVENUE_FORMULA_SOURCES = {
     'Pro-Rate Daily Rate (CHF)': ['Monthly Rent (CHF)'],
     'Total Rent Received': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)'],
@@ -1388,7 +1389,8 @@
       'Actual Deposit', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Pet Fee', 'Others',
       'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
     ],
-    'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status']
+    'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status'],
+    'Refund Due By': ['Check-out Date']
   };
 
   function recalculateRevenueFormulas(recordId, container, keys) {
@@ -1415,6 +1417,8 @@
     const fnfField = getField('Fnf Settlement Amount (Refund Amount)');
     const paymentStatusField = getField('Payment Status');
     const rentDueField = getField('Rent Due/Payable');
+    const checkOutField = getField('Check-out Date');
+    const refundDueByField = getField('Refund Due By');
 
     let proRate = null;
     if (monthlyRentField && proRateField) {
@@ -1433,6 +1437,17 @@
       const rent = totalRent !== null ? totalRent : num(totalRentField);
       const isPaid = paymentStatusField && paymentStatusField.value.trim().toLowerCase() === 'paid';
       rentDueField.value = (isPaid ? 0 : rent).toFixed(2);
+    }
+
+    if (refundDueByField && checkOutField) {
+      const checkOutDate = parseDateString(checkOutField.value);
+      if (checkOutDate) {
+        const dueDate = new Date(checkOutDate);
+        dueDate.setDate(dueDate.getDate() + 30);
+        const d = String(dueDate.getDate()).padStart(2, '0');
+        const m = String(dueDate.getMonth() + 1).padStart(2, '0');
+        refundDueByField.value = `${d}.${m}.${dueDate.getFullYear()}`;
+      }
     }
 
     let cleaningDue = null;
