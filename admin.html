@@ -2612,13 +2612,25 @@
 
     function closeModal() { document.getElementById('editOverlay').style.display = 'none'; editId = null; }
 
+    // Fields that must always be saved as a string, never coerced to a
+    // number - a leading zero (e.g. a keysafe code "0700") is meaningful
+    // and would otherwise get silently stripped by parseInt/parseFloat.
+    const ALWAYS_STRING_FIELDS = {
+      physical_attributes: ['ENTRY_KEYSAFE']
+    };
+
     async function saveRecord() {
       const data = {};
+      const alwaysStringFields = ALWAYS_STRING_FIELDS[curCol] || [];
       document.querySelectorAll('#modal-body [data-key]').forEach(inp => {
         const key = inp.dataset.key;
         let v = (inp.value || '').trim();
         if (v === '') {
           data[key] = null;
+          return;
+        }
+        if (alwaysStringFields.includes(key)) {
+          data[key] = v;
           return;
         }
         if (Object.prototype.hasOwnProperty.call(PROPERTY_DROPDOWN_FIELDS, key)) {
