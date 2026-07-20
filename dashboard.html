@@ -1029,22 +1029,27 @@
       };
       
       const container = document.getElementById(containerMap[collection]);
+      const existingWrapper = container.querySelector('.table-wrapper');
+      const savedScrollTop = existingWrapper ? existingWrapper.scrollTop : 0;
       container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-      
+
       const limit = collection === 'revenue_tracker' ? 5000 : 20;
       const response = await fetch(`/api/guest-client-collections?collection=${collection}&page=${page}&limit=${limit}`);
       const data = await response.json();
-      
+
       if (!data.success) {
         container.innerHTML = `<div class="error">${data.message}</div>`;
         return;
       }
-      
+
       currentCollectionPage[collection] = page;
       currentCollectionData[collection] = data.data;
       currentCollectionColumns[collection] = data.columns || [];
-      
+
       renderDataTable(collection, data, container);
+
+      const newWrapper = container.querySelector('.table-wrapper');
+      if (newWrapper) newWrapper.scrollTop = savedScrollTop;
     } catch (error) {
       console.error('Error loading collection:', error);
       document.getElementById(containerMap[collection]).innerHTML = `<div class="error">Error loading data: ${error.message}</div>`;
@@ -1506,12 +1511,15 @@
           reservation_details: 'reservation-details-container'
         };
         const container = document.getElementById(containerMap[col]);
-        renderDataTable(col, { 
-          data: currentCollectionData[col], 
+        const savedScrollTop = container.querySelector('.table-wrapper')?.scrollTop || 0;
+        renderDataTable(col, {
+          data: currentCollectionData[col],
           columns: currentCollectionColumns[col],
-          page: currentCollectionPage[col], 
-          totalPages: 1 
+          page: currentCollectionPage[col],
+          totalPages: 1
         }, container);
+        const newWrapper = container.querySelector('.table-wrapper');
+        if (newWrapper) newWrapper.scrollTop = savedScrollTop;
         break;
       }
     }
@@ -1528,12 +1536,15 @@
           reservation_details: 'reservation-details-container'
         };
         const container = document.getElementById(containerMap[col]);
-        renderDataTable(col, { 
-          data: currentCollectionData[col], 
+        const savedScrollTop = container.querySelector('.table-wrapper')?.scrollTop || 0;
+        renderDataTable(col, {
+          data: currentCollectionData[col],
           columns: currentCollectionColumns[col],
-          page: currentCollectionPage[col], 
-          totalPages: 1 
+          page: currentCollectionPage[col],
+          totalPages: 1
         }, container);
+        const newWrapper2 = container.querySelector('.table-wrapper');
+        if (newWrapper2) newWrapper2.scrollTop = savedScrollTop;
         break;
       }
     }
