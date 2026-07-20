@@ -1019,6 +1019,20 @@
     }
   }
 
+  // Restores both the table's own inner scroll and the outer page scroll
+  // after a re-render, since the container briefly shrinks to a spinner
+  // while data reloads, which can otherwise pull the whole window scroll
+  // back up to the top.
+  function restoreScrollPosition(container, savedScrollTop, savedWindowScroll) {
+    const apply = () => {
+      const wrapper = container.querySelector('.table-wrapper');
+      if (wrapper) wrapper.scrollTop = savedScrollTop;
+      window.scrollTo(0, savedWindowScroll);
+    };
+    apply();
+    requestAnimationFrame(apply);
+  }
+
   async function loadCollectionData(collection, page) {
     try {
       const containerMap = {
@@ -1031,6 +1045,7 @@
       const container = document.getElementById(containerMap[collection]);
       const existingWrapper = container.querySelector('.table-wrapper');
       const savedScrollTop = existingWrapper ? existingWrapper.scrollTop : 0;
+      const savedWindowScroll = window.scrollY;
       container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
       const limit = collection === 'revenue_tracker' ? 5000 : 20;
@@ -1048,8 +1063,7 @@
 
       renderDataTable(collection, data, container);
 
-      const newWrapper = container.querySelector('.table-wrapper');
-      if (newWrapper) newWrapper.scrollTop = savedScrollTop;
+      restoreScrollPosition(container, savedScrollTop, savedWindowScroll);
     } catch (error) {
       console.error('Error loading collection:', error);
       document.getElementById(containerMap[collection]).innerHTML = `<div class="error">Error loading data: ${error.message}</div>`;
@@ -1512,14 +1526,14 @@
         };
         const container = document.getElementById(containerMap[col]);
         const savedScrollTop = container.querySelector('.table-wrapper')?.scrollTop || 0;
+        const savedWindowScroll = window.scrollY;
         renderDataTable(col, {
           data: currentCollectionData[col],
           columns: currentCollectionColumns[col],
           page: currentCollectionPage[col],
           totalPages: 1
         }, container);
-        const newWrapper = container.querySelector('.table-wrapper');
-        if (newWrapper) newWrapper.scrollTop = savedScrollTop;
+        restoreScrollPosition(container, savedScrollTop, savedWindowScroll);
         break;
       }
     }
@@ -1537,14 +1551,14 @@
         };
         const container = document.getElementById(containerMap[col]);
         const savedScrollTop = container.querySelector('.table-wrapper')?.scrollTop || 0;
+        const savedWindowScroll = window.scrollY;
         renderDataTable(col, {
           data: currentCollectionData[col],
           columns: currentCollectionColumns[col],
           page: currentCollectionPage[col],
           totalPages: 1
         }, container);
-        const newWrapper2 = container.querySelector('.table-wrapper');
-        if (newWrapper2) newWrapper2.scrollTop = savedScrollTop;
+        restoreScrollPosition(container, savedScrollTop, savedWindowScroll);
         break;
       }
     }
