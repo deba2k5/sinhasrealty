@@ -968,7 +968,11 @@ def get_schema(collection):
 @app.route('/dashboard')
 def dashboard():
     """Serves the Guest Client Dashboard"""
-    return send_from_directory('.', 'dashboard.html')
+    response = send_from_directory('.', 'dashboard.html')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/api/guest-client-collections', methods=['GET'])
 def get_guest_client_collections():
