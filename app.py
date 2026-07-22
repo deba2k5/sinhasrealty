@@ -439,7 +439,7 @@ def download_csv():
 DROPDOWN_COLUMNS = {
     'revenue_tracker': {
         'Own/Sublet': ['Own', 'Sublet'],
-        'Payment Status': ['Paid', 'Unpaid'],
+        'Payment Status': ['Paid', 'Unpaid', 'OTA', 'No Deposit', 'Hold(untill other vacate)'],
         'Payment Method': ['Cash', 'Bank Transfer'],
     }
 }
