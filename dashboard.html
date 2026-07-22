@@ -1413,10 +1413,9 @@
   //   Total Rent Received        = Pro-Rate Daily Rate (CHF) x Guest Nights
   //   Cleaning Due                = Actual Cleaning - Cleaning Paid
   //   Rent Due/Payable            = 0 if Payment Status is "Paid", else Total Rent Received
-  //   Fnf Settlement Amount       = Actual Deposit - Rent Due/Payable - Cleaning Due - Pet Fee
-  //   (Refund Amount)               - Others - Adhoc Cleaning - Transfer Charges
+  //   Fnf Settlement Amount       = Actual Deposit - Cleaning Due - Notice rent - Rent Due/Payable
+  //   (Refund Amount)               - Pet Fee - Others - Adhoc Cleaning - Transfer Charges
   //                                  - Adjsuted to next deposit + Reimbursement
-  //   (unpaid rent is recovered from the deposit before the final settlement)
   //   Refund Due By               = Check-out Date + 30 days
   const REVENUE_FORMULA_SOURCES = {
     'Pro-Rate Daily Rate (CHF)': ['Monthly Rent (CHF)'],
@@ -1424,8 +1423,8 @@
     'Cleaning Due': ['Actual Cleaning', 'Cleaning Paid'],
     'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status'],
     'Fnf Settlement Amount (Refund Amount)': [
-      'Actual Deposit', 'Rent Due/Payable', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Pet Fee', 'Others',
-      'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
+      'Actual Deposit', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Notice rent', 'Rent Due/Payable',
+      'Pet Fee', 'Others', 'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
     ],
     'Refund Due By': ['Check-out Date']
   };
@@ -1444,6 +1443,7 @@
     const actualCleaningField = getField('Actual Cleaning');
     const cleaningPaidField = getField('Cleaning Paid');
     const cleaningDueField = getField('Cleaning Due');
+    const noticeRentField = getField('Notice rent');
     const actualDepositField = getField('Actual Deposit');
     const petFeeField = getField('Pet Fee');
     const othersField = getField('Others');
@@ -1497,8 +1497,9 @@
       const due = cleaningDue !== null ? cleaningDue : num(cleaningDueField);
       const rentDue = num(rentDueField);
       const fnf = num(actualDepositField)
-        - rentDue
         - due
+        - num(noticeRentField)
+        - rentDue
         - num(petFeeField)
         - num(othersField)
         - num(adhocCleaningField)
