@@ -1128,11 +1128,27 @@
         return date;
       }
     }
-    // Try parsing yyyy-mm-dd
-    const date = new Date(dateStr);
-    if (!isNaN(date)) {
-      console.log("parseDateString: parsed as yyyy-mm-dd:", date);
-      return date;
+    // Try parsing yyyy-mm-dd (e.g. from a <input type="date">). Built with
+    // y/m/d directly rather than `new Date(dateStr)`, which parses bare
+    // ISO date strings as UTC midnight and can shift the date by a day
+    // once read back through local getDate()/getMonth() - that mismatch
+    // was what made Refund Due By drift after Auto-Calc.
+    const partsYMD = dateStr.split('-');
+    if (partsYMD.length === 3) {
+      const y = parseInt(partsYMD[0]);
+      const m = parseInt(partsYMD[1]) - 1;
+      const d = parseInt(partsYMD[2]);
+      const date = new Date(y, m, d);
+      if (!isNaN(date)) {
+        console.log("parseDateString: parsed as yyyy-mm-dd:", date);
+        return date;
+      }
+    }
+    // Last resort: let the browser's default parser take a shot.
+    const fallback = new Date(dateStr);
+    if (!isNaN(fallback)) {
+      console.log("parseDateString: parsed via fallback Date():", fallback);
+      return fallback;
     }
     console.log("parseDateString: failed to parse, returning null");
     return null;
@@ -1262,7 +1278,7 @@
         html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
         html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
         if (collection === 'revenue_tracker') {
-          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Cleaning Due, Fnf Settlement Amount, Rent Due/Payable and Refund Due By from the formulas below - you can still type over any of them by hand.">⚡ Auto-Calc</button>`;
+          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Rent Due/Payable, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand.">⚡ Auto-Calc</button>`;
         }
       } else {
         html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
@@ -1395,20 +1411,21 @@
   //   Pro-Rate Daily Rate (CHF)  = Monthly Rent (CHF) / 30
   //   Total Rent Received        = Pro-Rate Daily Rate (CHF) x Guest Nights
   //   Cleaning Due                = Actual Cleaning - Cleaning Paid
-  //   Fnf Settlement Amount       = Actual Deposit - Cleaning Due - Pet Fee - Others
-  //   (Refund Amount)               - Adhoc Cleaning - Transfer Charges
-  //                                  - Adjsuted to next deposit + Reimbursement
   //   Rent Due/Payable            = 0 if Payment Status is "Paid", else Total Rent Received
+  //   Fnf Settlement Amount       = Actual Deposit - Rent Due/Payable - Cleaning Due - Pet Fee
+  //   (Refund Amount)               - Others - Adhoc Cleaning - Transfer Charges
+  //                                  - Adjsuted to next deposit + Reimbursement
+  //   (unpaid rent is recovered from the deposit before the final settlement)
   //   Refund Due By               = Check-out Date + 30 days
   const REVENUE_FORMULA_SOURCES = {
     'Pro-Rate Daily Rate (CHF)': ['Monthly Rent (CHF)'],
     'Total Rent Received': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)'],
     'Cleaning Due': ['Actual Cleaning', 'Cleaning Paid'],
+    'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status'],
     'Fnf Settlement Amount (Refund Amount)': [
-      'Actual Deposit', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Pet Fee', 'Others',
+      'Actual Deposit', 'Rent Due/Payable', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Pet Fee', 'Others',
       'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
     ],
-    'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status'],
     'Refund Due By': ['Check-out Date']
   };
 
@@ -1477,7 +1494,9 @@
 
     if (fnfField && actualDepositField) {
       const due = cleaningDue !== null ? cleaningDue : num(cleaningDueField);
+      const rentDue = num(rentDueField);
       const fnf = num(actualDepositField)
+        - rentDue
         - due
         - num(petFeeField)
         - num(othersField)
