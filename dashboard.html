@@ -1279,7 +1279,7 @@
         html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
         html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
         if (collection === 'revenue_tracker') {
-          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Rent Due/Payable, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand.">⚡ Auto-Calc</button>`;
+          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Total Rent Received, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand. Rent Due/Payable is manual entry only.">⚡ Auto-Calc</button>`;
         }
       } else {
         html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
@@ -1412,16 +1412,17 @@
   //   Pro-Rate Daily Rate (CHF)  = Monthly Rent (CHF) / 30
   //   Total Rent Received        = Pro-Rate Daily Rate (CHF) x Guest Nights
   //   Cleaning Due                = Actual Cleaning - Cleaning Paid
-  //   Rent Due/Payable            = 0 if Payment Status is "Paid", else Total Rent Received
   //   Fnf Settlement Amount       = Actual Deposit - Cleaning Due - Notice rent - Rent Due/Payable
   //   (Refund Amount)               - Pet Fee - Others - Adhoc Cleaning - Transfer Charges
   //                                  - Adjsuted to next deposit + Reimbursement
   //   Refund Due By               = Check-out Date + 30 days
+  //
+  //   Rent Due/Payable is NOT auto-calculated - it's manual entry only. Its
+  //   current value is still read into the Fnf Settlement formula above.
   const REVENUE_FORMULA_SOURCES = {
     'Pro-Rate Daily Rate (CHF)': ['Monthly Rent (CHF)'],
     'Total Rent Received': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)'],
     'Cleaning Due': ['Actual Cleaning', 'Cleaning Paid'],
-    'Rent Due/Payable': ['Monthly Rent (CHF)', 'Guest Nights', 'Pro-Rate Daily Rate (CHF)', 'Total Rent Received', 'Payment Status'],
     'Fnf Settlement Amount (Refund Amount)': [
       'Actual Deposit', 'Actual Cleaning', 'Cleaning Paid', 'Cleaning Due', 'Notice rent', 'Rent Due/Payable',
       'Pet Fee', 'Others', 'Adhoc Cleaning', 'Transfer Charges', "Adjsuted to next deposit", 'Reimbursement'
@@ -1452,7 +1453,6 @@
     const adjustedDepositField = getField('Adjsuted to next deposit');
     const reimbursementField = getField('Reimbursement');
     const fnfField = getField('Fnf Settlement Amount (Refund Amount)');
-    const paymentStatusField = getField('Payment Status');
     const rentDueField = getField('Rent Due/Payable');
     const checkOutField = getField('Check-out Date');
     const refundDueByField = getField('Refund Due By');
@@ -1463,18 +1463,14 @@
       proRateField.value = proRate.toFixed(2);
     }
 
-    let totalRent = null;
     if (totalRentField && (proRate !== null || proRateField) && guestNightsField) {
       const rate = proRate !== null ? proRate : num(proRateField);
-      totalRent = rate * num(guestNightsField);
+      const totalRent = rate * num(guestNightsField);
       totalRentField.value = totalRent.toFixed(2);
     }
 
-    if (rentDueField) {
-      const rent = totalRent !== null ? totalRent : num(totalRentField);
-      const isPaid = paymentStatusField && paymentStatusField.value.trim().toLowerCase() === 'paid';
-      rentDueField.value = (isPaid ? 0 : rent).toFixed(2);
-    }
+    // Rent Due/Payable is manual entry only - not auto-calculated. Its
+    // current value is still read below for the Fnf Settlement formula.
 
     if (refundDueByField && checkOutField) {
       const checkOutDate = parseDateString(checkOutField.value);
