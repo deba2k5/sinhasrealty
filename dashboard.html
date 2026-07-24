@@ -561,53 +561,6 @@
     <div id="reservation-details-container"></div>
   </div>
 
-  <!-- ─── REVENUE TRACKER FORM MODAL ─── -->
-  <div id="revenueTrackerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
-    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin: 40px auto; max-width: 600px; padding: 2rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-        <h3 style="font-size: 1.2rem; font-weight: 700;">Add Revenue Record</h3>
-        <button onclick="closeRevenueModal()" style="background: transparent; border: none; color: var(--muted2); font-size: 1.5rem; cursor: pointer;">×</button>
-      </div>
-
-      <!-- Invoice Calculation Section -->
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem;">
-        <h4 style="font-size: 0.85rem; color: var(--primary-lt); text-transform: uppercase; margin-bottom: 1rem; font-weight: 700; letter-spacing: 0.5px;">💰 Invoice Calculation</h4>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-          <div>
-            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Total Rent (CHF)</label>
-            <input id="rt_rent" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Cleaning (CHF)</label>
-            <input id="rt_cleaning" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-          <div>
-            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">City Tax (CHF)</label>
-            <input id="rt_tax" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Commission (CHF)</label>
-            <input id="rt_commission" type="number" step="0.01" placeholder="0.00" oninput="calculateRevenueInvoice()" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
-          </div>
-        </div>
-
-        <div>
-          <label style="display: block; font-size: 0.75rem; color: var(--primary-lt); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 700;">Total Invoice (CHF)</label>
-          <input id="rt_invoice" type="number" step="0.01" placeholder="0.00" readonly style="width: 100%; padding: 10px; background: var(--surface3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; cursor: not-allowed;">
-        </div>
-      </div>
-
-      <div style="display: flex; gap: 1rem;">
-        <button onclick="closeRevenueModal()" style="flex: 1; padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 600; cursor: pointer;">Cancel</button>
-        <button onclick="saveRevenueRecord()" style="flex: 1; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">Save Record</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ─── RESERVATION DETAILS FORM MODAL ─── -->
   <div id="reservationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin: 40px auto; max-width: 800px; padding: 2rem;">
@@ -1653,8 +1606,7 @@
 
   function addNewRecord(collection) {
     if (collection === 'revenue_tracker') {
-      // Show revenue tracker form
-      document.getElementById('revenueTrackerModal').style.display = 'block';
+      createBlankRevenueRecord();
     } else if (collection === 'reservation_details') {
       // Show reservation details form
       document.getElementById('reservationModal').style.display = 'block';
@@ -1664,39 +1616,33 @@
     }
   }
 
-  function closeRevenueModal() {
-    document.getElementById('revenueTrackerModal').style.display = 'none';
-    // Reset form
-    document.getElementById('rt_rent').value = '';
-    document.getElementById('rt_cleaning').value = '';
-    document.getElementById('rt_tax').value = '';
-    document.getElementById('rt_commission').value = '';
-    document.getElementById('rt_invoice').value = '';
-  }
+  // Adds a blank Revenue Tracker row (all current columns, empty values)
+  // straight into the database, then opens it in the same inline-edit UI
+  // used for every other row - dropdowns, date pickers and Auto-Calc all
+  // work immediately since it's the exact same editing path as an edit.
+  async function createBlankRevenueRecord() {
+    const columns = (currentCollectionColumns['revenue_tracker'] && currentCollectionColumns['revenue_tracker'].length)
+      ? currentCollectionColumns['revenue_tracker']
+      : lastRevenueTrackerKeys;
+    if (!columns || !columns.length) {
+      alert('Revenue Tracker data is still loading - please wait a moment and try again.');
+      return;
+    }
 
-  function calculateRevenueInvoice() {
-    const rent = parseFloat(document.getElementById('rt_rent').value) || 0;
-    const cleaning = parseFloat(document.getElementById('rt_cleaning').value) || 0;
-    const tax = parseFloat(document.getElementById('rt_tax').value) || 0;
-    const commission = parseFloat(document.getElementById('rt_commission').value) || 0;
-    const total = rent + cleaning + tax + commission;
-    document.getElementById('rt_invoice').value = total.toFixed(2);
-  }
+    const existingSNos = (currentCollectionData['revenue_tracker'] || [])
+      .map(r => parseInt(r['SNo']))
+      .filter(n => !isNaN(n));
+    const nextSNo = existingSNos.length ? Math.max(...existingSNos) + 1 : 1;
 
-  async function saveRevenueRecord() {
-    const rent = parseFloat(document.getElementById('rt_rent').value) || 0;
-    const cleaning = parseFloat(document.getElementById('rt_cleaning').value) || 0;
-    const tax = parseFloat(document.getElementById('rt_tax').value) || 0;
-    const commission = parseFloat(document.getElementById('rt_commission').value) || 0;
-    const invoice = parseFloat(document.getElementById('rt_invoice').value) || 0;
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const lastUpdated = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    const payload = {
-      'Total Rent\n(CHF)': rent,
-      'Cleaning\nDue (CHF)': cleaning,
-      'City Tax\n(CHF)': tax,
-      'Commission\n(CHF)': commission,
-      'Total Invoice\n(CHF)': invoice
-    };
+    const payload = {};
+    columns.forEach(c => { payload[c] = ''; });
+    payload['SNo'] = String(nextSNo);
+    payload['Currency'] = 'CHF';
+    payload['Last Updated'] = lastUpdated;
 
     try {
       const response = await fetch('/api/create/revenue_tracker', {
@@ -1704,18 +1650,15 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
       const result = await response.json();
-      if (result.success) {
-        alert('Revenue record saved successfully!');
-        closeRevenueModal();
-        // Refresh dashboard
-        loadDashboard();
-      } else {
-        alert('Error saving record: ' + result.message);
+      if (!result.success) {
+        alert('Error creating record: ' + result.message);
+        return;
       }
+      await loadCollectionData('revenue_tracker', currentCollectionPage['revenue_tracker']);
+      editRecord(result.id);
     } catch (error) {
-      alert('Failed to save record: ' + error.message);
+      alert('Failed to create record: ' + error.message);
     }
   }
 
@@ -1805,11 +1748,7 @@
 
   // Close modals when clicking outside of them
   document.addEventListener('click', function(event) {
-    const revenueModal = document.getElementById('revenueTrackerModal');
     const reservationModal = document.getElementById('reservationModal');
-    if (event.target === revenueModal) {
-      closeRevenueModal();
-    }
     if (event.target === reservationModal) {
       closeReservationModal();
     }
