@@ -771,10 +771,11 @@
   // Excel-style per-column filters: { collection: { fieldName: Set(allowedValues) } }
   let columnFilters = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {} };
 
-  // Check-in/Check-out Date filter by month+year instead of exact date, so
-  // "June 2026" matches every booking that month rather than listing every
-  // individual date as its own checkbox.
-  const DATE_FILTER_FIELDS = new Set(['Check-in Date', 'Check-out Date']);
+  // These date columns filter by year+month instead of exact date, so
+  // "June 2026" matches every row that month rather than listing every
+  // individual date as its own checkbox. Options are keyed "YYYY-MM", so
+  // the checklist naturally groups by year first, then by month within it.
+  const DATE_FILTER_FIELDS = new Set(['Check-in Date', 'Check-out Date', 'Refund Due By']);
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   function isDateFilterField(field) {
