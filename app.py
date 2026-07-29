@@ -1000,12 +1000,14 @@ def get_guest_client_collections():
             # Fallback: extract column order from first document or use predefined for reservation_details
             if collection_name == 'reservation_details':
                 column_order = [
-                    'SL NO', 'Address', 'Room Specification', 'Guests', 'Guest Name', 'Booker',
-                    'Reservation ID', 'Reservation Code', 'Partner', 'Check In Date', 'Check Out Date',
-                    'Amount Due', 'Paid Amount', 'No of Adults', 'No of Children', 'No of Infants',
+                    'SL NO', 'Reservation ID', 'Reservation Code', 'Partner', 'Booker',
+                    'Address', 'Room Specification',
+                    'Guest Name', 'Guests', 'No of Adults', 'No of Children', 'No of Infants',
                     'No of Male', 'No of Female', 'Email', 'Contact No', 'Company Name', 'Purpose of Travel',
+                    'Check In Date', 'Check Out Date', 'Notice Period', 'Minimum Stay',
                     'Monthly Rent', 'Cleaning Fee', 'Cleaning Paid', 'Deposit Amt', 'Deposit Paid',
-                    'Notice Period', 'Minimum Stay'
+                    'Amount Due', 'Paid Amount',
+                    'Remarks'
                 ]
             elif docs:
                 column_order = [k for k in docs[0].keys() if k != '_id']

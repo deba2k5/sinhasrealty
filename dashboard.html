@@ -725,6 +725,16 @@
         </div>
       </div>
       
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Remarks</label>
+        <select id="res_remarks_select" onchange="if (this.value === 'Enter Remarks') { this.style.display='none'; const t = document.getElementById('res_remarks_text'); t.style.display='block'; t.focus(); }" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <option value="">—</option>
+          <option value="Release Check In">Release Check In</option>
+          <option value="Enter Remarks">Enter Remarks</option>
+        </select>
+        <input id="res_remarks_text" type="text" placeholder="Type remarks..." style="display: none; width: 100%; padding: 10px; margin-top: 0.5rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+      </div>
+
       <div style="display: flex; gap: 1rem;">
         <button onclick="closeReservationModal()" style="flex: 1; padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 600; cursor: pointer;">Cancel</button>
         <button onclick="saveReservationRecord()" style="flex: 1; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer;">Save Record</button>
@@ -758,6 +768,25 @@
       y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
     }
   };
+
+  // "Enter Remarks" is a sentinel option, not a stored value - picking it swaps
+  // the dropdown for a plain text box (see handleRemarksDropdownChange) so the
+  // actual free-text remark can be typed in.
+  const RESERVATION_DETAILS_DROPDOWNS = {
+    'Remarks': ['Release Check In', 'Enter Remarks']
+  };
+
+  function handleRemarksDropdownChange(selectEl) {
+    if (selectEl.value !== 'Enter Remarks') return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'edit-field';
+    input.dataset.field = selectEl.dataset.field;
+    input.dataset.record = selectEl.dataset.record;
+    input.placeholder = 'Type remarks...';
+    selectEl.replaceWith(input);
+    input.focus();
+  }
 
   const REVENUE_TRACKER_DROPDOWNS = {
     'Own/Sublet': ['Own', 'Sublet'],
@@ -1160,11 +1189,12 @@
         { title: 'STATUS & NOTES', colspan: 5 }
       ],
       'reservation_details': [
-        { title: 'IDENTIFICATION', colspan: 8 },
-        { title: 'PROPERTY & ROOM', colspan: 3 },
-        { title: 'GUEST INFO', colspan: 7 },
-        { title: 'STAY DETAILS', colspan: 3 },
-        { title: 'FINANCIAL DETAILS', colspan: 6 }
+        { title: 'IDENTIFICATION', colspan: 5 },
+        { title: 'PROPERTY & ROOM', colspan: 2 },
+        { title: 'GUEST INFO', colspan: 11 },
+        { title: 'STAY DETAILS', colspan: 4 },
+        { title: 'FINANCIAL DETAILS', colspan: 7 },
+        { title: 'REMARKS', colspan: 1 }
       ]
     };
     
@@ -1260,7 +1290,16 @@
           const isDateField = collection === 'revenue_tracker' &&
             (lowerK.includes('check-in') || lowerK.includes('check in') || lowerK.includes('checkin') ||
              lowerK.includes('check-out') || lowerK.includes('check out') || lowerK.includes('checkout'));
-          const dropdownOptions = collection === 'revenue_tracker' ? REVENUE_TRACKER_DROPDOWNS[k] : null;
+          let dropdownOptions = collection === 'revenue_tracker' ? REVENUE_TRACKER_DROPDOWNS[k] : null;
+          const isRemarksField = collection === 'reservation_details' && k.trim() === 'Remarks';
+          if (isRemarksField) {
+            const trimmedValue = String(value || '').trim().toLowerCase();
+            const matchesFixedOption = RESERVATION_DETAILS_DROPDOWNS['Remarks']
+              .some(opt => opt.toLowerCase() === trimmedValue);
+            // Free-text remarks already typed in stay as a plain text box so the
+            // text is visible and editable; only blank/fixed values get the dropdown.
+            dropdownOptions = (!trimmedValue || matchesFixedOption) ? RESERVATION_DETAILS_DROPDOWNS['Remarks'] : null;
+          }
           console.log("Rendering field:", k, "isDateField:", isDateField, "value:", value);
           if (dropdownOptions) {
             let opts = `<option value="">—</option>`;
@@ -1268,7 +1307,8 @@
               const selected = String(value || '').trim().toLowerCase() === opt.toLowerCase() ? 'selected' : '';
               opts += `<option value="${opt}" ${selected}>${opt}</option>`;
             });
-            html += `<td style="${bStyle}"><select data-field="${k}" data-record="${recordId}" class="edit-field">${opts}</select></td>`;
+            const remarksHandler = isRemarksField ? ' onchange="handleRemarksDropdownChange(this)"' : '';
+            html += `<td style="${bStyle}"><select data-field="${k}" data-record="${recordId}" class="edit-field"${remarksHandler}>${opts}</select></td>`;
           } else if (isDateField) {
             const parsedDate = parseDateString(value);
             const inputValue = formatDateForInput(parsedDate);
@@ -1705,6 +1745,10 @@
     document.getElementById('res_depositpaid').value = '';
     document.getElementById('res_notice').value = '';
     document.getElementById('res_minstay').value = '';
+    document.getElementById('res_remarks_select').value = '';
+    document.getElementById('res_remarks_select').style.display = 'block';
+    document.getElementById('res_remarks_text').value = '';
+    document.getElementById('res_remarks_text').style.display = 'none';
   }
 
   async function saveReservationRecord() {
@@ -1737,7 +1781,10 @@
       'Deposit Amt': parseFloat(document.getElementById('res_deposit').value) || null,
       'Deposit Paid': parseFloat(document.getElementById('res_depositpaid').value) || null,
       'Notice Period': document.getElementById('res_notice').value,
-      'Minimum Stay': document.getElementById('res_minstay').value
+      'Minimum Stay': document.getElementById('res_minstay').value,
+      'Remarks': document.getElementById('res_remarks_select').value === 'Enter Remarks'
+        ? document.getElementById('res_remarks_text').value
+        : document.getElementById('res_remarks_select').value
     };
 
     try {
