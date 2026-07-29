@@ -1002,7 +1002,7 @@
       const savedWindowScroll = window.scrollY;
       container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-      const limit = collection === 'revenue_tracker' ? 5000 : 20;
+      const limit = (collection === 'revenue_tracker' || collection === 'reservation_details') ? 5000 : 20;
       const response = await fetch(`/api/guest-client-collections?collection=${collection}&page=${page}&limit=${limit}`);
       const data = await response.json();
 
