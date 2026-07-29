@@ -690,20 +690,31 @@
           <input id="res_cleaningfee" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
         </div>
         <div>
-          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Deposit Amt</label>
-          <input id="res_deposit" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Cleaning Paid</label>
+          <input id="res_cleaningpaid" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
         </div>
         <div>
-          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Amount Due</label>
-          <input id="res_amountdue" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Deposit Amt</label>
+          <input id="res_deposit" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
         </div>
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
         <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Deposit Paid</label>
+          <input id="res_depositpaid" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Amount Due</label>
+          <input id="res_amountdue" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+        </div>
+        <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Paid Amount</label>
           <input id="res_paidamount" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
         </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Notice Period</label>
           <input id="res_notice" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
@@ -1689,7 +1700,9 @@
     document.getElementById('res_purpose').value = '';
     document.getElementById('res_monthlyrent').value = '';
     document.getElementById('res_cleaningfee').value = '';
+    document.getElementById('res_cleaningpaid').value = '';
     document.getElementById('res_deposit').value = '';
+    document.getElementById('res_depositpaid').value = '';
     document.getElementById('res_notice').value = '';
     document.getElementById('res_minstay').value = '';
   }
@@ -1720,7 +1733,9 @@
       'Purpose of Travel': document.getElementById('res_purpose').value,
       'Monthly Rent': parseFloat(document.getElementById('res_monthlyrent').value) || null,
       'Cleaning Fee': parseFloat(document.getElementById('res_cleaningfee').value) || null,
+      'Cleaning Paid': parseFloat(document.getElementById('res_cleaningpaid').value) || null,
       'Deposit Amt': parseFloat(document.getElementById('res_deposit').value) || null,
+      'Deposit Paid': parseFloat(document.getElementById('res_depositpaid').value) || null,
       'Notice Period': document.getElementById('res_notice').value,
       'Minimum Stay': document.getElementById('res_minstay').value
     };
