@@ -815,7 +815,9 @@
   // "June 2026" matches every row that month rather than listing every
   // individual date as its own checkbox. Options are keyed "YYYY-MM", so
   // the checklist naturally groups by year first, then by month within it.
-  const DATE_FILTER_FIELDS = new Set(['Check-in Date', 'Check-out Date', 'Refund Due By']);
+  const DATE_FILTER_FIELDS = new Set(['Check-in Date', 'Check-out Date', 'Refund Due By', 'Check In Date', 'Check Out Date']);
+  // Collections that get the per-column Excel-style filter dropdown (⏷) in their headers.
+  const FILTERABLE_COLLECTIONS = new Set(['revenue_tracker', 'reservation_details']);
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   function isDateFilterField(field) {
@@ -1223,8 +1225,8 @@
            let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
            const isSorted = currentSort[collection].field === k;
            const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
-           const isFiltered = collection === 'revenue_tracker' && columnFilters[collection][k];
-           const filterIcon = collection === 'revenue_tracker'
+           const isFiltered = FILTERABLE_COLLECTIONS.has(collection) && columnFilters[collection][k];
+           const filterIcon = FILTERABLE_COLLECTIONS.has(collection)
              ? `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, '${collection}', '${k.replace(/'/g, "\\'")}')">⏷</span>`
              : '';
            html += `<th style="top: 41px; cursor: pointer; ${bStyle}" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
@@ -1236,8 +1238,8 @@
        keys.forEach(k => {
          const isSorted = currentSort[collection].field === k;
          const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
-         const isFiltered = collection === 'revenue_tracker' && columnFilters[collection][k];
-         const filterIcon = collection === 'revenue_tracker'
+         const isFiltered = FILTERABLE_COLLECTIONS.has(collection) && columnFilters[collection][k];
+         const filterIcon = FILTERABLE_COLLECTIONS.has(collection)
            ? `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, '${collection}', '${k.replace(/'/g, "\\'")}')">⏷</span>`
            : '';
          html += `<th style="cursor: pointer;" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
