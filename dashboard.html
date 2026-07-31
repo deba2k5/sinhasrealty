@@ -137,6 +137,62 @@
     .chart-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text); }
     .chart-container { position: relative; height: 300px; }
 
+    .checkout-notifications-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .checkout-bucket {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+    .checkout-bucket-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    .checkout-count {
+      margin-left: auto;
+      background: rgba(99,102,241,0.15);
+      color: var(--primary-lt);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+    .checkout-bucket-items { display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; }
+    .checkout-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .checkout-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .checkout-guest { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+    .checkout-address { font-size: 0.8rem; color: var(--muted2); overflow-wrap: anywhere; }
+    .checkout-source {
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: var(--accent);
+      background: rgba(34,211,238,0.12);
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .checkout-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem 0; }
+
     .divider { height: 1px; background: var(--border); margin: 3rem 0; }
 
     .loading { text-align: center; padding: 2rem; color: var(--muted); }
@@ -406,6 +462,17 @@
   <div class="stats-grid" id="stats-grid">
     <div class="loading"><div class="spinner"></div></div>
   </div>
+
+  <!-- ─── CHECKOUT NOTIFICATIONS ─── -->
+  <section class="charts-section">
+    <h2 class="section-title">
+      <span class="section-icon">🔔</span>
+      Checkout Notifications
+    </h2>
+    <div id="checkout-notifications">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </section>
 
   <!-- ─── GUEST PROFILES SECTION ─── -->
   <section class="charts-section">
@@ -1818,6 +1885,84 @@
     }
   });
 
+  // Pulls Check-out Date + guest/address from both Revenue Tracker and
+  // Reservation Details and buckets them into Yesterday/Today/Tomorrow so
+  // front-desk staff can see who's leaving without opening either tab.
+  async function loadCheckoutNotifications() {
+    const el = document.getElementById('checkout-notifications');
+    if (!el) return;
+    el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+    try {
+      const [rtRes, rdRes] = await Promise.all([
+        fetch('/api/guest-client-collections?collection=revenue_tracker&page=1&limit=5000'),
+        fetch('/api/guest-client-collections?collection=reservation_details&page=1&limit=5000')
+      ]);
+      const rtData = await rtRes.json();
+      const rdData = await rdRes.json();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const sameDay = (a, b) => a && a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+      const buckets = { yesterday: [], today: [], tomorrow: [] };
+
+      const addEntries = (records, dateField, nameField, addressField, source) => {
+        (records || []).forEach(r => {
+          const d = parseDateString(r[dateField]);
+          if (!d) return;
+          let bucket = null;
+          if (sameDay(d, yesterday)) bucket = 'yesterday';
+          else if (sameDay(d, today)) bucket = 'today';
+          else if (sameDay(d, tomorrow)) bucket = 'tomorrow';
+          if (!bucket) return;
+          buckets[bucket].push({
+            name: r[nameField] || 'Unknown Guest',
+            address: r[addressField] || '—',
+            source
+          });
+        });
+      };
+
+      if (rtData.success) addEntries(rtData.data, 'Check-out Date', 'Guest Full Name', 'Property Address', 'Revenue Tracker');
+      if (rdData.success) addEntries(rdData.data, 'Check Out Date', 'Guest Name', 'Address', 'Reservation Details');
+
+      const renderBucket = (title, icon, list) => {
+        const items = list.length
+          ? list.map(e => `
+              <div class="checkout-item">
+                <div class="checkout-item-main">
+                  <span class="checkout-guest">${e.name}</span>
+                  <span class="checkout-address">${e.address}</span>
+                </div>
+                <span class="checkout-source">${e.source}</span>
+              </div>`).join('')
+          : `<div class="checkout-empty">No checkouts</div>`;
+        return `
+          <div class="checkout-bucket">
+            <div class="checkout-bucket-title">${icon} ${title}<span class="checkout-count">${list.length}</span></div>
+            <div class="checkout-bucket-items">${items}</div>
+          </div>`;
+      };
+
+      el.innerHTML = `
+        <div class="checkout-notifications-grid">
+          ${renderBucket('Yesterday', '⏮', buckets.yesterday)}
+          ${renderBucket('Today', '🔔', buckets.today)}
+          ${renderBucket('Tomorrow', '⏭', buckets.tomorrow)}
+        </div>
+      `;
+    } catch (error) {
+      el.innerHTML = `<div class="error">Error loading checkout notifications: ${error.message}</div>`;
+    }
+  }
+
   async function loadDashboard() {
     try {
       const response = await fetch('/api/guest-client-stats');
@@ -2069,7 +2214,10 @@
   }
 
   // Load dashboard on page load
-  document.addEventListener('DOMContentLoaded', loadDashboard);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDashboard();
+    loadCheckoutNotifications();
+  });
 </script>
 
 </body>
