@@ -307,6 +307,29 @@
       font-size: 0.85rem;
       cursor: default;
     }
+    .filter-menu-mode-toggle {
+      display: flex;
+      gap: 4px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-menu-mode-toggle button {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted2);
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 4px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .filter-menu-mode-toggle button.active {
+      background: rgba(99,102,241,0.18);
+      border-color: var(--primary);
+      color: var(--primary-lt);
+    }
     .filter-menu-search {
       padding: 8px 10px;
       border-bottom: 1px solid var(--border);
@@ -902,20 +925,47 @@
     return `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
   }
 
+  // Exact-date filtering (as opposed to the month+year bucketing above) -
+  // key is a normalized dd.mm.yyyy string so it's stable regardless of
+  // whether the stored value was dd.mm.yyyy or yyyy-mm-dd to begin with.
+  function exactDateKey(dateStr) {
+    const d = parseDateString(dateStr);
+    if (!d) return null;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}.${mm}.${d.getFullYear()}`;
+  }
+
+  function exactDateLabel(key) {
+    const [d, m, y] = key.split('.');
+    return `${d} ${MONTH_NAMES[parseInt(m, 10) - 1].slice(0, 3)} ${y}`;
+  }
+
+  // Per collection+field: 'month' (default) or 'exact'. Lets a date column's
+  // filter menu switch between "June 2026"-style buckets and individual
+  // calendar dates without needing two separate filter icons.
+  let dateFilterMode = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {} };
+
+  function getDateFilterMode(collection, field) {
+    return (dateFilterMode[collection] && dateFilterMode[collection][field]) || 'month';
+  }
+
   // Returns [{ value, label }] - value is what gets stored/matched against,
   // label is what the checkbox shows. For plain fields these are identical;
-  // for date filter fields, value is a "YYYY-MM" key and label is "Month YYYY".
-  function getUniqueColumnValues(collection, field) {
+  // for date filter fields, value/label depend on the field's current mode
+  // (month "YYYY-MM" bucket, or exact "dd.mm.yyyy" date).
+  function getUniqueColumnValues(collection, field, modeOverride) {
     const dateField = isDateFilterField(field);
+    const mode = dateField ? (modeOverride || getDateFilterMode(collection, field)) : null;
     const seen = new Map();
     (currentCollectionData[collection] || []).forEach(r => {
       const raw = r[field];
       if (dateField) {
-        const key = monthYearKey(raw);
+        const key = mode === 'exact' ? exactDateKey(raw) : monthYearKey(raw);
         if (key === null) {
           seen.set('(Blank)', '(Blank)');
         } else {
-          seen.set(key, monthYearLabel(key));
+          seen.set(key, mode === 'exact' ? exactDateLabel(key) : monthYearLabel(key));
         }
       } else {
         const v = (raw === null || raw === undefined || raw === '') ? '(Blank)' : String(raw).trim();
@@ -924,7 +974,14 @@
     });
     return [...seen.entries()]
       .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.value.localeCompare(b.value));
+      .sort((a, b) => {
+        // Chronological sort for exact dates, since "dd.mm.yyyy" strings
+        // don't sort correctly as plain text.
+        if (mode === 'exact' && a.value !== '(Blank)' && b.value !== '(Blank)') {
+          return parseDateString(a.value) - parseDateString(b.value);
+        }
+        return a.value.localeCompare(b.value);
+      });
   }
 
   function closeFilterMenu() {
@@ -948,6 +1005,10 @@
     menu.id = 'columnFilterMenu';
     menu.className = 'column-filter-menu';
     menu.dataset.field = field;
+    // Pending mode for this menu session - only written into dateFilterMode
+    // (and used for matching) once Apply is clicked, so Cancel never leaves
+    // the committed mode out of sync with the committed filter values.
+    menu.dataset.mode = getDateFilterMode(collection, field);
 
     const rect = event.target.getBoundingClientRect();
     menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
@@ -959,7 +1020,18 @@
       return `<label class="filter-item"><input type="checkbox" value="${escaped}" ${checked}> ${label}</label>`;
     }).join('');
 
+    const escapedField = field.replace(/'/g, "\\'");
+    const modeToggleHtml = isDateFilterField(field) ? (() => {
+      const mode = getDateFilterMode(collection, field);
+      return `
+      <div class="filter-menu-mode-toggle">
+        <button type="button" class="${mode === 'month' ? 'active' : ''}" onclick="setDateFilterMode('${collection}', '${escapedField}', 'month')">By Month</button>
+        <button type="button" class="${mode === 'exact' ? 'active' : ''}" onclick="setDateFilterMode('${collection}', '${escapedField}', 'exact')">By Date</button>
+      </div>`;
+    })() : '';
+
     menu.innerHTML = `
+      ${modeToggleHtml}
       <div class="filter-menu-search">
         <input type="text" placeholder="Search..." oninput="filterFilterMenuItems(this.value)">
       </div>
@@ -970,7 +1042,7 @@
       <div class="filter-menu-items">${itemsHtml}</div>
       <div class="filter-menu-footer">
         <button type="button" class="btn-cancel-filter" onclick="closeFilterMenu()">Cancel</button>
-        <button type="button" class="btn-apply-filter" onclick="applyColumnFilter('${collection}', '${field.replace(/'/g, "\\'")}')">Apply</button>
+        <button type="button" class="btn-apply-filter" onclick="applyColumnFilter('${collection}', '${escapedField}')">Apply</button>
       </div>
     `;
     document.body.appendChild(menu);
@@ -979,6 +1051,36 @@
     setTimeout(() => {
       document.addEventListener('click', closeFilterMenuOnOutsideClick);
     }, 0);
+  }
+
+  // Switches an open date column's filter menu between month-bucketed and
+  // exact-date checkboxes, rebuilding just the item list (not the whole
+  // menu, so it doesn't need repositioning). Selections reset to "all
+  // checked" on switch since the two granularities don't share a keyspace.
+  function setDateFilterMode(collection, field, mode) {
+    const menu = document.getElementById('columnFilterMenu');
+    if (!menu || menu.dataset.field !== field) return;
+    if (menu.dataset.mode === mode) return;
+    menu.dataset.mode = mode;
+
+    const uniqueValues = getUniqueColumnValues(collection, field, mode);
+    const itemsHtml = uniqueValues.map(({ value, label }) => {
+      const escaped = value.replace(/"/g, '&quot;');
+      return `<label class="filter-item"><input type="checkbox" value="${escaped}" checked> ${label}</label>`;
+    }).join('');
+    menu.querySelector('.filter-menu-items').innerHTML = itemsHtml;
+
+    menu.querySelectorAll('.filter-menu-mode-toggle button').forEach(btn => btn.classList.remove('active'));
+    const label = mode === 'exact' ? 'By Date' : 'By Month';
+    const activeBtn = [...menu.querySelectorAll('.filter-menu-mode-toggle button')]
+      .find(b => b.textContent.trim() === label);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const searchInput = menu.querySelector('.filter-menu-search input');
+    if (searchInput) {
+      searchInput.value = '';
+      filterFilterMenuItems('');
+    }
   }
 
   function filterFilterMenuItems(query) {
@@ -1016,6 +1118,13 @@
     const checkboxes = [...menu.querySelectorAll('.filter-item input[type="checkbox"]')];
     const checkedValues = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
 
+    // Commit the menu's pending date mode now, so it stays in sync with
+    // whichever keyspace (month vs exact date) the applied values use.
+    if (isDateFilterField(field) && menu.dataset.mode) {
+      if (!dateFilterMode[collection]) dateFilterMode[collection] = {};
+      dateFilterMode[collection][field] = menu.dataset.mode;
+    }
+
     if (checkedValues.length === checkboxes.length || checkedValues.length === 0) {
       delete columnFilters[collection][field];
     } else {
@@ -1040,7 +1149,8 @@
       return Object.entries(filters).every(([field, allowed]) => {
         const v = record[field];
         if (isDateFilterField(field)) {
-          const key = monthYearKey(v);
+          const mode = getDateFilterMode(collection, field);
+          const key = mode === 'exact' ? exactDateKey(v) : monthYearKey(v);
           return allowed.has(key === null ? '(Blank)' : key);
         }
         const normalized = (v === null || v === undefined || v === '') ? '(Blank)' : String(v).trim();
