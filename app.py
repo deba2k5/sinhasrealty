@@ -439,10 +439,63 @@ def download_csv():
 DROPDOWN_COLUMNS = {
     'revenue_tracker': {
         'Own/Sublet': ['Own', 'Sublet'],
-        'Payment Status': ['Paid', 'Unpaid', 'OTA', 'No Deposit', 'Hold(untill other vacate)'],
+        'Payment Status': ['Paid', 'Unpaid', 'OTA', 'No Deposit', 'Hold(untill other vacate)', "Move into SINHA'S"],
         'Payment Method': ['Cash', 'Bank Transfer'],
     }
 }
+
+
+def _build_styled_excel_response(df, collection_name, filename_suffix='export'):
+    """Writes df to a styled .xlsx (borders, bold header, sized columns,
+    dropdown validation for known enum columns) and returns it as a Flask
+    download response. Shared by the full-collection and filtered exports
+    so both spreadsheets look identical."""
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Data Export')
+
+        ws = writer.sheets['Data Export']
+        n_rows = len(df) + 1  # +1 for header row
+        n_cols = len(df.columns)
+
+        # Thin border on every cell so each column reads as visually separated
+        thin_side = Side(style='thin', color='B0B0B0')
+        border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        for row in ws.iter_rows(min_row=1, max_row=n_rows, min_col=1, max_col=n_cols):
+            for cell in row:
+                cell.border = border
+
+        header_font = Font(bold=True)
+        for cell in ws[1]:
+            cell.font = header_font
+
+        for i, col_name in enumerate(df.columns, start=1):
+            letter = get_column_letter(i)
+            max_len = max([len(str(col_name))] + [len(str(v)) for v in df[col_name].astype(str).head(200)])
+            ws.column_dimensions[letter].width = min(max(max_len + 2, 10), 45)
+
+        # Dropdown data validation for known enum-like columns
+        dropdowns = DROPDOWN_COLUMNS.get(collection_name, {})
+        for col_name, options in dropdowns.items():
+            if col_name not in df.columns:
+                continue
+            col_idx = list(df.columns).index(col_name) + 1
+            letter = get_column_letter(col_idx)
+            dv = DataValidation(
+                type='list',
+                formula1=f'"{",".join(options)}"',
+                allow_blank=True,
+                showDropDown=False
+            )
+            ws.add_data_validation(dv)
+            dv.add(f'{letter}2:{letter}{n_rows}')
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment;filename={collection_name.replace(' ', '_')}_{filename_suffix}.xlsx"}
+    )
 
 
 @app.route('/api/export-excel', methods=['GET'])
@@ -467,55 +520,36 @@ def export_excel():
             ordered += [c for c in df.columns if c not in ordered]
             df = df[ordered]
 
-        # Output to BytesIO as Excel
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Data Export')
-
-            ws = writer.sheets['Data Export']
-            n_rows = len(df) + 1  # +1 for header row
-            n_cols = len(df.columns)
-
-            # Thin border on every cell so each column reads as visually separated
-            thin_side = Side(style='thin', color='B0B0B0')
-            border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
-            for row in ws.iter_rows(min_row=1, max_row=n_rows, min_col=1, max_col=n_cols):
-                for cell in row:
-                    cell.border = border
-
-            header_font = Font(bold=True)
-            for cell in ws[1]:
-                cell.font = header_font
-
-            for i, col_name in enumerate(df.columns, start=1):
-                letter = get_column_letter(i)
-                max_len = max([len(str(col_name))] + [len(str(v)) for v in df[col_name].astype(str).head(200)])
-                ws.column_dimensions[letter].width = min(max(max_len + 2, 10), 45)
-
-            # Dropdown data validation for known enum-like columns
-            dropdowns = DROPDOWN_COLUMNS.get(collection_name, {})
-            for col_name, options in dropdowns.items():
-                if col_name not in df.columns:
-                    continue
-                col_idx = list(df.columns).index(col_name) + 1
-                letter = get_column_letter(col_idx)
-                dv = DataValidation(
-                    type='list',
-                    formula1=f'"{",".join(options)}"',
-                    allow_blank=True,
-                    showDropDown=False
-                )
-                ws.add_data_validation(dv)
-                dv.add(f'{letter}2:{letter}{n_rows}')
-
-        output.seek(0)
-        return Response(
-            output.getvalue(),
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment;filename={collection_name.replace(' ', '_')}_export.xlsx"}
-        )
+        return _build_styled_excel_response(df, collection_name, 'export')
     except Exception as e:
         return f"Error exporting Excel: {str(e)}", 500
+
+
+@app.route('/api/export-excel-filtered', methods=['POST'])
+def export_excel_filtered():
+    """Exports a client-supplied set of rows (already filtered/ordered by
+    the dashboard's own column filters + overall Year/Month filter) so the
+    downloaded spreadsheet always matches what's currently on screen,
+    instead of re-querying the full collection from MongoDB."""
+    try:
+        payload = request.json or {}
+        collection_name = payload.get('collection', 'data')
+        columns = payload.get('columns') or []
+        rows = payload.get('rows') or []
+        if not rows:
+            return "No data to export.", 404
+
+        df = pd.DataFrame(rows)
+        if '_id' in df.columns:
+            df.drop(columns=['_id'], inplace=True)
+        if columns:
+            ordered = [c for c in columns if c in df.columns]
+            ordered += [c for c in df.columns if c not in ordered]
+            df = df[ordered]
+
+        return _build_styled_excel_response(df, collection_name, 'filtered_export')
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/admin')
 def admin():

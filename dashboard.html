@@ -629,9 +629,17 @@
   </div>
 
   <div id="revenue-tracker" class="tab-content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <h2 class="section-title" style="margin: 0;">Revenue Tracker</h2>
-      <div style="display: flex; gap: 10px;">
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-out:</span>
+        <select id="revenueFilterYear" onchange="onRevenueOverallFilterChange()" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Years</option>
+        </select>
+        <select id="revenueFilterMonth" onchange="onRevenueOverallFilterChange()" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Months</option>
+        </select>
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetRevenueOverallFilter()">Reset</button>
         <button class="btn" id="revenueFullscreenBtn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="toggleRevenueTrackerFullscreen()">⛶ Full Screen</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('revenue_tracker')">⬇ Export as Excel</button>
         <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('revenue_tracker')">+ Add New</button>
@@ -1159,6 +1167,67 @@
     });
   }
 
+  // Single global Year/Month filter for Revenue Tracker (by Check-out Date),
+  // separate from the per-column Excel-style filters above. Export as Excel
+  // reads through this + the column filters too, so the download always
+  // matches what's currently on screen.
+  let revenueOverallFilter = { year: '', month: '' };
+
+  function applyRevenueOverallFilter(data) {
+    if (!revenueOverallFilter.year && !revenueOverallFilter.month) return data;
+    return data.filter(record => {
+      const d = parseDateString(record['Check-out Date']);
+      if (!d) return false;
+      if (revenueOverallFilter.year && String(d.getFullYear()) !== revenueOverallFilter.year) return false;
+      if (revenueOverallFilter.month && String(d.getMonth() + 1).padStart(2, '0') !== revenueOverallFilter.month) return false;
+      return true;
+    });
+  }
+
+  function populateRevenueOverallFilterOptions() {
+    const yearSelect = document.getElementById('revenueFilterYear');
+    const monthSelect = document.getElementById('revenueFilterMonth');
+    if (!yearSelect || !monthSelect) return;
+
+    if (!monthSelect.dataset.populated) {
+      MONTH_NAMES.forEach((name, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx + 1).padStart(2, '0');
+        opt.textContent = name;
+        monthSelect.appendChild(opt);
+      });
+      monthSelect.dataset.populated = 'true';
+    }
+
+    const years = new Set();
+    (currentCollectionData['revenue_tracker'] || []).forEach(r => {
+      const d = parseDateString(r['Check-out Date']);
+      if (d) years.add(d.getFullYear());
+    });
+    const sortedYears = [...years].sort((a, b) => a - b);
+    const prevValue = yearSelect.value;
+    yearSelect.innerHTML = '<option value="">All Years</option>' +
+      sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
+    if (sortedYears.map(String).includes(prevValue)) yearSelect.value = prevValue;
+  }
+
+  function onRevenueOverallFilterChange() {
+    revenueOverallFilter.year = document.getElementById('revenueFilterYear').value;
+    revenueOverallFilter.month = document.getElementById('revenueFilterMonth').value;
+    renderDataTable('revenue_tracker', {
+      data: currentCollectionData['revenue_tracker'],
+      columns: currentCollectionColumns['revenue_tracker'],
+      page: currentCollectionPage['revenue_tracker'],
+      totalPages: 1
+    }, document.getElementById('revenue-tracker-container'));
+  }
+
+  function resetRevenueOverallFilter() {
+    document.getElementById('revenueFilterYear').value = '';
+    document.getElementById('revenueFilterMonth').value = '';
+    onRevenueOverallFilterChange();
+  }
+
   let lastRevenueTrackerKeys = null;
   let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
@@ -1233,6 +1302,10 @@
       currentCollectionPage[collection] = page;
       currentCollectionData[collection] = data.data;
       currentCollectionColumns[collection] = data.columns || [];
+
+      if (collection === 'revenue_tracker') {
+        populateRevenueOverallFilterOptions();
+      }
 
       renderDataTable(collection, data, container);
 
@@ -1346,8 +1419,11 @@
       ? data.columns 
       : Object.keys(data.data[0]).filter(k => k !== '_id');
       
-    // Apply column filters, then sort
+    // Apply column filters, then the Revenue Tracker overall Year/Month filter, then sort
     let filteredData = applyDataFilters(collection, data.data);
+    if (collection === 'revenue_tracker') {
+      filteredData = applyRevenueOverallFilter(filteredData);
+    }
     let sortedData = sortData(collection, currentSort[collection].field, filteredData);
 
     const columnGroups = {
@@ -1819,9 +1895,47 @@
     }
   });
 
-  function exportCollectionExcel(collection) {
-    const url = `/api/export-excel?collection=${encodeURIComponent(collection)}`;
-    window.location.href = url;
+  async function exportCollectionExcel(collection) {
+    if (collection !== 'revenue_tracker') {
+      window.location.href = `/api/export-excel?collection=${encodeURIComponent(collection)}`;
+      return;
+    }
+
+    // Revenue Tracker exports exactly what's currently filtered/on screen
+    // (column filters + the overall Year/Month filter), not the whole
+    // collection, so build that row set client-side and post it.
+    let rows = applyDataFilters(collection, currentCollectionData[collection] || []);
+    rows = applyRevenueOverallFilter(rows);
+    const columns = currentCollectionColumns[collection] || [];
+
+    if (!rows.length) {
+      alert('No records match the current filters to export.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/export-excel-filtered', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection, columns, rows })
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        alert('Export failed: ' + text);
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${collection}_filtered_export.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Export failed: ' + error.message);
+    }
   }
 
   function addNewRecord(collection) {
