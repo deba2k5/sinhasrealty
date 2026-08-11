@@ -508,6 +508,17 @@
     </div>
   </section>
 
+  <!-- ─── SUMMARY TABLE ─── -->
+  <section class="charts-section">
+    <h2 class="section-title">
+      <span class="section-icon">📋</span>
+      Summary Table
+    </h2>
+    <div id="summary-table-container">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </section>
+
   <!-- ─── GUEST PROFILES SECTION ─── -->
   <section class="charts-section">
     <h2 class="section-title">
@@ -2198,6 +2209,75 @@
     return loadDateNotifications('checkout-notifications', 'Check-out Date', 'Check Out Date', 'No checkouts', '🔔');
   }
 
+  // Combined Sl/Guest Name/Address/Check In/Check Out list pulled from both
+  // Revenue Tracker and Reservation Details - a flat, at-a-glance roster
+  // rather than the bucketed notification widgets above.
+  async function loadSummaryTable() {
+    const el = document.getElementById('summary-table-container');
+    if (!el) return;
+    el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+    const fmt = (raw) => {
+      const d = parseDateString(raw);
+      if (!d) return '—';
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      return `${dd}.${mm}.${d.getFullYear()}`;
+    };
+
+    try {
+      const [rtRes, rdRes] = await Promise.all([
+        fetch('/api/guest-client-collections?collection=revenue_tracker&page=1&limit=5000'),
+        fetch('/api/guest-client-collections?collection=reservation_details&page=1&limit=5000')
+      ]);
+      const rtData = await rtRes.json();
+      const rdData = await rdRes.json();
+
+      const rows = [];
+      if (rdData.success) {
+        (rdData.data || []).forEach(r => rows.push({
+          name: r['Guest Name'] || '—',
+          address: r['Address'] || '—',
+          checkInRaw: r['Check In Date'],
+          checkOutRaw: r['Check Out Date']
+        }));
+      }
+      if (rtData.success) {
+        (rtData.data || []).forEach(r => rows.push({
+          name: r['Guest Full Name'] || '—',
+          address: r['Property Address'] || '—',
+          checkInRaw: r['Check-in Date'],
+          checkOutRaw: r['Check-out Date']
+        }));
+      }
+
+      rows.sort((a, b) => {
+        const da = parseDateString(a.checkInRaw);
+        const db = parseDateString(b.checkInRaw);
+        if (!da && !db) return 0;
+        if (!da) return 1;
+        if (!db) return -1;
+        return da - db;
+      });
+
+      if (!rows.length) {
+        el.innerHTML = '<div class="error">No records found</div>';
+        return;
+      }
+
+      let html = '<div class="table-container"><div class="table-wrapper"><table><thead><tr>';
+      html += '<th>Sl</th><th>Guest Name</th><th>Address</th><th>Check In Date</th><th>Check Out Date</th>';
+      html += '</tr></thead><tbody>';
+      rows.forEach((r, idx) => {
+        html += `<tr><td>${idx + 1}</td><td>${r.name}</td><td>${r.address}</td><td>${fmt(r.checkInRaw)}</td><td>${fmt(r.checkOutRaw)}</td></tr>`;
+      });
+      html += '</tbody></table></div></div>';
+      el.innerHTML = html;
+    } catch (error) {
+      el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
+    }
+  }
+
   async function loadDashboard() {
     try {
       const response = await fetch('/api/guest-client-stats');
@@ -2453,6 +2533,7 @@
     loadDashboard();
     loadCheckinNotifications();
     loadCheckoutNotifications();
+    loadSummaryTable();
   });
 </script>
 
