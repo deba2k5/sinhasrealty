@@ -863,6 +863,33 @@
 
 </div>
 
+<!-- Tracks the signed-in user's email (same Firebase project as login.html)
+     so edits/creates in Revenue Tracker and Reservation Details can be
+     stamped with "Last Modified By". Separate module script since the
+     Firebase v10 SDK is ESM-only; it just exposes the email on window for
+     the main (non-module) script below to read. -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDy2fY-RorwHr5wnjUTjHesKo992e5BUP8",
+    authDomain: "sinhasgmbh-da880.firebaseapp.com",
+    projectId: "sinhasgmbh-da880",
+    storageBucket: "sinhasgmbh-da880.firebasestorage.app",
+    messagingSenderId: "103734138273",
+    appId: "1:103734138273:web:be383933f0fad2c55767e0",
+    measurementId: "G-JH3RX8Q88P"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const auth = getAuth(firebaseApp);
+  window.__currentUserEmail = null;
+  onAuthStateChanged(auth, user => {
+    window.__currentUserEmail = user ? user.email : null;
+  });
+</script>
+
 <script>
   const colors = {
     primary: '#6366f1',
@@ -1472,7 +1499,7 @@
         { title: 'GUEST INFO', colspan: 7 },
         { title: 'STAY DETAILS', colspan: 3 },
         { title: 'FINANCIAL DETAILS', colspan: 8 },
-        { title: 'REMARKS', colspan: 1 }
+        { title: 'REMARKS & AUDIT', colspan: 3 }
       ]
     };
     
@@ -1595,7 +1622,16 @@
           } else {
             const isWideField = collection === 'revenue_tracker' && k.trim() === 'IBAN details';
             const widthClass = isWideField ? ' edit-field-wide' : '';
-            html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field${widthClass}"></td>`;
+            // Last Modified By / Last Updated are audit fields stamped
+            // automatically on Save (see saveRecord) - shown read-only so
+            // it's clear typing here won't do anything.
+            const isAuditField = AUDIT_TRACKED_COLLECTIONS.has(collection) &&
+              (k.trim() === 'Last Modified By' || k.trim() === 'Last Updated');
+            if (isAuditField) {
+              html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field${widthClass}" readonly style="opacity: 0.6; cursor: not-allowed;" title="Set automatically when you Save"></td>`;
+            } else {
+              html += `<td style="${bStyle}"><input type="text" value="${value || ''}" data-field="${k}" data-record="${recordId}" class="edit-field${widthClass}"></td>`;
+            }
           }
         } else {
           html += `<td style="${bStyle}">${value || '—'}</td>`;
@@ -1853,15 +1889,37 @@
     }
   }
 
+  // Collections whose "Last Modified By" / "Last Updated" columns are
+  // system-managed audit fields, not manually editable - see saveRecord().
+  const AUDIT_TRACKED_COLLECTIONS = new Set(['revenue_tracker', 'reservation_details']);
+
+  function getCurrentUserEmail() {
+    return window.__currentUserEmail || 'Unknown';
+  }
+
+  function nowTimestampString() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+
   async function saveRecord(collection, recordId) {
     try {
       const fields = document.querySelectorAll(`.edit-field[data-record="${recordId}"]`);
       const updateData = {};
-      
+
       fields.forEach(field => {
         updateData[field.dataset.field] = field.value;
       });
-      
+
+      // Always stamp with who's actually signed in and the real save time,
+      // overriding whatever was in those inputs - they're an audit trail,
+      // not a manually-editable field.
+      if (AUDIT_TRACKED_COLLECTIONS.has(collection)) {
+        updateData['Last Modified By'] = getCurrentUserEmail();
+        updateData['Last Updated'] = nowTimestampString();
+      }
+
       const response = await fetch(`/api/guest-client-update/${collection}/${recordId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1991,15 +2049,12 @@
       .filter(n => !isNaN(n));
     const nextSNo = existingSNos.length ? Math.max(...existingSNos) + 1 : 1;
 
-    const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const lastUpdated = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-
     const payload = {};
     columns.forEach(c => { payload[c] = ''; });
     payload['SNo'] = String(nextSNo);
     payload['Currency'] = 'CHF';
-    payload['Last Updated'] = lastUpdated;
+    payload['Last Updated'] = nowTimestampString();
+    payload['Last Modified By'] = getCurrentUserEmail();
 
     try {
       const response = await fetch('/api/create/revenue_tracker', {
@@ -2090,7 +2145,9 @@
       'Minimum Stay': document.getElementById('res_minstay').value,
       'Remarks': document.getElementById('res_remarks_select').value === 'Enter Remarks'
         ? document.getElementById('res_remarks_text').value
-        : document.getElementById('res_remarks_select').value
+        : document.getElementById('res_remarks_select').value,
+      'Last Modified By': getCurrentUserEmail(),
+      'Last Updated': nowTimestampString()
     };
 
     try {

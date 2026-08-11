@@ -1039,7 +1039,7 @@ def get_guest_client_collections():
                     'Amount Due', 'Paid Amount', 'No of Adults', 'No of Children', 'No of Infants',
                     'No of Male', 'No of Female', 'Email', 'Contact No', 'Company Name', 'Purpose of Travel',
                     'Monthly Rent', 'Cleaning Fee', 'Cleaning Paid', 'Deposit Amt', 'Deposit Paid',
-                    'Notice Period', 'Minimum Stay', 'Remarks'
+                    'Notice Period', 'Minimum Stay', 'Remarks', 'Last Modified By', 'Last Updated'
                 ]
             elif docs:
                 column_order = [k for k in docs[0].keys() if k != '_id']
