@@ -486,6 +486,17 @@
     <div class="loading"><div class="spinner"></div></div>
   </div>
 
+  <!-- ─── CHECK-IN NOTIFICATIONS ─── -->
+  <section class="charts-section">
+    <h2 class="section-title">
+      <span class="section-icon">🛎️</span>
+      Check-in Notifications
+    </h2>
+    <div id="checkin-notifications">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </section>
+
   <!-- ─── CHECKOUT NOTIFICATIONS ─── -->
   <section class="charts-section">
     <h2 class="section-title">
@@ -2099,11 +2110,13 @@
     }
   });
 
-  // Pulls Check-out Date + guest/address from both Revenue Tracker and
+  // Pulls a date field + guest/address from both Revenue Tracker and
   // Reservation Details and buckets them into Yesterday/Today/Tomorrow so
-  // front-desk staff can see who's leaving without opening either tab.
-  async function loadCheckoutNotifications() {
-    const el = document.getElementById('checkout-notifications');
+  // front-desk staff can see arrivals/departures without opening either
+  // tab. Shared by the Check-in and Checkout notification widgets below -
+  // only the date field (and which action it represents) differs.
+  async function loadDateNotifications(elementId, rtDateField, rdDateField, emptyLabel, icon) {
+    const el = document.getElementById(elementId);
     if (!el) return;
     el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
@@ -2144,10 +2157,10 @@
         });
       };
 
-      if (rtData.success) addEntries(rtData.data, 'Check-out Date', 'Guest Full Name', 'Property Address', 'Revenue Tracker');
-      if (rdData.success) addEntries(rdData.data, 'Check Out Date', 'Guest Name', 'Address', 'Reservation Details');
+      if (rtData.success) addEntries(rtData.data, rtDateField, 'Guest Full Name', 'Property Address', 'Revenue Tracker');
+      if (rdData.success) addEntries(rdData.data, rdDateField, 'Guest Name', 'Address', 'Reservation Details');
 
-      const renderBucket = (title, icon, list) => {
+      const renderBucket = (title, bucketIcon, list) => {
         const items = list.length
           ? list.map(e => `
               <div class="checkout-item">
@@ -2157,10 +2170,10 @@
                 </div>
                 <span class="checkout-source">${e.source}</span>
               </div>`).join('')
-          : `<div class="checkout-empty">No checkouts</div>`;
+          : `<div class="checkout-empty">${emptyLabel}</div>`;
         return `
           <div class="checkout-bucket">
-            <div class="checkout-bucket-title">${icon} ${title}<span class="checkout-count">${list.length}</span></div>
+            <div class="checkout-bucket-title">${bucketIcon} ${title}<span class="checkout-count">${list.length}</span></div>
             <div class="checkout-bucket-items">${items}</div>
           </div>`;
       };
@@ -2168,13 +2181,21 @@
       el.innerHTML = `
         <div class="checkout-notifications-grid">
           ${renderBucket('Yesterday', '⏮', buckets.yesterday)}
-          ${renderBucket('Today', '🔔', buckets.today)}
+          ${renderBucket('Today', icon, buckets.today)}
           ${renderBucket('Tomorrow', '⏭', buckets.tomorrow)}
         </div>
       `;
     } catch (error) {
-      el.innerHTML = `<div class="error">Error loading checkout notifications: ${error.message}</div>`;
+      el.innerHTML = `<div class="error">Error loading notifications: ${error.message}</div>`;
     }
+  }
+
+  function loadCheckinNotifications() {
+    return loadDateNotifications('checkin-notifications', 'Check-in Date', 'Check In Date', 'No check-ins', '🛎️');
+  }
+
+  function loadCheckoutNotifications() {
+    return loadDateNotifications('checkout-notifications', 'Check-out Date', 'Check Out Date', 'No checkouts', '🔔');
   }
 
   async function loadDashboard() {
@@ -2430,6 +2451,7 @@
   // Load dashboard on page load
   document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
+    loadCheckinNotifications();
     loadCheckoutNotifications();
   });
 </script>
