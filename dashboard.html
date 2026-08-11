@@ -476,6 +476,7 @@
     <button class="tab-btn" onclick="switchTab('property-lookup', this)">🏢 Property Lookup</button>
     <button class="tab-btn" onclick="switchTab('revenue-tracker', this)">💰 Revenue Tracker</button>
     <button class="tab-btn" onclick="switchTab('reservation-details', this)">📋 Reservation Details</button>
+    <button class="tab-btn" onclick="switchTab('summary-table', this)">🗂️ Summary Table</button>
   </div>
 
   <!-- ─── ANALYTICS TAB (READ-ONLY) ─── -->
@@ -504,17 +505,6 @@
       Checkout Notifications
     </h2>
     <div id="checkout-notifications">
-      <div class="loading"><div class="spinner"></div></div>
-    </div>
-  </section>
-
-  <!-- ─── SUMMARY TABLE ─── -->
-  <section class="charts-section">
-    <h2 class="section-title">
-      <span class="section-icon">📋</span>
-      Summary Table
-    </h2>
-    <div id="summary-table-container">
       <div class="loading"><div class="spinner"></div></div>
     </div>
   </section>
@@ -679,6 +669,15 @@
       </div>
     </div>
     <div id="reservation-details-container"></div>
+  </div>
+
+  <div id="summary-table" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 class="section-title" style="margin: 0;">Summary Table</h2>
+    </div>
+    <div id="summary-table-container">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
   </div>
 
   <!-- ─── RESERVATION DETAILS FORM MODAL ─── -->
@@ -1280,6 +1279,8 @@
         'reservation-details': 'reservation_details'
       };
       loadCollectionData(collectionMap[tabName], 1);
+    } else if (tabName === 'summary-table') {
+      loadSummaryTable();
     }
   }
 
@@ -2533,7 +2534,6 @@
     loadDashboard();
     loadCheckinNotifications();
     loadCheckoutNotifications();
-    loadSummaryTable();
   });
 </script>
 
