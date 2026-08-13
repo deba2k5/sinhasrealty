@@ -50,6 +50,86 @@ def mark_collection_updated(collection_name):
         print(f"Failed to stamp sync metadata for '{collection_name}': {e}")
 
 
+# Fields that mean the same thing in both Revenue Tracker and Reservation
+# Details, just under different names. Keyed (revenue_tracker field,
+# reservation_details field). The join key itself (Booking Ref No <->
+# Reservation ID) is handled separately in sync_common_fields, not here.
+SIMILAR_FIELD_MAP = [
+    ('Guest Full Name', 'Guest Name'),
+    ('Property Address', 'Address'),
+    ('Check-in Date', 'Check In Date'),
+    ('Check-out Date', 'Check Out Date'),
+    ('Mobile', 'Contact No'),
+    ('Email', 'Email'),
+    ('Company / Employer', 'Company Name'),
+    ('Purpose (Business/ Leisure)', 'Purpose of Travel'),
+    ('No of Guests', 'Guests'),
+    ('Monthly Rent (CHF)', 'Monthly Rent'),
+    ('Actual Cleaning', 'Cleaning Fee'),
+    ('Cleaning Paid ', 'Cleaning Paid'),
+    ('Actual Deposit', 'Deposit Amt'),
+    ('Deposit Paid ', 'Deposit Paid'),
+    ('Booking Channel', 'Partner'),
+]
+
+
+def _blank(v):
+    return v is None or (isinstance(v, str) and v.strip() == '')
+
+
+def sync_common_fields(collection_name, doc):
+    """After a Revenue Tracker / Reservation Details record is saved, find
+    its counterpart in the other collection (matched by Booking Ref No <->
+    Reservation ID) and fill in any blank shared field on EITHER side from
+    the other. Never overwrites a field that already has a value on both
+    sides, even if they disagree - that's a real data conflict for a human
+    to resolve, not something to silently pick a winner for. Skipped
+    entirely if the booking ID is blank or matches more than one record on
+    the other side (ambiguous - e.g. a shared/reused reference number)."""
+    if collection_name == 'revenue_tracker':
+        other_name, this_id_field, other_id_field = 'reservation_details', 'Booking Ref No', 'Reservation ID'
+    elif collection_name == 'reservation_details':
+        other_name, this_id_field, other_id_field = 'revenue_tracker', 'Reservation ID', 'Booking Ref No'
+    else:
+        return
+
+    booking_id = str(doc.get(this_id_field) or '').strip()
+    if not booking_id:
+        return
+
+    db_inst = get_db()
+    other_coll = db_inst[other_name]
+    try:
+        matches = list(other_coll.find({other_id_field: {'$regex': f'^\\s*{re.escape(booking_id)}\\s*$'}}))
+    except Exception as e:
+        print(f"sync_common_fields lookup failed: {e}")
+        return
+    if len(matches) != 1:
+        return
+    other_doc = matches[0]
+
+    this_updates = {}
+    other_updates = {}
+    for rt_field, rd_field in SIMILAR_FIELD_MAP:
+        this_field, other_field = (rt_field, rd_field) if collection_name == 'revenue_tracker' else (rd_field, rt_field)
+        this_val = doc.get(this_field)
+        other_val = other_doc.get(other_field)
+        this_blank = _blank(this_val)
+        other_blank = _blank(other_val)
+        if this_blank and not other_blank:
+            this_updates[this_field] = other_val
+        elif other_blank and not this_blank:
+            other_updates[other_field] = this_val
+
+    try:
+        if this_updates:
+            db_inst[collection_name].update_one({'_id': doc['_id']}, {'$set': this_updates})
+        if other_updates:
+            other_coll.update_one({'_id': other_doc['_id']}, {'$set': other_updates})
+    except Exception as e:
+        print(f"sync_common_fields update failed: {e}")
+
+
 def datetime_to_iso_z(dt):
     if not dt:
         return None
@@ -681,9 +761,12 @@ def create_data(collection):
             del data['_id']
             
         result = get_db()[collection].insert_one(data)
-        
+
         if result.inserted_id:
             mark_collection_updated(collection)
+            if collection in ('revenue_tracker', 'reservation_details'):
+                data['_id'] = result.inserted_id
+                sync_common_fields(collection, data)
             return jsonify({'success': True, 'message': 'Record created successfully.', 'id': str(result.inserted_id)})
         return jsonify({'success': False, 'message': 'Failed to create record.'}), 400
     except Exception as e:
@@ -1140,13 +1223,18 @@ def update_guest_client_record(collection, doc_id):
                         print(f"Error calculating guest nights: {e}")
         
         result = db_inst[collection].update_one({'_id': oid}, {'$set': data})
-        
+
         if result.matched_count == 0:
             return jsonify({'success': False, 'message': 'Document not found'}), 404
 
         if result.modified_count > 0:
             mark_collection_updated(collection)
-        
+
+        if collection in ('revenue_tracker', 'reservation_details'):
+            updated_doc = db_inst[collection].find_one({'_id': oid})
+            if updated_doc:
+                sync_common_fields(collection, updated_doc)
+
         return jsonify({
             'success': True,
             'message': 'Record updated successfully',
@@ -1166,7 +1254,11 @@ def add_guest_client_record(collection):
         
         result = db_inst[collection].insert_one(data)
         mark_collection_updated(collection)
-        
+
+        if collection in ('revenue_tracker', 'reservation_details'):
+            data['_id'] = result.inserted_id
+            sync_common_fields(collection, data)
+
         return jsonify({
             'success': True,
             'message': 'Record added successfully',
