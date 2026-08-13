@@ -645,13 +645,13 @@
       <h2 class="section-title" style="margin: 0;">Revenue Tracker</h2>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-out:</span>
-        <select id="revenueFilterYear" onchange="onRevenueOverallFilterChange()" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+        <select id="revenueFilterYear" onchange="onOverallDateFilterChange('revenue_tracker')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
           <option value="">All Years</option>
         </select>
-        <select id="revenueFilterMonth" onchange="onRevenueOverallFilterChange()" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+        <select id="revenueFilterMonth" onchange="onOverallDateFilterChange('revenue_tracker')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
           <option value="">All Months</option>
         </select>
-        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetRevenueOverallFilter()">Reset</button>
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetOverallDateFilter('revenue_tracker')">Reset</button>
         <button class="btn" id="revenueFullscreenBtn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="toggleRevenueTrackerFullscreen()">⛶ Full Screen</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('revenue_tracker')">⬇ Export as Excel</button>
         <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('revenue_tracker')">+ Add New</button>
@@ -661,9 +661,17 @@
   </div>
 
   <div id="reservation-details" class="tab-content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <h2 class="section-title" style="margin: 0;">Reservation Details</h2>
-      <div style="display: flex; gap: 10px;">
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-in:</span>
+        <select id="reservationFilterYear" onchange="onOverallDateFilterChange('reservation_details')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Years</option>
+        </select>
+        <select id="reservationFilterMonth" onchange="onOverallDateFilterChange('reservation_details')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Months</option>
+        </select>
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetOverallDateFilter('reservation_details')">Reset</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('reservation_details')">⬇ Export as Excel</button>
         <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('reservation_details')">+ Add New</button>
       </div>
@@ -1215,26 +1223,35 @@
     });
   }
 
-  // Single global Year/Month filter for Revenue Tracker (by Check-out Date),
-  // separate from the per-column Excel-style filters above. Export as Excel
-  // reads through this + the column filters too, so the download always
-  // matches what's currently on screen.
-  let revenueOverallFilter = { year: '', month: '' };
+  // Single global Year/Month filter, separate from the per-column
+  // Excel-style filters above. Export as Excel reads through this + the
+  // column filters too, so the download always matches what's currently
+  // on screen. Shared by Revenue Tracker (by Check-out Date) and
+  // Reservation Details (by Check In Date).
+  const OVERALL_DATE_FILTER_CONFIG = {
+    revenue_tracker: { dateField: 'Check-out Date', yearSelectId: 'revenueFilterYear', monthSelectId: 'revenueFilterMonth', containerId: 'revenue-tracker-container' },
+    reservation_details: { dateField: 'Check In Date', yearSelectId: 'reservationFilterYear', monthSelectId: 'reservationFilterMonth', containerId: 'reservation-details-container' }
+  };
+  let overallDateFilter = { revenue_tracker: { year: '', month: '' }, reservation_details: { year: '', month: '' } };
 
-  function applyRevenueOverallFilter(data) {
-    if (!revenueOverallFilter.year && !revenueOverallFilter.month) return data;
+  function applyOverallDateFilter(collection, data) {
+    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+    const filt = overallDateFilter[collection];
+    if (!cfg || (!filt.year && !filt.month)) return data;
     return data.filter(record => {
-      const d = parseDateString(record['Check-out Date']);
+      const d = parseDateString(record[cfg.dateField]);
       if (!d) return false;
-      if (revenueOverallFilter.year && String(d.getFullYear()) !== revenueOverallFilter.year) return false;
-      if (revenueOverallFilter.month && String(d.getMonth() + 1).padStart(2, '0') !== revenueOverallFilter.month) return false;
+      if (filt.year && String(d.getFullYear()) !== filt.year) return false;
+      if (filt.month && String(d.getMonth() + 1).padStart(2, '0') !== filt.month) return false;
       return true;
     });
   }
 
-  function populateRevenueOverallFilterOptions() {
-    const yearSelect = document.getElementById('revenueFilterYear');
-    const monthSelect = document.getElementById('revenueFilterMonth');
+  function populateOverallDateFilterOptions(collection) {
+    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+    if (!cfg) return;
+    const yearSelect = document.getElementById(cfg.yearSelectId);
+    const monthSelect = document.getElementById(cfg.monthSelectId);
     if (!yearSelect || !monthSelect) return;
 
     if (!monthSelect.dataset.populated) {
@@ -1248,8 +1265,8 @@
     }
 
     const years = new Set();
-    (currentCollectionData['revenue_tracker'] || []).forEach(r => {
-      const d = parseDateString(r['Check-out Date']);
+    (currentCollectionData[collection] || []).forEach(r => {
+      const d = parseDateString(r[cfg.dateField]);
       if (d) years.add(d.getFullYear());
     });
     const sortedYears = [...years].sort((a, b) => a - b);
@@ -1259,21 +1276,25 @@
     if (sortedYears.map(String).includes(prevValue)) yearSelect.value = prevValue;
   }
 
-  function onRevenueOverallFilterChange() {
-    revenueOverallFilter.year = document.getElementById('revenueFilterYear').value;
-    revenueOverallFilter.month = document.getElementById('revenueFilterMonth').value;
-    renderDataTable('revenue_tracker', {
-      data: currentCollectionData['revenue_tracker'],
-      columns: currentCollectionColumns['revenue_tracker'],
-      page: currentCollectionPage['revenue_tracker'],
+  function onOverallDateFilterChange(collection) {
+    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+    if (!cfg) return;
+    overallDateFilter[collection].year = document.getElementById(cfg.yearSelectId).value;
+    overallDateFilter[collection].month = document.getElementById(cfg.monthSelectId).value;
+    renderDataTable(collection, {
+      data: currentCollectionData[collection],
+      columns: currentCollectionColumns[collection],
+      page: currentCollectionPage[collection],
       totalPages: 1
-    }, document.getElementById('revenue-tracker-container'));
+    }, document.getElementById(cfg.containerId));
   }
 
-  function resetRevenueOverallFilter() {
-    document.getElementById('revenueFilterYear').value = '';
-    document.getElementById('revenueFilterMonth').value = '';
-    onRevenueOverallFilterChange();
+  function resetOverallDateFilter(collection) {
+    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+    if (!cfg) return;
+    document.getElementById(cfg.yearSelectId).value = '';
+    document.getElementById(cfg.monthSelectId).value = '';
+    onOverallDateFilterChange(collection);
   }
 
   let lastRevenueTrackerKeys = null;
@@ -1353,8 +1374,8 @@
       currentCollectionData[collection] = data.data;
       currentCollectionColumns[collection] = data.columns || [];
 
-      if (collection === 'revenue_tracker') {
-        populateRevenueOverallFilterOptions();
+      if (OVERALL_DATE_FILTER_CONFIG[collection]) {
+        populateOverallDateFilterOptions(collection);
       }
 
       renderDataTable(collection, data, container);
@@ -1469,11 +1490,10 @@
       ? data.columns 
       : Object.keys(data.data[0]).filter(k => k !== '_id');
       
-    // Apply column filters, then the Revenue Tracker overall Year/Month filter, then sort
+    // Apply column filters, then the overall Year/Month filter (if this
+    // collection has one), then sort
     let filteredData = applyDataFilters(collection, data.data);
-    if (collection === 'revenue_tracker') {
-      filteredData = applyRevenueOverallFilter(filteredData);
-    }
+    filteredData = applyOverallDateFilter(collection, filteredData);
     let sortedData = sortData(collection, currentSort[collection].field, filteredData);
 
     const columnGroups = {
@@ -1977,16 +1997,16 @@
   });
 
   async function exportCollectionExcel(collection) {
-    if (collection !== 'revenue_tracker') {
+    if (!OVERALL_DATE_FILTER_CONFIG[collection]) {
       window.location.href = `/api/export-excel?collection=${encodeURIComponent(collection)}`;
       return;
     }
 
-    // Revenue Tracker exports exactly what's currently filtered/on screen
-    // (column filters + the overall Year/Month filter), not the whole
-    // collection, so build that row set client-side and post it.
+    // Revenue Tracker / Reservation Details export exactly what's currently
+    // filtered/on screen (column filters + the overall Year/Month filter),
+    // not the whole collection, so build that row set client-side and post it.
     let rows = applyDataFilters(collection, currentCollectionData[collection] || []);
-    rows = applyRevenueOverallFilter(rows);
+    rows = applyOverallDateFilter(collection, rows);
     const columns = currentCollectionColumns[collection] || [];
 
     if (!rows.length) {
