@@ -77,15 +77,52 @@ def _blank(v):
     return v is None or (isinstance(v, str) and v.strip() == '')
 
 
+def _next_running_number(coll, field):
+    numeric = [int(str(v).strip()) for v in coll.distinct(field) if str(v).strip().isdigit()]
+    return str(max(numeric) + 1) if numeric else '1'
+
+
+def _create_counterpart_record(db_inst, this_collection_name, other_name, other_id_field, booking_id, doc):
+    """No record exists yet on the other side for this booking ID - create
+    one (instead of silently doing nothing) so the booking actually shows
+    up on both sheets, with whatever common fields are already known
+    copied across."""
+    col_order_doc = db_inst['column_order'].find_one({'collection': other_name})
+    columns = col_order_doc['columns'] if col_order_doc and col_order_doc.get('columns') else []
+    new_doc = {c: '' for c in columns}
+    new_doc[other_id_field] = booking_id
+
+    for rt_field, rd_field in SIMILAR_FIELD_MAP:
+        this_field, other_field = (rt_field, rd_field) if this_collection_name == 'revenue_tracker' else (rd_field, rt_field)
+        val = doc.get(this_field)
+        if not _blank(val):
+            new_doc[other_field] = val
+
+    if other_name == 'revenue_tracker':
+        new_doc['SNo'] = _next_running_number(db_inst[other_name], 'SNo')
+        new_doc['Currency'] = new_doc.get('Currency') or 'CHF'
+        new_doc['Booking Status'] = new_doc.get('Booking Status') or 'Confirmed'
+    else:
+        new_doc['SL NO'] = _next_running_number(db_inst[other_name], 'SL NO')
+
+    try:
+        db_inst[other_name].insert_one(new_doc)
+        mark_collection_updated(other_name)
+    except Exception as e:
+        print(f"sync_common_fields auto-create failed: {e}")
+
+
 def sync_common_fields(collection_name, doc):
     """After a Revenue Tracker / Reservation Details record is saved, find
     its counterpart in the other collection (matched by Booking Ref No <->
-    Reservation ID) and fill in any blank shared field on EITHER side from
-    the other. Never overwrites a field that already has a value on both
-    sides, even if they disagree - that's a real data conflict for a human
-    to resolve, not something to silently pick a winner for. Skipped
-    entirely if the booking ID is blank or matches more than one record on
-    the other side (ambiguous - e.g. a shared/reused reference number)."""
+    Reservation ID). If none exists yet, create one there with the common
+    fields copied over, so the booking actually appears on both sheets. If
+    one does exist, fill in any blank shared field on EITHER side from the
+    other. Never overwrites a field that already has a value on both sides,
+    even if they disagree - that's a real data conflict for a human to
+    resolve, not something to silently pick a winner for. Skipped entirely
+    if the booking ID is blank or matches more than one record on the
+    other side (ambiguous - e.g. a shared/reused reference number)."""
     if collection_name == 'revenue_tracker':
         other_name, this_id_field, other_id_field = 'reservation_details', 'Booking Ref No', 'Reservation ID'
     elif collection_name == 'reservation_details':
@@ -104,7 +141,11 @@ def sync_common_fields(collection_name, doc):
     except Exception as e:
         print(f"sync_common_fields lookup failed: {e}")
         return
-    if len(matches) != 1:
+
+    if len(matches) == 0:
+        _create_counterpart_record(db_inst, collection_name, other_name, other_id_field, booking_id, doc)
+        return
+    if len(matches) > 1:
         return
     other_doc = matches[0]
 
