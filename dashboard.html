@@ -179,18 +179,6 @@
     .checkout-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .checkout-guest { font-weight: 600; font-size: 0.9rem; color: var(--text); }
     .checkout-address { font-size: 0.8rem; color: var(--muted2); overflow-wrap: anywhere; }
-    .checkout-source {
-      flex-shrink: 0;
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      color: var(--accent);
-      background: rgba(34,211,238,0.12);
-      padding: 3px 8px;
-      border-radius: 6px;
-      white-space: nowrap;
-    }
     .checkout-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem 0; }
 
     .divider { height: 1px; background: var(--border); margin: 3rem 0; }
@@ -2204,17 +2192,16 @@
   // front-desk staff can see arrivals/departures without opening either
   // tab. Shared by the Check-in and Checkout notification widgets below -
   // only the date field (and which action it represents) differs.
-  async function loadDateNotifications(elementId, rtDateField, rdDateField, emptyLabel, icon) {
+  // Reservation Details only - Revenue Tracker is intentionally excluded
+  // from these notification widgets (per request: Analytics check-in/
+  // checkout notifications reflect the reservation sheet only).
+  async function loadDateNotifications(elementId, dateField, emptyLabel, icon) {
     const el = document.getElementById(elementId);
     if (!el) return;
     el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
     try {
-      const [rtRes, rdRes] = await Promise.all([
-        fetch('/api/guest-client-collections?collection=revenue_tracker&page=1&limit=5000'),
-        fetch('/api/guest-client-collections?collection=reservation_details&page=1&limit=5000')
-      ]);
-      const rtData = await rtRes.json();
+      const rdRes = await fetch('/api/guest-client-collections?collection=reservation_details&page=1&limit=5000');
       const rdData = await rdRes.json();
 
       const today = new Date();
@@ -2229,8 +2216,8 @@
 
       const buckets = { yesterday: [], today: [], tomorrow: [] };
 
-      const addEntries = (records, dateField, nameField, addressField, source) => {
-        (records || []).forEach(r => {
+      if (rdData.success) {
+        (rdData.data || []).forEach(r => {
           const d = parseDateString(r[dateField]);
           if (!d) return;
           let bucket = null;
@@ -2239,15 +2226,11 @@
           else if (sameDay(d, tomorrow)) bucket = 'tomorrow';
           if (!bucket) return;
           buckets[bucket].push({
-            name: r[nameField] || 'Unknown Guest',
-            address: r[addressField] || '—',
-            source
+            name: r['Guest Name'] || 'Unknown Guest',
+            address: r['Address'] || '—'
           });
         });
-      };
-
-      if (rtData.success) addEntries(rtData.data, rtDateField, 'Guest Full Name', 'Property Address', 'Revenue Tracker');
-      if (rdData.success) addEntries(rdData.data, rdDateField, 'Guest Name', 'Address', 'Reservation Details');
+      }
 
       const renderBucket = (title, bucketIcon, list) => {
         const items = list.length
@@ -2257,7 +2240,6 @@
                   <span class="checkout-guest">${e.name}</span>
                   <span class="checkout-address">${e.address}</span>
                 </div>
-                <span class="checkout-source">${e.source}</span>
               </div>`).join('')
           : `<div class="checkout-empty">${emptyLabel}</div>`;
         return `
@@ -2280,11 +2262,11 @@
   }
 
   function loadCheckinNotifications() {
-    return loadDateNotifications('checkin-notifications', 'Check-in Date', 'Check In Date', 'No check-ins', '🛎️');
+    return loadDateNotifications('checkin-notifications', 'Check In Date', 'No check-ins', '🛎️');
   }
 
   function loadCheckoutNotifications() {
-    return loadDateNotifications('checkout-notifications', 'Check-out Date', 'Check Out Date', 'No checkouts', '🔔');
+    return loadDateNotifications('checkout-notifications', 'Check Out Date', 'No checkouts', '🔔');
   }
 
   // Combined Sl/Guest Name/Address/Check In/Check Out list pulled from both
