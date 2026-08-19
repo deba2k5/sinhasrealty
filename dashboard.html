@@ -795,7 +795,11 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Purpose of Travel</label>
-          <input id="res_purpose" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <select id="res_purpose" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+            <option value="">—</option>
+            <option value="Business">Business</option>
+            <option value="Leisure">Leisure</option>
+          </select>
         </div>
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Monthly Rent</label>
@@ -961,7 +965,8 @@
   const RESERVATION_DETAILS_DROPDOWNS = {
     'Remarks': ['Release Check In', 'Enter Remarks'],
     'Company Name': RESERVATION_PARTNER_OPTIONS,
-    'Partner': RESERVATION_PARTNER_OPTIONS
+    'Partner': RESERVATION_PARTNER_OPTIONS,
+    'Purpose of Travel': ['Business', 'Leisure']
   };
 
   function handleRemarksDropdownChange(selectEl) {
