@@ -77,6 +77,59 @@ def _blank(v):
     return v is None or (isinstance(v, str) and v.strip() == '')
 
 
+# Fields excluded when checking whether two records are "the same" - serial
+# numbers and the audit trail differ between an original and its accidental
+# double-save even though every real field is identical, so they'd otherwise
+# stop the duplicate check from ever matching.
+DUPLICATE_CHECK_EXCLUDE_FIELDS = {
+    'revenue_tracker': {'_id', 'SNo', 'Last Updated', 'Last Modified By'},
+    'reservation_details': {'_id', 'SL NO', 'Last Updated', 'Last Modified By'},
+}
+
+
+def find_exact_duplicate(collection_name, data, exclude_id=None):
+    """Returns an existing document that matches `data` on every field
+    except serial number / audit-trail fields, or None. `exclude_id` skips
+    the record being saved itself when checking after an update. Skips the
+    check when fewer than 2 fields actually carry content, so two freshly
+    created "blank scaffold" rows (e.g. from + Add New, before either has
+    been filled in - which still get a default like Currency = CHF) don't
+    get collapsed into one; there's no real content to be a duplicate of yet."""
+    exclude = DUPLICATE_CHECK_EXCLUDE_FIELDS.get(collection_name)
+    if not exclude:
+        return None
+    query = {k: v for k, v in data.items() if k not in exclude}
+    if not query:
+        return None
+    if sum(1 for v in query.values() if not _blank(v)) < 2:
+        return None
+    if exclude_id is not None:
+        query['_id'] = {'$ne': exclude_id}
+    try:
+        return get_db()[collection_name].find_one(query)
+    except Exception as e:
+        print(f"find_exact_duplicate failed: {e}")
+        return None
+
+
+def dedupe_after_save(collection_name, saved_doc_id):
+    """After a create/update on Revenue Tracker or Reservation Details,
+    check whether the saved record now exactly matches another one
+    (ignoring serial number/audit fields) and, if so, delete the newer of
+    the two so only one survives. Mongo ObjectIds encode creation time, so
+    comparing them tells us which record is older."""
+    if collection_name not in DUPLICATE_CHECK_EXCLUDE_FIELDS:
+        return
+    coll = get_db()[collection_name]
+    doc = coll.find_one({'_id': saved_doc_id})
+    if not doc:
+        return
+    dup = find_exact_duplicate(collection_name, doc, exclude_id=saved_doc_id)
+    if dup:
+        newer_id = max(saved_doc_id, dup['_id'])
+        coll.delete_one({'_id': newer_id})
+
+
 def _next_running_number(coll, field):
     numeric = [int(str(v).strip()) for v in coll.distinct(field) if str(v).strip().isdigit()]
     return str(max(numeric) + 1) if numeric else '1'
@@ -800,7 +853,19 @@ def create_data(collection):
         data = request.json
         if '_id' in data:
             del data['_id']
-            
+
+        # Don't create a record that's identical (in every real field) to
+        # one that already exists - point back at the existing one instead.
+        if collection in DUPLICATE_CHECK_EXCLUDE_FIELDS:
+            existing = find_exact_duplicate(collection, data)
+            if existing:
+                return jsonify({
+                    'success': True,
+                    'message': 'An identical record already exists - not creating a duplicate.',
+                    'id': str(existing['_id']),
+                    'duplicate': True
+                })
+
         result = get_db()[collection].insert_one(data)
 
         if result.inserted_id:
@@ -1275,6 +1340,9 @@ def update_guest_client_record(collection, doc_id):
             updated_doc = db_inst[collection].find_one({'_id': oid})
             if updated_doc:
                 sync_common_fields(collection, updated_doc)
+            # If this edit made the record identical to another one (every
+            # real field the same), drop the newer of the two automatically.
+            dedupe_after_save(collection, oid)
 
         return jsonify({
             'success': True,
@@ -1292,7 +1360,17 @@ def add_guest_client_record(collection):
     try:
         data = request.json
         db_inst = get_db()
-        
+
+        if collection in DUPLICATE_CHECK_EXCLUDE_FIELDS:
+            existing = find_exact_duplicate(collection, data)
+            if existing:
+                return jsonify({
+                    'success': True,
+                    'message': 'An identical record already exists - not creating a duplicate.',
+                    'id': str(existing['_id']),
+                    'duplicate': True
+                })
+
         result = db_inst[collection].insert_one(data)
         mark_collection_updated(collection)
 
