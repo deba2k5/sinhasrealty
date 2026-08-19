@@ -732,11 +732,15 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Partner</label>
-          <input id="res_partner" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <select id="res_partner" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+            <option value="">—</option>
+          </select>
         </div>
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Company Name</label>
-          <input id="res_company" type="text" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <select id="res_company" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+            <option value="">—</option>
+          </select>
         </div>
       </div>
 
@@ -911,11 +915,53 @@
     }
   };
 
+  // Partner/company list pulled from SabeeApp's own Partner dropdown, shared
+  // by both the Company Name and Partner columns here.
+  const RESERVATION_PARTNER_OPTIONS = [
+    'Accenture AG',
+    'AIR BNB',
+    'Ayes GmbH',
+    'Birlasoft Limited',
+    'BIS',
+    'Booking.com',
+    'Cadillac Europe GmbH',
+    'Capgemini Technology Services India Ltd',
+    'Coforge Limited, Special Economic Zone Plot No. TZ-2 & 2A Sector-Tech Zone Greater Naida (UP) IN-201',
+    'Cognizant Technology Solutions India Private Ltd.',
+    'CREDIT SUISSE SERVICES Ltd.',
+    'Crisil Irevna UK Limited',
+    'Cycas Hospitality Switzerland GmbH',
+    'Direct Booking',
+    'Ensono Technologies LLP',
+    'Ernst & Young AG',
+    'Google Switzerland GmbH',
+    'HCL Technologies',
+    'Homegate',
+    'Housing Anywhere',
+    'Infosys Limited',
+    'L & T Technology Services Limited',
+    'LTI Mindtree Limited',
+    'LTM Limited M/s. SONOVA AG, SONOVA AG, Laubsrütistrasse 28 8712 Stafa Switzerland',
+    'Parking',
+    'QESTIT AG',
+    'SabeeApp Booking Engine',
+    'Sika Informationssysteme AG',
+    'Sunrise GmbH',
+    'TECH MAHINDRA LIMITED',
+    'UBS Card Canter AG',
+    'VRBO',
+    'VRBO (HOME AWAY - OLD COMPANY NAME)',
+    'WIPRO TECHNOLOGIES LIMITED',
+    'Zimmer Switzerland Manufacturing GmbH'
+  ];
+
   // "Enter Remarks" is a sentinel option, not a stored value - picking it swaps
   // the dropdown for a plain text box (see handleRemarksDropdownChange) so the
   // actual free-text remark can be typed in.
   const RESERVATION_DETAILS_DROPDOWNS = {
-    'Remarks': ['Release Check In', 'Enter Remarks']
+    'Remarks': ['Release Check In', 'Enter Remarks'],
+    'Company Name': RESERVATION_PARTNER_OPTIONS,
+    'Partner': RESERVATION_PARTNER_OPTIONS
   };
 
   function handleRemarksDropdownChange(selectEl) {
@@ -1604,14 +1650,17 @@
             (lowerK.includes('check-in') || lowerK.includes('check in') || lowerK.includes('checkin') ||
              lowerK.includes('check-out') || lowerK.includes('check out') || lowerK.includes('checkout'));
           let dropdownOptions = collection === 'revenue_tracker' ? REVENUE_TRACKER_DROPDOWNS[k] : null;
-          const isRemarksField = collection === 'reservation_details' && k.trim() === 'Remarks';
-          if (isRemarksField) {
+          const fieldKey = k.trim();
+          const reservationDropdownOptions = collection === 'reservation_details' ? RESERVATION_DETAILS_DROPDOWNS[fieldKey] : null;
+          const isRemarksField = collection === 'reservation_details' && fieldKey === 'Remarks';
+          if (reservationDropdownOptions) {
             const trimmedValue = String(value || '').trim().toLowerCase();
-            const matchesFixedOption = RESERVATION_DETAILS_DROPDOWNS['Remarks']
+            const matchesFixedOption = reservationDropdownOptions
               .some(opt => opt.toLowerCase() === trimmedValue);
-            // Free-text remarks already typed in stay as a plain text box so the
-            // text is visible and editable; only blank/fixed values get the dropdown.
-            dropdownOptions = (!trimmedValue || matchesFixedOption) ? RESERVATION_DETAILS_DROPDOWNS['Remarks'] : null;
+            // Values that don't match any option (existing free text, typos,
+            // etc.) stay as a plain text box so the real stored value is
+            // visible and editable instead of silently hidden behind "—".
+            dropdownOptions = (!trimmedValue || matchesFixedOption) ? reservationDropdownOptions : null;
           }
           console.log("Rendering field:", k, "isDateField:", isDateField, "value:", value);
           if (dropdownOptions) {
@@ -2027,11 +2076,26 @@
     }
   }
 
+  function populateReservationPartnerSelects() {
+    ['res_partner', 'res_company'].forEach(id => {
+      const select = document.getElementById(id);
+      if (!select || select.dataset.populated) return;
+      RESERVATION_PARTNER_OPTIONS.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt;
+        el.textContent = opt;
+        select.appendChild(el);
+      });
+      select.dataset.populated = 'true';
+    });
+  }
+
   function addNewRecord(collection) {
     if (collection === 'revenue_tracker') {
       createBlankRevenueRecord();
     } else if (collection === 'reservation_details') {
       // Show reservation details form
+      populateReservationPartnerSelects();
       document.getElementById('reservationModal').style.display = 'block';
     } else {
       // For other collections, show alert for now
