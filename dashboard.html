@@ -732,15 +732,17 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Partner</label>
-          <select id="res_partner" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <select id="res_partner" onchange="if (this.value === 'Other (Enter Manually)') { this.style.display='none'; const t = document.getElementById('res_partner_text'); t.style.display='block'; t.focus(); }" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
             <option value="">—</option>
           </select>
+          <input id="res_partner_text" type="text" placeholder="Type partner name..." style="display: none; width: 100%; padding: 10px; margin-top: 0.5rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
         </div>
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Company Name</label>
-          <select id="res_company" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <select id="res_company" onchange="if (this.value === 'Other (Enter Manually)') { this.style.display='none'; const t = document.getElementById('res_company_text'); t.style.display='block'; t.focus(); }" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
             <option value="">—</option>
           </select>
+          <input id="res_company_text" type="text" placeholder="Type company name..." style="display: none; width: 100%; padding: 10px; margin-top: 0.5rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
         </div>
       </div>
 
@@ -958,12 +960,10 @@
     'UBS Card Canter AG',
     'VRBO',
     'WIPRO TECHNOLOGIES LIMITED',
-    'Zimmer Switzerland Manufacturing GmbH'
+    'Zimmer Switzerland Manufacturing GmbH',
+    'Other (Enter Manually)'
   ];
 
-  // "Enter Remarks" is a sentinel option, not a stored value - picking it swaps
-  // the dropdown for a plain text box (see handleRemarksDropdownChange) so the
-  // actual free-text remark can be typed in.
   const RESERVATION_DETAILS_DROPDOWNS = {
     'Remarks': ['Release Check In', 'Enter Remarks'],
     'Company Name': RESERVATION_PARTNER_OPTIONS,
@@ -971,14 +971,25 @@
     'Purpose of Travel': ['Business', 'Leisure']
   };
 
-  function handleRemarksDropdownChange(selectEl) {
-    if (selectEl.value !== 'Enter Remarks') return;
+  // Sentinel options - not stored values. Picking one swaps the dropdown
+  // for a plain text box (see handleDropdownSentinelChange) so a value
+  // outside the fixed list (a remark, or a company/partner not yet in the
+  // list) can be typed in directly.
+  const RESERVATION_DROPDOWN_SENTINELS = {
+    'Remarks': { value: 'Enter Remarks', placeholder: 'Type remarks...' },
+    'Company Name': { value: 'Other (Enter Manually)', placeholder: 'Type company name...' },
+    'Partner': { value: 'Other (Enter Manually)', placeholder: 'Type partner name...' }
+  };
+
+  function handleDropdownSentinelChange(selectEl) {
+    const cfg = RESERVATION_DROPDOWN_SENTINELS[selectEl.dataset.field.trim()];
+    if (!cfg || selectEl.value !== cfg.value) return;
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'edit-field';
     input.dataset.field = selectEl.dataset.field;
     input.dataset.record = selectEl.dataset.record;
-    input.placeholder = 'Type remarks...';
+    input.placeholder = cfg.placeholder;
     selectEl.replaceWith(input);
     input.focus();
   }
@@ -1659,7 +1670,7 @@
           let dropdownOptions = collection === 'revenue_tracker' ? REVENUE_TRACKER_DROPDOWNS[k] : null;
           const fieldKey = k.trim();
           const reservationDropdownOptions = collection === 'reservation_details' ? RESERVATION_DETAILS_DROPDOWNS[fieldKey] : null;
-          const isRemarksField = collection === 'reservation_details' && fieldKey === 'Remarks';
+          const hasSentinel = collection === 'reservation_details' && RESERVATION_DROPDOWN_SENTINELS[fieldKey];
           if (reservationDropdownOptions) {
             const trimmedValue = String(value || '').trim().toLowerCase();
             const matchesFixedOption = reservationDropdownOptions
@@ -1676,8 +1687,8 @@
               const selected = String(value || '').trim().toLowerCase() === opt.toLowerCase() ? 'selected' : '';
               opts += `<option value="${opt}" ${selected}>${opt}</option>`;
             });
-            const remarksHandler = isRemarksField ? ' onchange="handleRemarksDropdownChange(this)"' : '';
-            html += `<td style="${bStyle}"><select data-field="${k}" data-record="${recordId}" class="edit-field"${remarksHandler}>${opts}</select></td>`;
+            const sentinelHandler = hasSentinel ? ' onchange="handleDropdownSentinelChange(this)"' : '';
+            html += `<td style="${bStyle}"><select data-field="${k}" data-record="${recordId}" class="edit-field"${sentinelHandler}>${opts}</select></td>`;
           } else if (isDateField) {
             const parsedDate = parseDateString(value);
             const inputValue = formatDateForInput(parsedDate);
@@ -2165,6 +2176,9 @@
     document.getElementById('res_resid').value = '';
     document.getElementById('res_rescode').value = '';
     document.getElementById('res_partner').value = '';
+    document.getElementById('res_partner').style.display = 'block';
+    document.getElementById('res_partner_text').value = '';
+    document.getElementById('res_partner_text').style.display = 'none';
     document.getElementById('res_checkin').value = '';
     document.getElementById('res_checkout').value = '';
     document.getElementById('res_amountdue').value = '';
@@ -2177,6 +2191,9 @@
     document.getElementById('res_email').value = '';
     document.getElementById('res_contact').value = '';
     document.getElementById('res_company').value = '';
+    document.getElementById('res_company').style.display = 'block';
+    document.getElementById('res_company_text').value = '';
+    document.getElementById('res_company_text').style.display = 'none';
     document.getElementById('res_purpose').value = '';
     document.getElementById('res_monthlyrent').value = '';
     document.getElementById('res_cleaningfee').value = '';
@@ -2191,6 +2208,15 @@
     document.getElementById('res_remarks_text').style.display = 'none';
   }
 
+  // Reads a dropdown-with-manual-entry-fallback pair: the select's value,
+  // unless the sentinel option is picked, in which case the companion
+  // text input's value is used instead.
+  function getDropdownOrManualValue(selectId, textId, sentinelValue) {
+    const select = document.getElementById(selectId);
+    const text = document.getElementById(textId);
+    return select.value === sentinelValue ? text.value : select.value;
+  }
+
   async function saveReservationRecord() {
     const payload = {
       'SL NO': document.getElementById('res_slno').value,
@@ -2201,7 +2227,7 @@
       'Booker': document.getElementById('res_booker').value,
       'Reservation ID': document.getElementById('res_resid').value,
       'Reservation Code': document.getElementById('res_rescode').value,
-      'Partner': document.getElementById('res_partner').value,
+      'Partner': getDropdownOrManualValue('res_partner', 'res_partner_text', 'Other (Enter Manually)'),
       'Check In Date': document.getElementById('res_checkin').value,
       'Check Out Date': document.getElementById('res_checkout').value,
       'Amount Due': parseFloat(document.getElementById('res_amountdue').value) || null,
@@ -2213,7 +2239,7 @@
       'No of Female': parseInt(document.getElementById('res_female').value) || null,
       'Email': document.getElementById('res_email').value,
       'Contact No': document.getElementById('res_contact').value,
-      'Company Name': document.getElementById('res_company').value,
+      'Company Name': getDropdownOrManualValue('res_company', 'res_company_text', 'Other (Enter Manually)'),
       'Purpose of Travel': document.getElementById('res_purpose').value,
       'Monthly Rent': parseFloat(document.getElementById('res_monthlyrent').value) || null,
       'Cleaning Fee': parseFloat(document.getElementById('res_cleaningfee').value) || null,
@@ -2222,9 +2248,7 @@
       'Deposit Paid': parseFloat(document.getElementById('res_depositpaid').value) || null,
       'Notice Period': document.getElementById('res_notice').value,
       'Minimum Stay': document.getElementById('res_minstay').value,
-      'Remarks': document.getElementById('res_remarks_select').value === 'Enter Remarks'
-        ? document.getElementById('res_remarks_text').value
-        : document.getElementById('res_remarks_select').value,
+      'Remarks': getDropdownOrManualValue('res_remarks_select', 'res_remarks_text', 'Enter Remarks'),
       'Last Modified By': getCurrentUserEmail(),
       'Last Updated': nowTimestampString()
     };
