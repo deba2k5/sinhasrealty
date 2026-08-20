@@ -666,6 +666,7 @@
   <div id="summary-table" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Summary Table</h2>
+      <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportSummaryTableExcel()">⬇ Export as Excel</button>
     </div>
     <div id="summary-table-container">
       <div class="loading"><div class="spinner"></div></div>
@@ -1011,7 +1012,10 @@
   };
 
   // Excel-style per-column filters: { collection: { fieldName: Set(allowedValues) } }
-  let columnFilters = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {} };
+  // "summary_table" is a synthetic collection - not a real Mongo collection,
+  // just the combined Revenue Tracker + Reservation Details rows the
+  // Summary Table renders, filtered the same way as any other tab.
+  let columnFilters = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {}, summary_table: {} };
 
   // These date columns filter by year+month instead of exact date, so
   // "June 2026" matches every row that month rather than listing every
@@ -1056,7 +1060,7 @@
   // Per collection+field: 'month' (default) or 'exact'. Lets a date column's
   // filter menu switch between "June 2026"-style buckets and individual
   // calendar dates without needing two separate filter icons.
-  let dateFilterMode = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {} };
+  let dateFilterMode = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {}, summary_table: {} };
 
   function getDateFilterMode(collection, field) {
     return (dateFilterMode[collection] && dateFilterMode[collection][field]) || 'month';
@@ -1244,6 +1248,11 @@
     }
     closeFilterMenu();
     document.removeEventListener('click', closeFilterMenuOnOutsideClick);
+
+    if (collection === 'summary_table') {
+      renderSummaryTable();
+      return;
+    }
 
     const containerMap = {
       guest_profiles: 'guest-profiles-container',
@@ -2470,21 +2479,25 @@
     return loadDateNotifications('checkout-notifications', 'Check Out Date', 'No checkouts', '🔔');
   }
 
+  function formatSummaryDate(raw) {
+    const d = parseDateString(raw);
+    if (!d) return '—';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}.${mm}.${d.getFullYear()}`;
+  }
+
   // Combined Sl/Guest Name/Address/Check In/Check Out list pulled from both
   // Revenue Tracker and Reservation Details - a flat, at-a-glance roster
-  // rather than the bucketed notification widgets above.
+  // rather than the bucketed notification widgets above. Stored as a
+  // synthetic "summary_table" collection so it can reuse the same
+  // Excel-style per-column filters (including the By Month/By Date toggle
+  // on the two date columns) as every other tab, via applyDataFilters /
+  // toggleFilterMenu - see renderSummaryTable().
   async function loadSummaryTable() {
     const el = document.getElementById('summary-table-container');
     if (!el) return;
     el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-
-    const fmt = (raw) => {
-      const d = parseDateString(raw);
-      if (!d) return '—';
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      return `${dd}.${mm}.${d.getFullYear()}`;
-    };
 
     try {
       const [rtRes, rdRes] = await Promise.all([
@@ -2509,61 +2522,125 @@
       const rows = [];
       if (rdData.success) {
         (rdData.data || []).forEach(r => rows.push({
-          id: r._id,
-          source: 'reservation_details',
-          name: r['Guest Name'] || '—',
-          address: r['Address'] || '—',
-          checkInRaw: r['Check In Date'],
-          checkOutRaw: r['Check Out Date']
+          _id: r._id,
+          _source: 'reservation_details',
+          'Guest Name': r['Guest Name'] || '',
+          'Address': r['Address'] || '',
+          'Check In Date': r['Check In Date'] || '',
+          'Check Out Date': r['Check Out Date'] || '',
+          'Source': 'Reservation Details'
         }));
       }
       if (rtData.success) {
         (rtData.data || []).forEach(r => rows.push({
-          id: r._id,
-          source: 'revenue_tracker',
-          name: r['Guest Full Name'] || '—',
-          address: r['Property Address'] || '—',
-          checkInRaw: r['Check-in Date'],
-          checkOutRaw: r['Check-out Date']
+          _id: r._id,
+          _source: 'revenue_tracker',
+          'Guest Name': r['Guest Full Name'] || '',
+          'Address': r['Property Address'] || '',
+          'Check In Date': r['Check-in Date'] || '',
+          'Check Out Date': r['Check-out Date'] || '',
+          'Source': 'Revenue Tracker'
         }));
       }
 
-      rows.sort((a, b) => {
-        const da = parseDateString(a.checkInRaw);
-        const db = parseDateString(b.checkInRaw);
-        if (!da && !db) return 0;
-        if (!da) return 1;
-        if (!db) return -1;
-        return da - db;
-      });
-
-      if (!rows.length) {
-        el.innerHTML = '<div class="error">No records found</div>';
-        return;
-      }
-
-      let html = '<div class="table-container"><div class="table-wrapper"><table><thead><tr>';
-      html += '<th>Sl</th><th>Guest Name</th><th>Address</th><th>Check In Date</th><th>Check Out Date</th><th>Source</th><th>Actions</th>';
-      html += '</tr></thead><tbody>';
-      rows.forEach((r, idx) => {
-        const sourceLabel = r.source === 'revenue_tracker' ? 'Revenue Tracker' : 'Reservation Details';
-        html += `<tr>
-          <td>${idx + 1}</td>
-          <td>${r.name}</td>
-          <td>${r.address}</td>
-          <td>${fmt(r.checkInRaw)}</td>
-          <td>${fmt(r.checkOutRaw)}</td>
-          <td>${sourceLabel}</td>
-          <td>
-            <button class="action-btn btn-save" onclick="editFromSummaryTable('${r.source}', '${r.id}')">Edit</button>
-            <button class="action-btn btn-delete" onclick="deleteFromSummaryTable('${r.source}', '${r.id}')">Delete</button>
-          </td>
-        </tr>`;
-      });
-      html += '</tbody></table></div></div>';
-      el.innerHTML = html;
+      currentCollectionData['summary_table'] = rows;
+      renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
+    }
+  }
+
+  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Source'];
+
+  function renderSummaryTable() {
+    const el = document.getElementById('summary-table-container');
+    if (!el) return;
+
+    const all = currentCollectionData['summary_table'] || [];
+    let rows = applyDataFilters('summary_table', all);
+
+    rows = [...rows].sort((a, b) => {
+      const da = parseDateString(a['Check In Date']);
+      const db = parseDateString(b['Check In Date']);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da - db;
+    });
+
+    if (!rows.length) {
+      el.innerHTML = '<div class="error">No records match the current filters</div>';
+      return;
+    }
+
+    let html = '<div class="table-container"><div class="table-wrapper"><table><thead><tr><th>Sl</th>';
+    SUMMARY_TABLE_FILTER_FIELDS.forEach(field => {
+      const isFiltered = !!columnFilters['summary_table'][field];
+      const filterIcon = `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, 'summary_table', '${field.replace(/'/g, "\\'")}')">⏷</span>`;
+      html += `<th>${field}${filterIcon}</th>`;
+    });
+    html += '<th>Actions</th></tr></thead><tbody>';
+    rows.forEach((r, idx) => {
+      html += `<tr>
+        <td>${idx + 1}</td>
+        <td>${r['Guest Name'] || '—'}</td>
+        <td>${r['Address'] || '—'}</td>
+        <td>${formatSummaryDate(r['Check In Date'])}</td>
+        <td>${formatSummaryDate(r['Check Out Date'])}</td>
+        <td>${r['Source']}</td>
+        <td>
+          <button class="action-btn btn-save" onclick="editFromSummaryTable('${r._source}', '${r._id}')">Edit</button>
+          <button class="action-btn btn-delete" onclick="deleteFromSummaryTable('${r._source}', '${r._id}')">Delete</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table></div></div>';
+    el.innerHTML = html;
+  }
+
+  // Exports exactly what's currently filtered/on screen in the Summary
+  // Table (same pattern as the other tabs' filtered Export as Excel).
+  async function exportSummaryTableExcel() {
+    const all = currentCollectionData['summary_table'] || [];
+    const filtered = applyDataFilters('summary_table', all);
+    if (!filtered.length) {
+      alert('No records match the current filters to export.');
+      return;
+    }
+    const rows = filtered.map(r => ({
+      'Guest Name': r['Guest Name'] || '',
+      'Address': r['Address'] || '',
+      'Check In Date': formatSummaryDate(r['Check In Date']),
+      'Check Out Date': formatSummaryDate(r['Check Out Date']),
+      'Source': r['Source']
+    }));
+
+    try {
+      const response = await fetch('/api/export-excel-filtered', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collection: 'Summary Table',
+          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Source'],
+          rows
+        })
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        alert('Export failed: ' + text);
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Summary_Table_filtered_export.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Export failed: ' + error.message);
     }
   }
 
