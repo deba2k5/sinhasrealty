@@ -1354,11 +1354,14 @@
   let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let editingRecords = {};
+  // Revenue Tracker / Reservation Details default to sorted earliest-to-
+  // latest by their check-in date, so the table already reads in
+  // chronological order without needing to click a column header first.
   let currentSort = {
     guest_profiles: { field: null, direction: 'asc' },
     property_lookup: { field: null, direction: 'asc' },
-    revenue_tracker: { field: null, direction: 'asc' },
-    reservation_details: { field: null, direction: 'asc' }
+    revenue_tracker: { field: 'Check-in Date', direction: 'asc' },
+    reservation_details: { field: 'Check In Date', direction: 'asc' }
   };
 
   function switchTab(tabName, btn) {
@@ -1439,21 +1442,38 @@
     }
   }
 
+  // Bare `new Date(str)` mis-parses (or outright fails on) the dd.mm.yyyy
+  // format used throughout Revenue Tracker, which made "sort by date
+  // column" fall back to lexicographic string order - wrong whenever
+  // month/year differ (e.g. "31.01.2026" sorting after "05.02.2026").
+  function isLikelyDateField(field) {
+    return isDateFilterField(field) || /date/i.test(field);
+  }
+
   function sortData(collection, field, data) {
     if (!field) return data;
     const direction = currentSort[collection].direction === 'asc' ? 1 : -1;
+    const dateField = isLikelyDateField(field);
     return [...data].sort((a, b) => {
-      let valA = (a[field] || '').toString().toLowerCase();
-      let valB = (b[field] || '').toString().toLowerCase();
-      // Try to compare as numbers
-      if (!isNaN(valA) && !isNaN(valB)) {
-        return (Number(valA) - Number(valB)) * direction;
+      const rawA = a[field];
+      const rawB = b[field];
+
+      if (dateField) {
+        const dateA = parseDateString(rawA);
+        const dateB = parseDateString(rawB);
+        if (dateA && dateB) return (dateA - dateB) * direction;
+        // Rows with no parseable date sink to the bottom regardless of
+        // sort direction, so a direction toggle never buries real dates
+        // under a pile of blanks.
+        if (dateA && !dateB) return -1;
+        if (!dateA && dateB) return 1;
       }
-      // Try to compare as dates
-      const dateA = new Date(valA);
-      const dateB = new Date(valB);
-      if (!isNaN(dateA) && !isNaN(dateB)) {
-        return (dateA - dateB) * direction;
+
+      let valA = (rawA || '').toString().toLowerCase();
+      let valB = (rawB || '').toString().toLowerCase();
+      // Try to compare as numbers
+      if (valA !== '' && valB !== '' && !isNaN(valA) && !isNaN(valB)) {
+        return (Number(valA) - Number(valB)) * direction;
       }
       return valA.localeCompare(valB) * direction;
     });
