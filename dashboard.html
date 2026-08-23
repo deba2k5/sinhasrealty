@@ -633,10 +633,10 @@
       <h2 class="section-title" style="margin: 0;">Revenue Tracker</h2>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-out:</span>
-        <select id="revenueFilterYear" onchange="onOverallDateFilterChange('revenue_tracker')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+        <select id="revenueFilterYear" onchange="onOverallDateFilterChange('revenue_tracker', 'main')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
           <option value="">All Years</option>
         </select>
-        <button type="button" id="revenueFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('revenue_tracker', event)">All Months ▾</button>
+        <button type="button" id="revenueFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('revenue_tracker', 'main', event)">All Months ▾</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetOverallDateFilter('revenue_tracker')">Reset</button>
         <button class="btn" id="revenueFullscreenBtn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="toggleRevenueTrackerFullscreen()">⛶ Full Screen</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('revenue_tracker')">⬇ Export as Excel</button>
@@ -651,10 +651,15 @@
       <h2 class="section-title" style="margin: 0;">Reservation Details</h2>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-in:</span>
-        <select id="reservationFilterYear" onchange="onOverallDateFilterChange('reservation_details')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+        <select id="reservationFilterYear" onchange="onOverallDateFilterChange('reservation_details', 'checkin')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
           <option value="">All Years</option>
         </select>
-        <button type="button" id="reservationFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('reservation_details', event)">All Months ▾</button>
+        <button type="button" id="reservationFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('reservation_details', 'checkin', event)">All Months ▾</button>
+        <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-out:</span>
+        <select id="reservationCheckoutFilterYear" onchange="onOverallDateFilterChange('reservation_details', 'checkout')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Years</option>
+        </select>
+        <button type="button" id="reservationCheckoutFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('reservation_details', 'checkout', event)">All Months ▾</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetOverallDateFilter('reservation_details')">Reset</button>
         <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('reservation_details')">⬇ Export as Excel</button>
         <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('reservation_details')">+ Add New</button>
@@ -1308,85 +1313,107 @@
     });
   }
 
-  // Single global Year/Month filter, separate from the per-column
-  // Excel-style filters above. Export as Excel reads through this + the
-  // column filters too, so the download always matches what's currently
-  // on screen. Shared by Revenue Tracker (by Check-out Date) and
-  // Reservation Details (by Check In Date).
+  // Global Year/Month filter(s), separate from the per-column Excel-style
+  // filters above. Export as Excel reads through this + the column filters
+  // too, so the download always matches what's currently on screen.
+  // Each collection maps to an array of filter definitions so a row can be
+  // required to match more than one date field at once (AND, not OR) -
+  // Reservation Details filters on Check In Date and Check Out Date
+  // independently, and a row must satisfy both to show up / export.
   const OVERALL_DATE_FILTER_CONFIG = {
-    revenue_tracker: { dateField: 'Check-out Date', yearSelectId: 'revenueFilterYear', monthBtnId: 'revenueFilterMonthBtn', containerId: 'revenue-tracker-container' },
-    reservation_details: { dateField: 'Check In Date', yearSelectId: 'reservationFilterYear', monthBtnId: 'reservationFilterMonthBtn', containerId: 'reservation-details-container' }
+    revenue_tracker: [
+      { key: 'main', dateField: 'Check-out Date', yearSelectId: 'revenueFilterYear', monthBtnId: 'revenueFilterMonthBtn' }
+    ],
+    reservation_details: [
+      { key: 'checkin', dateField: 'Check In Date', yearSelectId: 'reservationFilterYear', monthBtnId: 'reservationFilterMonthBtn' },
+      { key: 'checkout', dateField: 'Check Out Date', yearSelectId: 'reservationCheckoutFilterYear', monthBtnId: 'reservationCheckoutFilterMonthBtn' }
+    ]
+  };
+  const OVERALL_DATE_FILTER_CONTAINERS = {
+    revenue_tracker: 'revenue-tracker-container',
+    reservation_details: 'reservation-details-container'
   };
   // months: array of '01'-'12' strings. Empty array = no month filter (all
   // months) - lets more than one month be selected at once for filtering
   // and Export as Excel, instead of being locked to a single month.
-  let overallDateFilter = { revenue_tracker: { year: '', months: [] }, reservation_details: { year: '', months: [] } };
+  let overallDateFilter = {
+    revenue_tracker: { main: { year: '', months: [] } },
+    reservation_details: { checkin: { year: '', months: [] }, checkout: { year: '', months: [] } }
+  };
 
   function applyOverallDateFilter(collection, data) {
-    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
-    const filt = overallDateFilter[collection];
-    if (!cfg || (!filt.year && filt.months.length === 0)) return data;
-    return data.filter(record => {
-      const d = parseDateString(record[cfg.dateField]);
-      if (!d) return false;
-      if (filt.year && String(d.getFullYear()) !== filt.year) return false;
-      if (filt.months.length > 0 && !filt.months.includes(String(d.getMonth() + 1).padStart(2, '0'))) return false;
-      return true;
-    });
+    const filters = OVERALL_DATE_FILTER_CONFIG[collection];
+    if (!filters) return data;
+    // Every configured filter for this collection must pass (AND) - a
+    // filter with no year/months selected is a no-op, not a pass-all.
+    return filters.reduce((rows, cfg) => {
+      const filt = overallDateFilter[collection][cfg.key];
+      if (!filt.year && filt.months.length === 0) return rows;
+      return rows.filter(record => {
+        const d = parseDateString(record[cfg.dateField]);
+        if (!d) return false;
+        if (filt.year && String(d.getFullYear()) !== filt.year) return false;
+        if (filt.months.length > 0 && !filt.months.includes(String(d.getMonth() + 1).padStart(2, '0'))) return false;
+        return true;
+      });
+    }, data);
   }
 
   function populateOverallDateFilterOptions(collection) {
-    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
-    if (!cfg) return;
-    const yearSelect = document.getElementById(cfg.yearSelectId);
-    if (!yearSelect) return;
+    const filters = OVERALL_DATE_FILTER_CONFIG[collection];
+    if (!filters) return;
+    filters.forEach(cfg => {
+      const yearSelect = document.getElementById(cfg.yearSelectId);
+      if (!yearSelect) return;
 
-    const years = new Set();
-    (currentCollectionData[collection] || []).forEach(r => {
-      const d = parseDateString(r[cfg.dateField]);
-      if (d) years.add(d.getFullYear());
+      const years = new Set();
+      (currentCollectionData[collection] || []).forEach(r => {
+        const d = parseDateString(r[cfg.dateField]);
+        if (d) years.add(d.getFullYear());
+      });
+      const sortedYears = [...years].sort((a, b) => a - b);
+      const prevValue = yearSelect.value;
+      yearSelect.innerHTML = '<option value="">All Years</option>' +
+        sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
+      if (sortedYears.map(String).includes(prevValue)) yearSelect.value = prevValue;
+
+      updateMonthFilterButtonLabel(collection, cfg.key);
     });
-    const sortedYears = [...years].sort((a, b) => a - b);
-    const prevValue = yearSelect.value;
-    yearSelect.innerHTML = '<option value="">All Years</option>' +
-      sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
-    if (sortedYears.map(String).includes(prevValue)) yearSelect.value = prevValue;
-
-    updateMonthFilterButtonLabel(collection);
   }
 
   function rerenderForOverallFilter(collection) {
-    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+    const containerId = OVERALL_DATE_FILTER_CONTAINERS[collection];
     renderDataTable(collection, {
       data: currentCollectionData[collection],
       columns: currentCollectionColumns[collection],
       page: currentCollectionPage[collection],
       totalPages: 1
-    }, document.getElementById(cfg.containerId));
+    }, document.getElementById(containerId));
   }
 
-  function onOverallDateFilterChange(collection) {
-    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+  function onOverallDateFilterChange(collection, filterKey) {
+    const cfg = (OVERALL_DATE_FILTER_CONFIG[collection] || []).find(f => f.key === filterKey);
     if (!cfg) return;
-    overallDateFilter[collection].year = document.getElementById(cfg.yearSelectId).value;
+    overallDateFilter[collection][filterKey].year = document.getElementById(cfg.yearSelectId).value;
     rerenderForOverallFilter(collection);
   }
 
   function resetOverallDateFilter(collection) {
-    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
-    if (!cfg) return;
-    document.getElementById(cfg.yearSelectId).value = '';
-    overallDateFilter[collection].year = '';
-    overallDateFilter[collection].months = [];
-    updateMonthFilterButtonLabel(collection);
+    const filters = OVERALL_DATE_FILTER_CONFIG[collection];
+    if (!filters) return;
+    filters.forEach(cfg => {
+      document.getElementById(cfg.yearSelectId).value = '';
+      overallDateFilter[collection][cfg.key] = { year: '', months: [] };
+      updateMonthFilterButtonLabel(collection, cfg.key);
+    });
     rerenderForOverallFilter(collection);
   }
 
-  function updateMonthFilterButtonLabel(collection) {
-    const cfg = OVERALL_DATE_FILTER_CONFIG[collection];
+  function updateMonthFilterButtonLabel(collection, filterKey) {
+    const cfg = (OVERALL_DATE_FILTER_CONFIG[collection] || []).find(f => f.key === filterKey);
     const btn = cfg && document.getElementById(cfg.monthBtnId);
     if (!btn) return;
-    const months = overallDateFilter[collection].months;
+    const months = overallDateFilter[collection][filterKey].months;
     let label;
     if (months.length === 0 || months.length === 12) label = 'All Months';
     else if (months.length === 1) label = MONTH_NAMES[parseInt(months[0], 10) - 1];
@@ -1399,20 +1426,21 @@
   // per-column Excel-style filters for visual consistency, but is its own
   // element/state since it drives the overall Year/Month filter, not a
   // per-column value filter.
-  function toggleMonthFilterMenu(collection, event) {
+  function toggleMonthFilterMenu(collection, filterKey, event) {
     event.stopPropagation();
     const existing = document.getElementById('monthFilterMenu');
-    if (existing && existing.dataset.collection === collection) {
+    if (existing && existing.dataset.collection === collection && existing.dataset.filterKey === filterKey) {
       closeMonthFilterMenu();
       return;
     }
     closeMonthFilterMenu();
 
-    const selected = new Set(overallDateFilter[collection].months);
+    const selected = new Set(overallDateFilter[collection][filterKey].months);
     const menu = document.createElement('div');
     menu.id = 'monthFilterMenu';
     menu.className = 'column-filter-menu';
     menu.dataset.collection = collection;
+    menu.dataset.filterKey = filterKey;
 
     const rect = event.target.getBoundingClientRect();
     menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
@@ -1432,7 +1460,7 @@
       <div class="filter-menu-items">${itemsHtml}</div>
       <div class="filter-menu-footer">
         <button type="button" class="btn-cancel-filter" onclick="closeMonthFilterMenu()">Cancel</button>
-        <button type="button" class="btn-apply-filter" onclick="applyMonthFilter('${collection}')">Apply</button>
+        <button type="button" class="btn-apply-filter" onclick="applyMonthFilter('${collection}', '${filterKey}')">Apply</button>
       </div>
     `;
     document.body.appendChild(menu);
@@ -1461,14 +1489,14 @@
     menu.querySelectorAll('.filter-item input[type="checkbox"]').forEach(cb => { cb.checked = checked; });
   }
 
-  function applyMonthFilter(collection) {
+  function applyMonthFilter(collection, filterKey) {
     const menu = document.getElementById('monthFilterMenu');
     if (!menu) return;
     const checked = [...menu.querySelectorAll('.filter-item input[type="checkbox"]:checked')].map(cb => cb.value);
     // All 12 checked behaves the same as none checked (no month filter).
-    overallDateFilter[collection].months = checked.length === 12 ? [] : checked;
+    overallDateFilter[collection][filterKey].months = checked.length === 12 ? [] : checked;
     closeMonthFilterMenu();
-    updateMonthFilterButtonLabel(collection);
+    updateMonthFilterButtonLabel(collection, filterKey);
     rerenderForOverallFilter(collection);
   }
 
