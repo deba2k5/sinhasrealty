@@ -836,6 +836,14 @@
         </div>
       </div>
 
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Account Team Comment</label>
+        <select id="res_accountteamcomment" onchange="if (this.value === 'Other (Enter Manually)') { this.style.display='none'; const t = document.getElementById('res_accountteamcomment_text'); t.style.display='block'; t.focus(); }" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+          <option value="">—</option>
+        </select>
+        <input id="res_accountteamcomment_text" type="text" placeholder="Type new comment..." style="display: none; width: 100%; padding: 10px; margin-top: 0.5rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+      </div>
+
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Notice Period</label>
@@ -965,7 +973,13 @@
     'Remarks': ['Release Check In', 'Enter Remarks'],
     'Company Name': RESERVATION_PARTNER_OPTIONS,
     'Partner': RESERVATION_PARTNER_OPTIONS,
-    'Purpose of Travel': ['Business', 'Leisure']
+    'Purpose of Travel': ['Business', 'Leisure'],
+    // Unlike the other dropdowns above (a fixed hardcoded list), this one
+    // is rebuilt from whatever comments already exist in the data - see
+    // getAccountTeamCommentOptions(). Every comment typed in via "Other
+    // (Enter Manually)" becomes a selectable option the next time the
+    // table (or the Add New modal) is loaded.
+    'Account Team Comment': []
   };
 
   // Sentinel options - not stored values. Picking one swaps the dropdown
@@ -975,8 +989,22 @@
   const RESERVATION_DROPDOWN_SENTINELS = {
     'Remarks': { value: 'Enter Remarks', placeholder: 'Type remarks...' },
     'Company Name': { value: 'Other (Enter Manually)', placeholder: 'Type company name...' },
-    'Partner': { value: 'Other (Enter Manually)', placeholder: 'Type partner name...' }
+    'Partner': { value: 'Other (Enter Manually)', placeholder: 'Type partner name...' },
+    'Account Team Comment': { value: 'Other (Enter Manually)', placeholder: 'Type new comment...' }
   };
+
+  // Builds the Account Team Comment dropdown options from whatever
+  // distinct, non-empty comments already exist across the given records,
+  // so a comment typed once becomes selectable for every reservation
+  // after that - no separate "manage dropdown options" list to maintain.
+  function getAccountTeamCommentOptions(records) {
+    const seen = new Set();
+    (records || []).forEach(r => {
+      const val = (r['Account Team Comment'] || '').toString().trim();
+      if (val) seen.add(val);
+    });
+    return [...seen].sort((a, b) => a.localeCompare(b)).concat(['Other (Enter Manually)']);
+  }
 
   function handleDropdownSentinelChange(selectEl) {
     const cfg = RESERVATION_DROPDOWN_SENTINELS[selectEl.dataset.field.trim()];
@@ -1647,6 +1675,9 @@
   }
 
   function renderDataTable(collection, data, container) {
+    if (collection === 'reservation_details') {
+      RESERVATION_DETAILS_DROPDOWNS['Account Team Comment'] = getAccountTeamCommentOptions(data.data);
+    }
     if (!data.data || data.data.length === 0) {
       container.innerHTML = '<div class="error">No records found</div>';
       return;
@@ -1685,7 +1716,7 @@
         { title: 'PROPERTY & ROOM', colspan: 3 },
         { title: 'GUEST INFO', colspan: 7 },
         { title: 'STAY DETAILS', colspan: 3 },
-        { title: 'FINANCIAL DETAILS', colspan: 8 },
+        { title: 'FINANCIAL DETAILS', colspan: 9 },
         { title: 'REMARKS & AUDIT', colspan: 3 }
       ]
     };
@@ -2223,12 +2254,28 @@
     });
   }
 
+  // Rebuilt every time the modal opens (unlike populateReservationPartnerSelects'
+  // one-time fill) so a comment typed in on a previous save shows up as a
+  // selectable option right away.
+  function populateAccountTeamCommentSelect() {
+    const select = document.getElementById('res_accountteamcomment');
+    if (!select) return;
+    select.innerHTML = '<option value="">—</option>';
+    getAccountTeamCommentOptions(currentCollectionData['reservation_details']).forEach(opt => {
+      const el = document.createElement('option');
+      el.value = opt;
+      el.textContent = opt;
+      select.appendChild(el);
+    });
+  }
+
   function addNewRecord(collection) {
     if (collection === 'revenue_tracker') {
       createBlankRevenueRecord();
     } else if (collection === 'reservation_details') {
       // Show reservation details form
       populateReservationPartnerSelects();
+      populateAccountTeamCommentSelect();
       document.getElementById('reservationModal').style.display = 'block';
     } else {
       // For other collections, show alert for now
@@ -2315,6 +2362,10 @@
     document.getElementById('res_cleaningpaid').value = '';
     document.getElementById('res_deposit').value = '';
     document.getElementById('res_depositpaid').value = '';
+    document.getElementById('res_accountteamcomment').value = '';
+    document.getElementById('res_accountteamcomment').style.display = 'block';
+    document.getElementById('res_accountteamcomment_text').value = '';
+    document.getElementById('res_accountteamcomment_text').style.display = 'none';
     document.getElementById('res_notice').value = '';
     document.getElementById('res_minstay').value = '';
     document.getElementById('res_remarks_select').value = '';
@@ -2361,6 +2412,7 @@
       'Cleaning Paid': parseFloat(document.getElementById('res_cleaningpaid').value) || null,
       'Deposit Amt': parseFloat(document.getElementById('res_deposit').value) || null,
       'Deposit Paid': parseFloat(document.getElementById('res_depositpaid').value) || null,
+      'Account Team Comment': getDropdownOrManualValue('res_accountteamcomment', 'res_accountteamcomment_text', 'Other (Enter Manually)'),
       'Notice Period': document.getElementById('res_notice').value,
       'Minimum Stay': document.getElementById('res_minstay').value,
       'Remarks': getDropdownOrManualValue('res_remarks_select', 'res_remarks_text', 'Enter Remarks'),

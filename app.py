@@ -1228,6 +1228,7 @@ def get_guest_client_collections():
                     'Amount Due', 'Paid Amount', 'No of Adults', 'No of Children', 'No of Infants',
                     'No of Male', 'No of Female', 'Email', 'Contact No', 'Company Name', 'Purpose of Travel',
                     'Monthly Rent', 'Cleaning Fee', 'Cleaning Paid', 'Deposit Amt', 'Deposit Paid',
+                    'Account Team Comment',
                     'Notice Period', 'Minimum Stay', 'Remarks', 'Last Modified By', 'Last Updated'
                 ]
             elif docs:
