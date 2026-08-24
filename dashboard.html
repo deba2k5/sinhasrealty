@@ -68,7 +68,7 @@
     .hero p { font-size: 1rem; color: var(--muted2); max-width: 560px; margin: 0 auto; }
 
     .dashboard-container {
-      max-width: 1400px;
+      max-width: 100%;
       margin: 0 auto;
       padding: 0 2.5rem 80px;
     }
@@ -255,8 +255,20 @@
       border-right: 1px solid var(--border);
       position: sticky;
       top: 0;
+      z-index: 2;
+      white-space: nowrap;
+      vertical-align: middle;
+      min-width: 180px;
     }
-    
+
+    /* Two-row sticky headers (group header row + column header row): row1
+       must paint above row2 or a mismatched offset makes row2 cut into it
+       while scrolling. The actual top offset for row2 is computed in JS
+       (see fixStickyHeaderOffsets) from row1's real rendered height, since
+       a hardcoded pixel value drifts out of sync with font/padding changes. */
+    .sticky-header-row1 { z-index: 3; }
+    .sticky-header-row2 { z-index: 2; }
+
     /* Section header styling with horizontal lines */
     .section-header-th {
       background: rgba(99, 102, 241, 0.15);
@@ -270,6 +282,8 @@
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
       border-right: 1px solid var(--border);
+      white-space: nowrap;
+      min-width: 180px;
     }
     tr:hover { background: rgba(99,102,241,0.05); }
     .filter-icon {
@@ -1702,6 +1716,18 @@
     return `${y}-${m}-${d}`;
   }
 
+  // Revenue Tracker / Reservation Details render a two-row sticky header
+  // (group titles, then column names). Row 2's sticky "top" has to equal
+  // row 1's actual rendered height or it cuts into/gaps away from row 1
+  // while scrolling - measure it instead of guessing a fixed pixel value.
+  function fixStickyHeaderOffsets(container) {
+    const row1 = container.querySelector('thead tr:first-child');
+    const row2Cells = container.querySelectorAll('thead .sticky-header-row2');
+    if (!row1 || !row2Cells.length) return;
+    const offset = row1.getBoundingClientRect().height;
+    row2Cells.forEach(th => { th.style.top = `${offset}px`; });
+  }
+
   function renderDataTable(collection, data, container) {
     if (collection === 'reservation_details') {
       RESERVATION_DETAILS_DROPDOWNS['Account Team Comment'] = getAccountTeamCommentOptions(data.data);
@@ -1765,9 +1791,9 @@
     
     if (columnGroups[collection] && keys.length === expectedCols) {
        html += '<tr>';
-       html += '<th rowspan="2" style="vertical-align: middle; border-right: 2px solid var(--primary);">Actions</th>';
+       html += '<th rowspan="2" class="sticky-header-row1" style="vertical-align: middle; border-right: 2px solid var(--primary);">Actions</th>';
        columnGroups[collection].forEach(group => {
-           html += `<th colspan="${group.colspan}" class="section-header-th" style="text-align: center; border-right: 2px solid var(--primary);">${group.title}</th>`;
+           html += `<th colspan="${group.colspan}" class="section-header-th sticky-header-row1" style="text-align: center; border-right: 2px solid var(--primary);">${group.title}</th>`;
        });
        html += '</tr><tr>';
        keys.forEach((k, idx) => {
@@ -1778,8 +1804,8 @@
            const filterIcon = FILTERABLE_COLLECTIONS.has(collection)
              ? `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, '${collection}', '${k.replace(/'/g, "\\'")}')">⏷</span>`
              : '';
-           html += `<th style="top: 41px; cursor: pointer; ${bStyle}" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
-       }); // offset sticky top
+           html += `<th class="sticky-header-row2" style="cursor: pointer; ${bStyle}" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
+       }); // sticky top offset is set dynamically after render, see fixStickyHeaderOffsets()
        html += '</tr>';
     } else {
        html += '<tr>';
@@ -1901,6 +1927,7 @@
     html += '</div>';
     
     container.innerHTML = html;
+    fixStickyHeaderOffsets(container);
 
     // Revenue Tracker fields are always plain manual inputs - see runAutoCalc()
     // for the on-demand "⚡ Auto-Calc" button that fills in the formula-derived
