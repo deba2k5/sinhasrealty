@@ -269,9 +269,12 @@
     .sticky-header-row1 { z-index: 3; }
     .sticky-header-row2 { z-index: 2; }
 
-    /* Section header styling with horizontal lines */
+    /* Section header styling with horizontal lines. Solid (not rgba) so
+       scrolled-under row text can't show through the sticky group-header
+       row - a translucent background here was letting body rows bleed
+       into the header while scrolling. */
     .section-header-th {
-      background: rgba(99, 102, 241, 0.15);
+      background: #171c3e;
       color: #fff;
       font-size: 0.95rem;
       letter-spacing: 0.5px;
