@@ -1727,7 +1727,9 @@
   function dedupeExactRows(rows, keyFields) {
     const seen = new Set();
     return rows.filter(r => {
-      const key = keyFields.map(f => String(r[f] || '').trim().toLowerCase()).join('||');
+      const parts = keyFields.map(f => String(r[f] || '').trim().toLowerCase());
+      if (parts.every(p => !p)) return true; // nothing to key on - keep every blank row
+      const key = parts.join('||');
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -1767,10 +1769,13 @@
     let sortedData = sortData(collection, currentSort[collection].field, filteredData);
 
     // Reservation Details is prone to the same reservation being entered
-    // twice (same guest, address, and dates) - collapse those to one row
-    // for display; the underlying duplicate records are untouched.
+    // twice under the same name - collapse to one row per guest name for
+    // display (first occurrence wins); the underlying duplicate records
+    // are untouched.
     if (collection === 'reservation_details') {
-      sortedData = dedupeExactRows(sortedData, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
+      sortedData = dedupeExactRows(sortedData, ['Guest Name']);
+    } else if (collection === 'revenue_tracker') {
+      sortedData = dedupeExactRows(sortedData, ['Guest Full Name']);
     }
 
     const columnGroups = {
@@ -2679,10 +2684,10 @@
         }));
       }
 
-      // Same reservation can show up twice (entered twice in a sheet, or
-      // mirrored in both Revenue Tracker and Reservation Details) - collapse
-      // exact matches to one row for display.
-      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
+      // Collapse to one row per guest name - keeps the first occurrence
+      // (Reservation Details rows are pushed before Revenue Tracker ones
+      // above, so that source wins ties) and drops the rest for display.
+      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name']);
       renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
