@@ -1768,14 +1768,14 @@
     filteredData = applyOverallDateFilter(collection, filteredData);
     let sortedData = sortData(collection, currentSort[collection].field, filteredData);
 
-    // Reservation Details is prone to the same reservation being entered
-    // twice under the same name - collapse to one row per guest name for
-    // display (first occurrence wins); the underlying duplicate records
-    // are untouched.
+    // Collapse true entry-mistake duplicates (same guest, same address,
+    // same dates - the same reservation typed in twice). Matching on name
+    // alone would also hide legitimate repeat guests who have separate
+    // bookings at different properties/dates, so the full row must match.
     if (collection === 'reservation_details') {
-      sortedData = dedupeExactRows(sortedData, ['Guest Name']);
+      sortedData = dedupeExactRows(sortedData, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
     } else if (collection === 'revenue_tracker') {
-      sortedData = dedupeExactRows(sortedData, ['Guest Full Name']);
+      sortedData = dedupeExactRows(sortedData, ['Guest Full Name', 'Property Address', 'Check-in Date', 'Check-out Date']);
     }
 
     const columnGroups = {
@@ -2684,10 +2684,11 @@
         }));
       }
 
-      // Collapse to one row per guest name - keeps the first occurrence
-      // (Reservation Details rows are pushed before Revenue Tracker ones
-      // above, so that source wins ties) and drops the rest for display.
-      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name']);
+      // Collapse true entry-mistake duplicates (same guest, address, and
+      // dates - including the same reservation mirrored in both sources).
+      // Matching on name alone would also hide legitimate repeat guests
+      // with separate bookings at different properties/dates.
+      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
       renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
