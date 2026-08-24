@@ -1724,16 +1724,43 @@
   // i.e. the same reservation entered twice), keeping the first occurrence.
   // Does not touch the underlying records, so editing/deleting the kept
   // row only affects that one DB document.
-  function dedupeExactRows(rows, keyFields) {
+  //
+  // `normalizers` optionally maps a field name to a function that reduces
+  // it to a comparable form before the trim/lowercase default - e.g. so
+  // "15.04.2026" and "2026-04-15" (Reservation Details vs Revenue Tracker
+  // date formats) are recognized as the same date instead of two different
+  // strings.
+  function dedupeExactRows(rows, keyFields, normalizers) {
     const seen = new Set();
     return rows.filter(r => {
-      const parts = keyFields.map(f => String(r[f] || '').trim().toLowerCase());
+      const parts = keyFields.map(f => {
+        const raw = String(r[f] || '').trim();
+        const norm = normalizers && normalizers[f] ? normalizers[f](raw) : raw;
+        return norm.trim().toLowerCase();
+      });
       if (parts.every(p => !p)) return true; // nothing to key on - keep every blank row
       const key = parts.join('||');
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+  }
+
+  // Reduces an address string to just its letters/digits so cosmetic
+  // differences (encoding mojibake like "z�rich" vs "zurich", stray
+  // spaces/punctuation) don't stop two entries of the same address from
+  // being recognized as duplicates.
+  function normalizeAddressForDedupe(addr) {
+    return addr.normalize ? addr.normalize('NFKD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+                           : addr.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  }
+
+  // Reduces a date string to YYYY-MM-DD via the same flexible parser used
+  // elsewhere, so "15.04.2026" and "2026-04-15" compare equal.
+  function normalizeDateForDedupe(dateStr) {
+    const d = parseDateString(dateStr);
+    if (!d) return dateStr;
+    return formatDateForInput(d);
   }
 
   // Revenue Tracker / Reservation Details render a two-row sticky header
@@ -2687,8 +2714,19 @@
       // Collapse true entry-mistake duplicates (same guest, address, and
       // dates - including the same reservation mirrored in both sources).
       // Matching on name alone would also hide legitimate repeat guests
-      // with separate bookings at different properties/dates.
-      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
+      // with separate bookings at different properties/dates. Address and
+      // date fields are normalized since Reservation Details and Revenue
+      // Tracker store the same booking in different date formats
+      // (15.04.2026 vs 2026-04-15) and occasional address encoding quirks.
+      currentCollectionData['summary_table'] = dedupeExactRows(
+        rows,
+        ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'],
+        {
+          'Address': normalizeAddressForDedupe,
+          'Check In Date': normalizeDateForDedupe,
+          'Check Out Date': normalizeDateForDedupe
+        }
+      );
       renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
