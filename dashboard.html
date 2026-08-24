@@ -1716,6 +1716,21 @@
     return `${y}-${m}-${d}`;
   }
 
+  // Display-only dedup: drops rows that are exact duplicates of an earlier
+  // row across the given fields (same guest, same address, same dates -
+  // i.e. the same reservation entered twice), keeping the first occurrence.
+  // Does not touch the underlying records, so editing/deleting the kept
+  // row only affects that one DB document.
+  function dedupeExactRows(rows, keyFields) {
+    const seen = new Set();
+    return rows.filter(r => {
+      const key = keyFields.map(f => String(r[f] || '').trim().toLowerCase()).join('||');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   // Revenue Tracker / Reservation Details render a two-row sticky header
   // (group titles, then column names). Row 2's sticky "top" has to equal
   // row 1's actual rendered height or it cuts into/gaps away from row 1
@@ -1747,6 +1762,13 @@
     let filteredData = applyDataFilters(collection, data.data);
     filteredData = applyOverallDateFilter(collection, filteredData);
     let sortedData = sortData(collection, currentSort[collection].field, filteredData);
+
+    // Reservation Details is prone to the same reservation being entered
+    // twice (same guest, address, and dates) - collapse those to one row
+    // for display; the underlying duplicate records are untouched.
+    if (collection === 'reservation_details') {
+      sortedData = dedupeExactRows(sortedData, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
+    }
 
     const columnGroups = {
       'guest_profiles': [
@@ -2549,6 +2571,10 @@
         });
       }
 
+      buckets.yesterday = dedupeExactRows(buckets.yesterday, ['name', 'address']);
+      buckets.today = dedupeExactRows(buckets.today, ['name', 'address']);
+      buckets.tomorrow = dedupeExactRows(buckets.tomorrow, ['name', 'address']);
+
       const renderBucket = (title, bucketIcon, list) => {
         const items = list.length
           ? list.map(e => `
@@ -2650,7 +2676,10 @@
         }));
       }
 
-      currentCollectionData['summary_table'] = rows;
+      // Same reservation can show up twice (entered twice in a sheet, or
+      // mirrored in both Revenue Tracker and Reservation Details) - collapse
+      // exact matches to one row for display.
+      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name', 'Address', 'Check In Date', 'Check Out Date']);
       renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
