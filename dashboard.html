@@ -2711,29 +2711,18 @@
         }));
       }
 
-      // Collapse true entry-mistake duplicates (same guest, address, and
-      // dates - including the same reservation mirrored in both sources).
-      // Matching on name alone would also hide legitimate repeat guests
-      // with separate bookings at different properties/dates. Address and
-      // date fields are normalized since Reservation Details and Revenue
-      // Tracker store the same booking in different date formats
-      // (15.04.2026 vs 2026-04-15) and occasional address encoding quirks.
-      currentCollectionData['summary_table'] = dedupeExactRows(
-        rows,
-        ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'],
-        {
-          'Address': normalizeAddressForDedupe,
-          'Check In Date': normalizeDateForDedupe,
-          'Check Out Date': normalizeDateForDedupe
-        }
-      );
+      // One row per guest name - if the same name shows up in both
+      // Reservation Details and Revenue Tracker (or twice within one of
+      // them), only the first occurrence is kept. Reservation Details rows
+      // are pushed before Revenue Tracker ones above, so that source wins.
+      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name']);
       renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
     }
   }
 
-  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Source'];
+  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'];
 
   function renderSummaryTable() {
     const el = document.getElementById('summary-table-container');
@@ -2770,7 +2759,6 @@
         <td>${r['Address'] || '—'}</td>
         <td>${formatSummaryDate(r['Check In Date'])}</td>
         <td>${formatSummaryDate(r['Check Out Date'])}</td>
-        <td>${r['Source']}</td>
         <td>
           <button class="action-btn btn-save" onclick="editFromSummaryTable('${r._source}', '${r._id}')">Edit</button>
           <button class="action-btn btn-delete" onclick="deleteFromSummaryTable('${r._source}', '${r._id}')">Delete</button>
@@ -2794,8 +2782,7 @@
       'Guest Name': r['Guest Name'] || '',
       'Address': r['Address'] || '',
       'Check In Date': formatSummaryDate(r['Check In Date']),
-      'Check Out Date': formatSummaryDate(r['Check Out Date']),
-      'Source': r['Source']
+      'Check Out Date': formatSummaryDate(r['Check Out Date'])
     }));
 
     try {
@@ -2804,7 +2791,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           collection: 'Summary Table',
-          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Source'],
+          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'],
           rows
         })
       });
