@@ -112,6 +112,86 @@ def find_exact_duplicate(collection_name, data, exclude_id=None):
         return None
 
 
+# Fields used to enforce the "a guest name appears at most twice" rule -
+# keyed per collection since Reservation Details and Revenue Tracker name
+# their guest/address/date columns differently.
+NAME_DEDUPE_FIELDS = {
+    'reservation_details': {'name': 'Guest Name', 'address': 'Address', 'check_in': 'Check In Date', 'check_out': 'Check Out Date'},
+    'revenue_tracker': {'name': 'Guest Full Name', 'address': 'Property Address', 'check_in': 'Check-in Date', 'check_out': 'Check-out Date'},
+}
+
+
+def _normalize_address(addr):
+    return re.sub(r'[^a-zA-Z0-9]', '', str(addr or '')).lower()
+
+
+def _parse_flexible_date(value):
+    s = str(value or '').strip()
+    if not s:
+        return None
+    for fmt in ('%Y-%m-%d', '%d.%m.%Y', '%d/%m/%Y', '%m/%d/%Y'):
+        try:
+            return datetime.datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def check_name_duplicate_violation(collection_name, data, exclude_id=None):
+    """Enforces: a guest name may appear at most twice within Reservation
+    Details or Revenue Tracker, and a second entry is only allowed when
+    it's a genuine back-to-back move - one booking's check-out date equals
+    the other's check-in date, at a different address. Anything else (same
+    address, non-contiguous dates, or a name that already appears twice)
+    is rejected. Returns an error message to show the user, or None if the
+    save is allowed."""
+    fields = NAME_DEDUPE_FIELDS.get(collection_name)
+    if not fields:
+        return None
+
+    name = str(data.get(fields['name']) or '').strip()
+    if not name:
+        return None
+
+    # Regex (not exact equality) so a stored name with stray leading/
+    # trailing whitespace - common in this data - still counts as the same
+    # guest instead of silently slipping past the check.
+    query = {fields['name']: {'$regex': f'^\\s*{re.escape(name)}\\s*$'}}
+    if exclude_id is not None:
+        query['_id'] = {'$ne': exclude_id}
+    try:
+        existing = list(get_db()[collection_name].find(query))
+    except Exception as e:
+        print(f"check_name_duplicate_violation lookup failed: {e}")
+        return None
+    existing = [d for d in existing if str(d.get(fields['name']) or '').strip() == name]
+    if not existing:
+        return None
+
+    if len(existing) >= 2:
+        return f'"{name}" already has 2 entries in this sheet - a name cannot appear more than twice.'
+
+    other = existing[0]
+    new_addr = _normalize_address(data.get(fields['address']))
+    other_addr = _normalize_address(other.get(fields['address']))
+    new_ci = _parse_flexible_date(data.get(fields['check_in']))
+    new_co = _parse_flexible_date(data.get(fields['check_out']))
+    other_ci = _parse_flexible_date(other.get(fields['check_in']))
+    other_co = _parse_flexible_date(other.get(fields['check_out']))
+
+    back_to_back = (
+        new_addr and other_addr and new_addr != other_addr and
+        ((new_ci and other_co and new_ci == other_co) or
+         (other_ci and new_co and other_ci == new_co))
+    )
+    if back_to_back:
+        return None
+
+    return (f'"{name}" already exists in this sheet with a different booking. '
+            f'A name can only appear twice if it is a back-to-back move - '
+            f'one stay\'s check-out date matching the next stay\'s check-in date, at a different address.')
+
+
 def dedupe_after_save(collection_name, saved_doc_id):
     """After a create/update on Revenue Tracker or Reservation Details,
     check whether the saved record now exactly matches another one
@@ -157,6 +237,13 @@ def _create_counterpart_record(db_inst, this_collection_name, other_name, other_
         new_doc['Booking Status'] = new_doc.get('Booking Status') or 'Confirmed'
     else:
         new_doc['SL NO'] = _next_running_number(db_inst[other_name], 'SL NO')
+
+    # Don't let the auto-sync itself create a name-duplicate violation on
+    # the other sheet - if this guest name is already there in a way that
+    # doesn't qualify as a back-to-back move, skip the auto-create instead
+    # of inserting a record check_name_duplicate_violation would reject.
+    if check_name_duplicate_violation(other_name, new_doc):
+        return
 
     try:
         db_inst[other_name].insert_one(new_doc)
@@ -866,6 +953,10 @@ def create_data(collection):
                     'duplicate': True
                 })
 
+        name_violation = check_name_duplicate_violation(collection, data)
+        if name_violation:
+            return jsonify({'success': False, 'message': name_violation}), 400
+
         result = get_db()[collection].insert_one(data)
 
         if result.inserted_id:
@@ -1329,6 +1420,16 @@ def update_guest_client_record(collection, doc_id):
                     except Exception as e:
                         print(f"Error calculating guest nights: {e}")
         
+        if collection in NAME_DEDUPE_FIELDS:
+            # `data` may only carry the fields the user actually changed -
+            # merge onto the stored record so name/address/date checks see
+            # the record's real effective state, not just this edit's diff.
+            base_record = db_inst[collection].find_one({'_id': oid}) or {}
+            merged = {**base_record, **data}
+            name_violation = check_name_duplicate_violation(collection, merged, exclude_id=oid)
+            if name_violation:
+                return jsonify({'success': False, 'message': name_violation}), 400
+
         result = db_inst[collection].update_one({'_id': oid}, {'$set': data})
 
         if result.matched_count == 0:
@@ -1371,6 +1472,10 @@ def add_guest_client_record(collection):
                     'id': str(existing['_id']),
                     'duplicate': True
                 })
+
+        name_violation = check_name_duplicate_violation(collection, data)
+        if name_violation:
+            return jsonify({'success': False, 'message': name_violation}), 400
 
         result = db_inst[collection].insert_one(data)
         mark_collection_updated(collection)
