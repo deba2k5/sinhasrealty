@@ -1914,7 +1914,7 @@
           html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand. Total Rent Received and Rent Due/Payable are manual entry only.">⚡ Auto-Calc</button>`;
         }
       } else if (EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets()) {
-        html += `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita and Soumika can edit this sheet">View only</span>`;
+        html += `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita, Soumika, and Debangshu can edit this sheet">View only</span>`;
       } else {
         html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
         html += `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
@@ -2232,12 +2232,12 @@
   // system-managed audit fields, not manually editable - see saveRecord().
   const AUDIT_TRACKED_COLLECTIONS = new Set(['revenue_tracker', 'reservation_details']);
 
-  // Only these two can add/edit/delete in Revenue Tracker and Reservation
-  // Details - everyone else who's authorized to sign in at all (see
-  // login.html's AUTHORIZED_EMAILS) gets view-only access to those two
-  // sheets. This is a UI-level gate, same trust model as the rest of this
-  // app (there's no server-side session/token check on the API today).
-  const EDIT_ALLOWED_EMAILS = ['sushmita@sinhas.ch', 'soumika@sinhas.ch'];
+  // Only these three can add/edit/delete in Revenue Tracker and
+  // Reservation Details - everyone else who's authorized to sign in at all
+  // (see login.html's AUTHORIZED_EMAILS) gets view-only access to those
+  // two sheets. This is a UI-level gate, same trust model as the rest of
+  // this app (there's no server-side session/token check on the API today).
+  const EDIT_ALLOWED_EMAILS = ['sushmita@sinhas.ch', 'soumika@sinhas.ch', 'debangshu@sinhas.ch'];
   const EDIT_RESTRICTED_COLLECTIONS = new Set(['revenue_tracker', 'reservation_details']);
 
   function canEditGuestClientSheets() {
@@ -2273,7 +2273,7 @@
 
   async function saveRecord(collection, recordId) {
     if (EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets()) {
-      alert('Only Sushmita and Soumika can edit this sheet.');
+      alert('Only Sushmita, Soumika, and Debangshu can edit this sheet.');
       return;
     }
     try {
@@ -2313,7 +2313,7 @@
 
   async function deleteRecord(collection, recordId) {
     if (EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets()) {
-      alert('Only Sushmita and Soumika can edit this sheet.');
+      alert('Only Sushmita, Soumika, and Debangshu can edit this sheet.');
       return;
     }
     if (!confirm('Are you sure you want to delete this record?')) return;
@@ -2426,7 +2426,7 @@
 
   function addNewRecord(collection) {
     if (EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets()) {
-      alert('Only Sushmita and Soumika can add records to this sheet.');
+      alert('Only Sushmita, Soumika, and Debangshu can add records to this sheet.');
       return;
     }
     if (collection === 'revenue_tracker') {
@@ -2544,7 +2544,7 @@
 
   async function saveReservationRecord() {
     if (!canEditGuestClientSheets()) {
-      alert('Only Sushmita and Soumika can add records to this sheet.');
+      alert('Only Sushmita, Soumika, and Debangshu can add records to this sheet.');
       return;
     }
     const payload = {
@@ -2808,7 +2808,7 @@
       const actionsCell = canEdit
         ? `<button class="action-btn btn-save" onclick="editFromSummaryTable('${r._source}', '${r._id}')">Edit</button>
            <button class="action-btn btn-delete" onclick="deleteFromSummaryTable('${r._source}', '${r._id}')">Delete</button>`
-        : `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita and Soumika can edit this sheet">View only</span>`;
+        : `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita, Soumika, and Debangshu can edit this sheet">View only</span>`;
       html += `<tr>
         <td>${idx + 1}</td>
         <td>${r['Guest Name'] || '—'}</td>
@@ -2874,7 +2874,7 @@
   // columns - not enough surface to edit every field inline.
   async function editFromSummaryTable(collection, recordId) {
     if (!canEditGuestClientSheets()) {
-      alert('Only Sushmita and Soumika can edit this sheet.');
+      alert('Only Sushmita, Soumika, and Debangshu can edit this sheet.');
       return;
     }
     const tabId = SUMMARY_SOURCE_TAB_IDS[collection];
@@ -2893,7 +2893,7 @@
 
   async function deleteFromSummaryTable(collection, recordId) {
     if (!canEditGuestClientSheets()) {
-      alert('Only Sushmita and Soumika can edit this sheet.');
+      alert('Only Sushmita, Soumika, and Debangshu can edit this sheet.');
       return;
     }
     if (!confirm('Are you sure you want to delete this record?')) return;
