@@ -257,12 +257,13 @@ def sync_common_fields(collection_name, doc):
     its counterpart in the other collection (matched by Booking Ref No <->
     Reservation ID). If none exists yet, create one there with the common
     fields copied over, so the booking actually appears on both sheets. If
-    one does exist, fill in any blank shared field on EITHER side from the
-    other. Never overwrites a field that already has a value on both sides,
-    even if they disagree - that's a real data conflict for a human to
-    resolve, not something to silently pick a winner for. Skipped entirely
-    if the booking ID is blank or matches more than one record on the
-    other side (ambiguous - e.g. a shared/reused reference number)."""
+    one does exist, the just-saved side pushes every shared field it has a
+    value in across to the other side (so an edit on either sheet shows up
+    on both, not just the first time the field was filled in); any field
+    still blank on the saved side gets pulled in from the other side.
+    Skipped entirely if the booking ID is blank or matches more than one
+    record on the other side (ambiguous - e.g. a shared/reused reference
+    number)."""
     if collection_name == 'revenue_tracker':
         other_name, this_id_field, other_id_field = 'reservation_details', 'Booking Ref No', 'Reservation ID'
     elif collection_name == 'reservation_details':
@@ -297,10 +298,15 @@ def sync_common_fields(collection_name, doc):
         other_val = other_doc.get(other_field)
         this_blank = _blank(this_val)
         other_blank = _blank(other_val)
-        if this_blank and not other_blank:
+        if not this_blank:
+            # The side that was just saved is authoritative for any field
+            # it has a value in - push it across so an edit on either sheet
+            # actually shows up on both, not just once when the field was
+            # first blank.
+            if other_val != this_val:
+                other_updates[other_field] = this_val
+        elif not other_blank:
             this_updates[this_field] = other_val
-        elif other_blank and not this_blank:
-            other_updates[other_field] = this_val
 
     try:
         if this_updates:
