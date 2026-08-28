@@ -2739,27 +2739,41 @@
       }
 
       const rows = [];
+      const rdReservationIds = new Set();
       if (rdData.success) {
-        (rdData.data || []).forEach(r => rows.push({
-          _id: r._id,
-          _source: 'reservation_details',
-          'Guest Name': r['Guest Name'] || '',
-          'Address': r['Address'] || '',
-          'Check In Date': r['Check In Date'] || '',
-          'Check Out Date': r['Check Out Date'] || '',
-          'Source': 'Reservation Details'
-        }));
+        (rdData.data || []).forEach(r => {
+          const ref = String(r['Reservation ID'] || '').trim().toLowerCase();
+          if (ref) rdReservationIds.add(ref);
+          rows.push({
+            _id: r._id,
+            _source: 'reservation_details',
+            'Guest Name': r['Guest Name'] || '',
+            'Address': r['Address'] || '',
+            'Check In Date': r['Check In Date'] || '',
+            'Check Out Date': r['Check Out Date'] || '',
+            'Source': 'Reservation Details'
+          });
+        });
       }
       if (rtData.success) {
-        (rtData.data || []).forEach(r => rows.push({
-          _id: r._id,
-          _source: 'revenue_tracker',
-          'Guest Name': r['Guest Full Name'] || '',
-          'Address': r['Property Address'] || '',
-          'Check In Date': r['Check-in Date'] || '',
-          'Check Out Date': r['Check-out Date'] || '',
-          'Source': 'Revenue Tracker'
-        }));
+        (rtData.data || []).forEach(r => {
+          // Reservation Details is the source of truth: if this booking
+          // already has a Reservation Details row (matched by Reservation
+          // ID / Booking Ref No), skip the Revenue Tracker one even if its
+          // guest-name string is punctuated differently and wouldn't have
+          // been caught by the name-based dedup below.
+          const ref = String(r['Booking Ref No'] || '').trim().toLowerCase();
+          if (ref && rdReservationIds.has(ref)) return;
+          rows.push({
+            _id: r._id,
+            _source: 'revenue_tracker',
+            'Guest Name': r['Guest Full Name'] || '',
+            'Address': r['Property Address'] || '',
+            'Check In Date': r['Check-in Date'] || '',
+            'Check Out Date': r['Check-out Date'] || '',
+            'Source': 'Revenue Tracker'
+          });
+        });
       }
 
       // One row per guest name - if the same name shows up in both
