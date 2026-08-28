@@ -2751,6 +2751,7 @@
             'Address': r['Address'] || '',
             'Check In Date': r['Check In Date'] || '',
             'Check Out Date': r['Check Out Date'] || '',
+            'Account Team Comment': r['Account Team Comment'] || '',
             'Source': 'Reservation Details'
           });
         });
@@ -2771,6 +2772,9 @@
             'Address': r['Property Address'] || '',
             'Check In Date': r['Check-in Date'] || '',
             'Check Out Date': r['Check-out Date'] || '',
+            // Account Team Comment only exists in Reservation Details -
+            // left blank here since there's no equivalent field to pull.
+            'Account Team Comment': '',
             'Source': 'Revenue Tracker'
           });
         });
@@ -2787,7 +2791,7 @@
     }
   }
 
-  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'];
+  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment'];
 
   function renderSummaryTable() {
     const el = document.getElementById('summary-table-container');
@@ -2829,6 +2833,7 @@
         <td>${r['Address'] || '—'}</td>
         <td>${formatSummaryDate(r['Check In Date'])}</td>
         <td>${formatSummaryDate(r['Check Out Date'])}</td>
+        <td>${r['Account Team Comment'] || '—'}</td>
         <td>${actionsCell}</td>
       </tr>`;
     });
@@ -2849,7 +2854,8 @@
       'Guest Name': r['Guest Name'] || '',
       'Address': r['Address'] || '',
       'Check In Date': formatSummaryDate(r['Check In Date']),
-      'Check Out Date': formatSummaryDate(r['Check Out Date'])
+      'Check Out Date': formatSummaryDate(r['Check Out Date']),
+      'Account Team Comment': r['Account Team Comment'] || ''
     }));
 
     try {
@@ -2858,7 +2864,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           collection: 'Summary Table',
-          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'],
+          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment'],
           rows
         })
       });
