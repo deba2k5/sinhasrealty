@@ -477,7 +477,6 @@
   <!-- ─── TABS ─── -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('analytics', this)">📊 Analytics</button>
-    <button class="tab-btn" onclick="switchTab('guest-profiles', this)">👥 Guest Profiles</button>
     <button class="tab-btn" onclick="switchTab('property-lookup', this)">🏢 Property Lookup</button>
     <button class="tab-btn" onclick="switchTab('revenue-tracker', this)">💰 Revenue Tracker</button>
     <button class="tab-btn" onclick="switchTab('reservation-details', this)">📋 Reservation Details</button>
@@ -623,17 +622,6 @@
   </div>
 
   <!-- ─── DATA TABLES TABS ─── -->
-  <div id="guest-profiles" class="tab-content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <h2 class="section-title" style="margin: 0;">Guest Profiles</h2>
-      <div style="display: flex; gap: 10px;">
-        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportCollectionExcel('guest_profiles')">⬇ Export as Excel</button>
-        <button class="btn" style="background: var(--primary); color: #fff; padding: 10px 20px;" onclick="addNewRecord('guest_profiles')">+ Add New</button>
-      </div>
-    </div>
-    <div id="guest-profiles-container"></div>
-  </div>
-
   <div id="property-lookup" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 class="section-title" style="margin: 0;">Property Lookup</h2>
@@ -1069,7 +1057,7 @@
   // "summary_table" is a synthetic collection - not a real Mongo collection,
   // just the combined Revenue Tracker + Reservation Details rows the
   // Summary Table renders, filtered the same way as any other tab.
-  let columnFilters = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {}, summary_table: {} };
+  let columnFilters = { property_lookup: {}, revenue_tracker: {}, reservation_details: {}, summary_table: {} };
 
   // These date columns filter by year+month instead of exact date, so
   // "June 2026" matches every row that month rather than listing every
@@ -1114,7 +1102,7 @@
   // Per collection+field: 'month' (default) or 'exact'. Lets a date column's
   // filter menu switch between "June 2026"-style buckets and individual
   // calendar dates without needing two separate filter icons.
-  let dateFilterMode = { guest_profiles: {}, property_lookup: {}, revenue_tracker: {}, reservation_details: {}, summary_table: {} };
+  let dateFilterMode = { property_lookup: {}, revenue_tracker: {}, reservation_details: {}, summary_table: {} };
 
   function getDateFilterMode(collection, field) {
     return (dateFilterMode[collection] && dateFilterMode[collection][field]) || 'month';
@@ -1309,7 +1297,6 @@
     }
 
     const containerMap = {
-      guest_profiles: 'guest-profiles-container',
       property_lookup: 'property-lookup-container',
       revenue_tracker: 'revenue-tracker-container',
       reservation_details: 'reservation-details-container'
@@ -1522,15 +1509,14 @@
   }
 
   let lastRevenueTrackerKeys = null;
-  let currentCollectionPage = { guest_profiles: 1, property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
-  let currentCollectionData = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
-  let currentCollectionColumns = { guest_profiles: [], property_lookup: [], revenue_tracker: [], reservation_details: [] };
+  let currentCollectionPage = { property_lookup: 1, revenue_tracker: 1, reservation_details: 1 };
+  let currentCollectionData = { property_lookup: [], revenue_tracker: [], reservation_details: [] };
+  let currentCollectionColumns = { property_lookup: [], revenue_tracker: [], reservation_details: [] };
   let editingRecords = {};
   // Revenue Tracker / Reservation Details default to sorted earliest-to-
   // latest by their check-in date, so the table already reads in
   // chronological order without needing to click a column header first.
   let currentSort = {
-    guest_profiles: { field: null, direction: 'asc' },
     property_lookup: { field: null, direction: 'asc' },
     revenue_tracker: { field: 'Check-in Date', direction: 'asc' },
     reservation_details: { field: 'Check In Date', direction: 'asc' }
@@ -1546,9 +1532,8 @@
     btn.classList.add('active');
     
     // Load data if it's a data table tab
-    if (['guest-profiles', 'property-lookup', 'revenue-tracker', 'reservation-details'].includes(tabName)) {
+    if (['property-lookup', 'revenue-tracker', 'reservation-details'].includes(tabName)) {
       const collectionMap = {
-        'guest-profiles': 'guest_profiles',
         'property-lookup': 'property_lookup',
         'revenue-tracker': 'revenue_tracker',
         'reservation-details': 'reservation_details'
@@ -1576,7 +1561,6 @@
   async function loadCollectionData(collection, page) {
     try {
       const containerMap = {
-        guest_profiles: 'guest-profiles-container',
         property_lookup: 'property-lookup-container',
         revenue_tracker: 'revenue-tracker-container',
         reservation_details: 'reservation-details-container'
@@ -1810,14 +1794,6 @@
     }
 
     const columnGroups = {
-      'guest_profiles': [
-        { title: 'GUEST IDENTIFICATION', colspan: 8 },
-        { title: 'CONTACT DETAILS', colspan: 7 },
-        { title: 'ADDRESS — SWITZERLAND', colspan: 6 },
-        { title: 'ORIGIN — INDIA / HOME COUNTRY', colspan: 6 },
-        { title: 'COMPANY / EMPLOYER', colspan: 6 },
-        { title: 'INTERNAL / ADMIN', colspan: 4 }
-      ],
       'revenue_tracker': [
         { title: 'KEYS (Guest ID + Property ID)', colspan: 4 },
         { title: 'GUEST SUMMARY', colspan: 5 },
@@ -2163,7 +2139,6 @@
     }
     // Re-render
     const containerMap = {
-      guest_profiles: 'guest-profiles-container',
       property_lookup: 'property-lookup-container',
       revenue_tracker: 'revenue-tracker-container',
       reservation_details: 'reservation-details-container'
@@ -2183,7 +2158,6 @@
     for (const col in currentCollectionData) {
       if (currentCollectionData[col].some(r => r._id === recordId)) {
         const containerMap = {
-          guest_profiles: 'guest-profiles-container',
           property_lookup: 'property-lookup-container',
           revenue_tracker: 'revenue-tracker-container',
           reservation_details: 'reservation-details-container'
@@ -2208,7 +2182,6 @@
     for (const col in currentCollectionData) {
       if (currentCollectionData[col].some(r => r._id === recordId)) {
         const containerMap = {
-          guest_profiles: 'guest-profiles-container',
           property_lookup: 'property-lookup-container',
           revenue_tracker: 'revenue-tracker-container',
           reservation_details: 'reservation-details-container'
