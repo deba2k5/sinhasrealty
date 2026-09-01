@@ -1802,12 +1802,19 @@
         { title: 'REVENUE & FINANCIALS (CHF)', colspan: 19 },
         { title: 'STATUS & NOTES', colspan: 5 }
       ],
+      // Titles reflect what's actually under each span in the live column
+      // order (SL NO..Reservation Code, Partner..Check Out Date, Amount
+      // Due..No of Female, Email..Company Name, Purpose of Travel..Minimum
+      // Stay, Remarks..Last Updated) - the old titles (e.g. "PROPERTY &
+      // ROOM" over Partner/Check In/Check Out) no longer matched their
+      // columns after fields were added over time. Colspans are unchanged;
+      // only the labels were corrected.
       'reservation_details': [
-        { title: 'IDENTIFICATION', colspan: 8 },
-        { title: 'PROPERTY & ROOM', colspan: 3 },
-        { title: 'GUEST INFO', colspan: 7 },
-        { title: 'STAY DETAILS', colspan: 3 },
-        { title: 'FINANCIAL DETAILS', colspan: 9 },
+        { title: 'BOOKING, PROPERTY & GUEST', colspan: 8 },
+        { title: 'PARTNER & STAY DATES', colspan: 3 },
+        { title: 'PAYMENT & OCCUPANCY', colspan: 7 },
+        { title: 'GUEST CONTACT', colspan: 3 },
+        { title: 'RENT, DEPOSIT & LEASE TERMS', colspan: 9 },
         { title: 'REMARKS & AUDIT', colspan: 3 }
       ]
     };
