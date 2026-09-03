@@ -2760,11 +2760,23 @@
         });
       }
 
-      // One row per guest name - if the same name shows up in both
-      // Reservation Details and Revenue Tracker (or twice within one of
-      // them), only the first occurrence is kept. Reservation Details rows
-      // are pushed before Revenue Tracker ones above, so that source wins.
-      currentCollectionData['summary_table'] = dedupeExactRows(rows, ['Guest Name']);
+      // Collapse true entry-mistake duplicates (same guest, address, and
+      // dates - including the same reservation mirrored in both sources).
+      // Matching on name alone would also hide legitimate repeat guests
+      // with separate bookings at different properties/dates (e.g. a
+      // back-to-back move). Address and date fields are normalized since
+      // Reservation Details and Revenue Tracker store the same booking in
+      // different date formats (15.04.2026 vs 2026-04-15) and occasional
+      // address encoding quirks.
+      currentCollectionData['summary_table'] = dedupeExactRows(
+        rows,
+        ['Guest Name', 'Address', 'Check In Date', 'Check Out Date'],
+        {
+          'Address': normalizeAddressForDedupe,
+          'Check In Date': normalizeDateForDedupe,
+          'Check Out Date': normalizeDateForDedupe
+        }
+      );
       renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
