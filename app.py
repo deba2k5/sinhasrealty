@@ -175,14 +175,21 @@ def _parse_flexible_date(value):
     return None
 
 
-def check_name_duplicate_violation(collection_name, data, exclude_id=None):
+def check_name_duplicate_violation(collection_name, data, exclude_id=None, require_back_to_back=True):
     """Enforces: a guest name may appear at most twice within Reservation
     Details or Revenue Tracker, and a second entry is only allowed when
     it's a genuine back-to-back move - one booking's check-out date equals
     the other's check-in date, at a different address. Anything else (same
     address, non-contiguous dates, or a name that already appears twice)
     is rejected. Returns an error message to show the user, or None if the
-    save is allowed."""
+    save is allowed.
+
+    `require_back_to_back=False` (used when editing an already-saved record,
+    not creating a new one) skips the date-matching check so a check-in/
+    check-out date can be corrected by hand even if that momentarily breaks
+    the back-to-back match - the 2-entries-per-name cap above still applies
+    either way, so this can't be used to sneak in an unrelated third
+    booking under the same name."""
     fields = NAME_DEDUPE_FIELDS.get(collection_name)
     if not fields:
         return None
@@ -208,6 +215,9 @@ def check_name_duplicate_violation(collection_name, data, exclude_id=None):
 
     if len(existing) >= 2:
         return f'"{name}" already has 2 entries in this sheet - a name cannot appear more than twice.'
+
+    if not require_back_to_back:
+        return None
 
     other = existing[0]
     new_addr = _normalize_address(data.get(fields['address']))
@@ -1478,7 +1488,7 @@ def update_guest_client_record(collection, doc_id):
             # the record's real effective state, not just this edit's diff.
             base_record = db_inst[collection].find_one({'_id': oid}) or {}
             merged = {**base_record, **data}
-            name_violation = check_name_duplicate_violation(collection, merged, exclude_id=oid)
+            name_violation = check_name_duplicate_violation(collection, merged, exclude_id=oid, require_back_to_back=False)
             if name_violation:
                 return jsonify({'success': False, 'message': name_violation}), 400
 
