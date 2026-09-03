@@ -125,6 +125,44 @@ def _normalize_address(addr):
     return re.sub(r'[^a-zA-Z0-9]', '', str(addr or '')).lower()
 
 
+# Revenue Tracker's City column is derived from Property Address rather than
+# entered by hand, so it can't drift out of sync with the address. Handles
+# "Street 12, 8304 City", "Street 12 8304 City" and "Street 12, 8304 City -
+# 3rd Floor (Left)" style addresses via the postal code, and falls back to
+# the last comma-separated segment for the few addresses missing a postal
+# code. Returns None (leave City untouched) for placeholder "addresses" that
+# are actually just a room/unit description with no real city in them.
+_CITY_FROM_POSTCODE_RE = re.compile(r"\b\d{4}[,\s]+([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ.' ]*)")
+
+
+def derive_city_from_address(address):
+    address = str(address or '').strip()
+    if not address:
+        return None
+    matches = list(_CITY_FROM_POSTCODE_RE.finditer(address))
+    if matches:
+        city = matches[-1].group(1).strip().rstrip('.').strip()
+        return city or None
+    parts = [p.strip() for p in address.split(',') if p.strip()]
+    if len(parts) < 2:
+        return None
+    last = re.split(r'[\(\-–—]', parts[-1])[0].strip().rstrip('.').strip()
+    if last and not re.search(r'\d', last):
+        return last
+    return None
+
+
+def _apply_auto_city(doc):
+    """Mutates `doc` in place: if it carries a Property Address, sets City
+    to match. No-op when the address doesn't yield a derivable city (leaves
+    whatever City value, if any, already there)."""
+    if 'Property Address' not in doc:
+        return
+    city = derive_city_from_address(doc.get('Property Address'))
+    if city:
+        doc['City'] = city
+
+
 def _parse_flexible_date(value):
     s = str(value or '').strip()
     if not s:
@@ -235,6 +273,7 @@ def _create_counterpart_record(db_inst, this_collection_name, other_name, other_
         new_doc['SNo'] = _next_running_number(db_inst[other_name], 'SNo')
         new_doc['Currency'] = new_doc.get('Currency') or 'CHF'
         new_doc['Booking Status'] = new_doc.get('Booking Status') or 'Confirmed'
+        _apply_auto_city(new_doc)
     else:
         new_doc['SL NO'] = _next_running_number(db_inst[other_name], 'SL NO')
 
@@ -307,6 +346,11 @@ def sync_common_fields(collection_name, doc):
                 other_updates[other_field] = this_val
         elif not other_blank:
             this_updates[this_field] = other_val
+
+    if collection_name == 'revenue_tracker':
+        _apply_auto_city(this_updates)
+    else:
+        _apply_auto_city(other_updates)
 
     try:
         if this_updates:
@@ -1425,7 +1469,9 @@ def update_guest_client_record(collection, doc_id):
                                 data[guest_nights_key] = diff_days
                     except Exception as e:
                         print(f"Error calculating guest nights: {e}")
-        
+
+            _apply_auto_city(data)
+
         if collection in NAME_DEDUPE_FIELDS:
             # `data` may only carry the fields the user actually changed -
             # merge onto the stored record so name/address/date checks see
@@ -1468,6 +1514,9 @@ def add_guest_client_record(collection):
     try:
         data = request.json
         db_inst = get_db()
+
+        if collection == 'revenue_tracker':
+            _apply_auto_city(data)
 
         if collection in DUPLICATE_CHECK_EXCLUDE_FIELDS:
             existing = find_exact_duplicate(collection, data)
