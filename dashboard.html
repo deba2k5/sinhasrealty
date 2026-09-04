@@ -2732,6 +2732,7 @@
             'Check In Date': r['Check In Date'] || '',
             'Check Out Date': r['Check Out Date'] || '',
             'Account Team Comment': r['Account Team Comment'] || '',
+            'Remarks': r['Remarks'] || '',
             'Source': 'Reservation Details'
           });
         });
@@ -2752,9 +2753,11 @@
             'Address': r['Property Address'] || '',
             'Check In Date': r['Check-in Date'] || '',
             'Check Out Date': r['Check-out Date'] || '',
-            // Account Team Comment only exists in Reservation Details -
-            // left blank here since there's no equivalent field to pull.
+            // Account Team Comment and Remarks are synced from Reservation
+            // Details specifically - left blank here since this row has no
+            // Reservation Details counterpart to pull them from.
             'Account Team Comment': '',
+            'Remarks': '',
             'Source': 'Revenue Tracker'
           });
         });
@@ -2783,7 +2786,7 @@
     }
   }
 
-  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment'];
+  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment', 'Remarks'];
 
   function renderSummaryTable() {
     const el = document.getElementById('summary-table-container');
@@ -2826,6 +2829,7 @@
         <td>${formatSummaryDate(r['Check In Date'])}</td>
         <td>${formatSummaryDate(r['Check Out Date'])}</td>
         <td>${r['Account Team Comment'] || '—'}</td>
+        <td>${r['Remarks'] || '—'}</td>
         <td>${actionsCell}</td>
       </tr>`;
     });
@@ -2847,7 +2851,8 @@
       'Address': r['Address'] || '',
       'Check In Date': formatSummaryDate(r['Check In Date']),
       'Check Out Date': formatSummaryDate(r['Check Out Date']),
-      'Account Team Comment': r['Account Team Comment'] || ''
+      'Account Team Comment': r['Account Team Comment'] || '',
+      'Remarks': r['Remarks'] || ''
     }));
 
     try {
@@ -2856,7 +2861,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           collection: 'Summary Table',
-          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment'],
+          columns: ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment', 'Remarks'],
           rows
         })
       });
