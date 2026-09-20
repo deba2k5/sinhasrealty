@@ -993,6 +993,20 @@ def update_data(collection, doc_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 
+@app.route('/api/delete/<path:collection>/<doc_id>', methods=['DELETE'])
+def delete_data(collection, doc_id):
+    collection = unquote(collection)
+    if collection != 'property details data':
+        return jsonify({'success': False, 'message': 'Delete not allowed for this collection.'}), 403
+    try:
+        result = get_db()[collection].delete_one({'_id': ObjectId(doc_id)})
+        if result.deleted_count == 0:
+            return jsonify({'success': False, 'message': 'Record not found.'}), 404
+        mark_collection_updated(collection)
+        return jsonify({'success': True, 'message': 'Record deleted successfully.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
 @app.route('/api/create/<path:collection>', methods=['POST'])
 def create_data(collection):
     collection = unquote(collection)  # Fix Vercel URL encoding

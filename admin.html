@@ -747,6 +747,11 @@
       transition: all 0.18s;
     }
 
+    .edit-btn.delete-btn:hover {
+      color: #f87171;
+      border-color: rgba(248, 113, 113, 0.45);
+    }
+
     .edit-btn:hover {
       background: var(--surface3);
       color: var(--primary-lt);
@@ -2466,9 +2471,30 @@
         });
         const actTd = document.createElement('td');
         actTd.innerHTML = `<button class="edit-btn" onclick='openModal(${JSON.stringify(row).replace(/'/g, "&#39;")})'>✏️ Edit</button>`;
+        if (curCol === PROPERTY_DETAILS_COLLECTION) {
+          const delBtn = document.createElement('button');
+          delBtn.className = 'edit-btn delete-btn';
+          delBtn.style.marginLeft = '6px';
+          delBtn.textContent = '🗑️ Delete';
+          delBtn.onclick = () => deletePropertyRecord(row._id);
+          actTd.appendChild(delBtn);
+        }
         tr.appendChild(actTd);
         tbody.appendChild(tr);
       });
+    }
+
+    async function deletePropertyRecord(docId) {
+      if (!docId || !confirm('Delete this property record? This cannot be undone.')) return;
+      try {
+        const res = await fetch(`/api/delete/${encodeURIComponent(PROPERTY_DETAILS_COLLECTION)}/${docId}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.message || 'Delete failed');
+        await checkPropertyDetailsSync(false);
+        loadData(9999);
+      } catch (err) {
+        alert('Could not delete record: ' + err.message);
+      }
     }
 
     async function updatePropertyDropdown(selectEl) {
