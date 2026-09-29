@@ -301,6 +301,62 @@ def _create_counterpart_record(db_inst, this_collection_name, other_name, other_
         print(f"sync_common_fields auto-create failed: {e}")
 
 
+def _normalize_name(name):
+    return ' '.join(str(name or '').split()).lower()
+
+
+def _find_by_guest_name(collection_name, doc_collection_name, doc):
+    """Returns the single record in `collection_name` for the same guest as
+    `doc` (from `doc_collection_name`), matched by guest name. A name can
+    appear twice (back-to-back move), so if the name alone is ambiguous the
+    check-in date breaks the tie. Returns None if there's no unique match."""
+    this_fields = NAME_DEDUPE_FIELDS[doc_collection_name]
+    other_fields = NAME_DEDUPE_FIELDS[collection_name]
+    name = _normalize_name(doc.get(this_fields['name']))
+    if not name:
+        return None
+    first_word = name.split(' ')[0]
+    try:
+        candidates = list(get_db()[collection_name].find(
+            {other_fields['name']: {'$regex': re.escape(first_word), '$options': 'i'}}))
+    except Exception as e:
+        print(f"_find_by_guest_name lookup failed: {e}")
+        return None
+    candidates = [c for c in candidates if _normalize_name(c.get(other_fields['name'])) == name]
+    if len(candidates) > 1:
+        check_in = _parse_flexible_date(doc.get(this_fields['check_in']))
+        candidates = [c for c in candidates
+                      if check_in and _parse_flexible_date(c.get(other_fields['check_in'])) == check_in]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def sync_total_rent_by_name(collection_name, doc):
+    """Keeps Total Rent Received the same on both sheets, matching the
+    Revenue Tracker and Reservation Details rows by guest name (not booking
+    ID like sync_common_fields). The just-saved side pushes its value across
+    if it has one; otherwise it pulls the other side's value in."""
+    field = 'Total Rent Received'
+    if collection_name == 'revenue_tracker':
+        other_name = 'reservation_details'
+    elif collection_name == 'reservation_details':
+        other_name = 'revenue_tracker'
+    else:
+        return
+    other_doc = _find_by_guest_name(other_name, collection_name, doc)
+    if not other_doc:
+        return
+    this_val, other_val = doc.get(field), other_doc.get(field)
+    try:
+        if not _blank(this_val):
+            if other_val != this_val:
+                get_db()[other_name].update_one({'_id': other_doc['_id']}, {'$set': {field: this_val}})
+                mark_collection_updated(other_name)
+        elif not _blank(other_val):
+            get_db()[collection_name].update_one({'_id': doc['_id']}, {'$set': {field: other_val}})
+    except Exception as e:
+        print(f"sync_total_rent_by_name update failed: {e}")
+
+
 def sync_common_fields(collection_name, doc):
     """After a Revenue Tracker / Reservation Details record is saved, find
     its counterpart in the other collection (matched by Booking Ref No <->
@@ -313,6 +369,10 @@ def sync_common_fields(collection_name, doc):
     Skipped entirely if the booking ID is blank or matches more than one
     record on the other side (ambiguous - e.g. a shared/reused reference
     number)."""
+    # Total Rent Received is matched by guest name instead, so it runs even
+    # when the booking ID is blank or ambiguous.
+    sync_total_rent_by_name(collection_name, doc)
+
     if collection_name == 'revenue_tracker':
         other_name, this_id_field, other_id_field = 'reservation_details', 'Booking Ref No', 'Reservation ID'
     elif collection_name == 'reservation_details':
@@ -1392,7 +1452,7 @@ def get_guest_client_collections():
                     'Reservation ID', 'Reservation Code', 'Partner', 'Check In Date', 'Check Out Date',
                     'Amount Due', 'Paid Amount', 'No of Adults', 'No of Children', 'No of Infants',
                     'No of Male', 'No of Female', 'Email', 'Contact No', 'Company Name', 'Purpose of Travel',
-                    'Monthly Rent', 'Cleaning Fee', 'Cleaning Paid', 'Deposit Amt', 'Deposit Paid',
+                    'Monthly Rent', 'Total Rent Received', 'Cleaning Fee', 'Cleaning Paid', 'Deposit Amt', 'Deposit Paid',
                     'Account Team Comment',
                     'Notice Period', 'Minimum Stay', 'Remarks', 'Last Modified By', 'Last Updated'
                 ]

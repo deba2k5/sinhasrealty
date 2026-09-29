@@ -816,6 +816,11 @@
         </div>
       </div>
 
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Total Rent Received</label>
+        <input id="res_totalrentreceived" type="number" step="0.01" style="width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit;">
+      </div>
+
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
         <div>
           <label style="display: block; font-size: 0.75rem; color: var(--muted2); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Cleaning Fee</label>
@@ -1814,7 +1819,7 @@
         { title: 'PARTNER & STAY DATES', colspan: 3 },
         { title: 'PAYMENT & OCCUPANCY', colspan: 7 },
         { title: 'GUEST CONTACT', colspan: 3 },
-        { title: 'RENT, DEPOSIT & LEASE TERMS', colspan: 9 },
+        { title: 'RENT, DEPOSIT & LEASE TERMS', colspan: 10 },
         { title: 'REMARKS & AUDIT', colspan: 3 }
       ]
     };
@@ -2497,6 +2502,7 @@
     document.getElementById('res_company_text').style.display = 'none';
     document.getElementById('res_purpose').value = '';
     document.getElementById('res_monthlyrent').value = '';
+    document.getElementById('res_totalrentreceived').value = '';
     document.getElementById('res_cleaningfee').value = '';
     document.getElementById('res_cleaningpaid').value = '';
     document.getElementById('res_deposit').value = '';
@@ -2551,6 +2557,7 @@
       'Company Name': getDropdownOrManualValue('res_company', 'res_company_text', 'Other (Enter Manually)'),
       'Purpose of Travel': document.getElementById('res_purpose').value,
       'Monthly Rent': parseFloat(document.getElementById('res_monthlyrent').value) || null,
+      'Total Rent Received': parseFloat(document.getElementById('res_totalrentreceived').value) || null,
       'Cleaning Fee': parseFloat(document.getElementById('res_cleaningfee').value) || null,
       'Cleaning Paid': parseFloat(document.getElementById('res_cleaningpaid').value) || null,
       'Deposit Amt': parseFloat(document.getElementById('res_deposit').value) || null,
