@@ -2079,7 +2079,15 @@
       const key = keys.find(k => k.trim() === name) || name;
       return container.querySelector(`[data-record="${recordId}"][data-field="${key}"]`);
     };
-    const num = (field) => field ? (parseFloat(field.value) || 0) : 0;
+    // A date typed into an amount field (e.g. "15.01.2026" in Notice rent)
+    // counts as 0 - parseFloat alone would read it as 15.01 and quietly
+    // knock that off the Fnf Settlement amount.
+    const num = (field) => {
+      if (!field) return 0;
+      const s = String(field.value || '').trim();
+      if (/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(s)) return 0;
+      return parseFloat(s) || 0;
+    };
 
     const monthlyRentField = getField('Monthly Rent (CHF)');
     const proRateField = getField('Pro-Rate Daily Rate (CHF)');
