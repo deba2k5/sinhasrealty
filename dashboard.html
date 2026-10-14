@@ -674,9 +674,22 @@
   </div>
 
   <div id="summary-table" class="tab-content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <h2 class="section-title" style="margin: 0;">Summary Table</h2>
-      <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportSummaryTableExcel()">⬇ Export as Excel</button>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-in:</span>
+        <select id="summaryFilterYear" onchange="onOverallDateFilterChange('summary_table', 'checkin')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Years</option>
+        </select>
+        <button type="button" id="summaryFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('summary_table', 'checkin', event)">All Months ▾</button>
+        <span style="font-size: 0.8rem; color: var(--muted2); font-weight: 600;">Filter by Check-out:</span>
+        <select id="summaryCheckoutFilterYear" onchange="onOverallDateFilterChange('summary_table', 'checkout')" style="padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.85rem;">
+          <option value="">All Years</option>
+        </select>
+        <button type="button" id="summaryCheckoutFilterMonthBtn" class="btn" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; font-size: 0.85rem;" onclick="toggleMonthFilterMenu('summary_table', 'checkout', event)">All Months ▾</button>
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; font-size: 0.85rem;" onclick="resetOverallDateFilter('summary_table')">Reset</button>
+        <button class="btn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px;" onclick="exportSummaryTableExcel()">⬇ Export as Excel</button>
+      </div>
     </div>
     <div id="summary-table-container">
       <div class="loading"><div class="spinner"></div></div>
@@ -1340,18 +1353,24 @@
     reservation_details: [
       { key: 'checkin', dateField: 'Check In Date', yearSelectId: 'reservationFilterYear', monthBtnId: 'reservationFilterMonthBtn' },
       { key: 'checkout', dateField: 'Check Out Date', yearSelectId: 'reservationCheckoutFilterYear', monthBtnId: 'reservationCheckoutFilterMonthBtn' }
+    ],
+    summary_table: [
+      { key: 'checkin', dateField: 'Check In Date', yearSelectId: 'summaryFilterYear', monthBtnId: 'summaryFilterMonthBtn' },
+      { key: 'checkout', dateField: 'Check Out Date', yearSelectId: 'summaryCheckoutFilterYear', monthBtnId: 'summaryCheckoutFilterMonthBtn' }
     ]
   };
   const OVERALL_DATE_FILTER_CONTAINERS = {
     revenue_tracker: 'revenue-tracker-container',
-    reservation_details: 'reservation-details-container'
+    reservation_details: 'reservation-details-container',
+    summary_table: 'summary-table-container'
   };
   // months: array of '01'-'12' strings. Empty array = no month filter (all
   // months) - lets more than one month be selected at once for filtering
   // and Export as Excel, instead of being locked to a single month.
   let overallDateFilter = {
     revenue_tracker: { main: { year: '', months: [] } },
-    reservation_details: { checkin: { year: '', months: [] }, checkout: { year: '', months: [] } }
+    reservation_details: { checkin: { year: '', months: [] }, checkout: { year: '', months: [] } },
+    summary_table: { checkin: { year: '', months: [] }, checkout: { year: '', months: [] } }
   };
 
   function applyOverallDateFilter(collection, data) {
@@ -1395,6 +1414,10 @@
   }
 
   function rerenderForOverallFilter(collection) {
+    if (collection === 'summary_table') {
+      renderSummaryTable();
+      return;
+    }
     const containerId = OVERALL_DATE_FILTER_CONTAINERS[collection];
     renderDataTable(collection, {
       data: currentCollectionData[collection],
@@ -2795,7 +2818,8 @@
           'Check Out Date': normalizeDateForDedupe
         }
       );
-      renderSummaryTable();
+      // Fills the Check-in / Check-out year dropdowns and re-renders.
+      populateOverallDateFilterOptions('summary_table');
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
     }
@@ -2803,14 +2827,14 @@
 
   const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment', 'Remarks'];
 
-  function renderSummaryTable() {
-    const el = document.getElementById('summary-table-container');
-    if (!el) return;
-
+  // The rows currently on screen: column filters + the Check-in/Check-out
+  // Year/Month filters, sorted by Check In Date. Shared by the table and
+  // Export as Excel so the download matches what's shown, in the same order.
+  function getVisibleSummaryRows() {
     const all = currentCollectionData['summary_table'] || [];
     let rows = applyDataFilters('summary_table', all);
-
-    rows = [...rows].sort((a, b) => {
+    rows = applyOverallDateFilter('summary_table', rows);
+    return [...rows].sort((a, b) => {
       const da = parseDateString(a['Check In Date']);
       const db = parseDateString(b['Check In Date']);
       if (!da && !db) return 0;
@@ -2818,6 +2842,13 @@
       if (!db) return -1;
       return da - db;
     });
+  }
+
+  function renderSummaryTable() {
+    const el = document.getElementById('summary-table-container');
+    if (!el) return;
+
+    const rows = getVisibleSummaryRows();
 
     if (!rows.length) {
       el.innerHTML = '<div class="error">No records match the current filters</div>';
@@ -2855,8 +2886,7 @@
   // Exports exactly what's currently filtered/on screen in the Summary
   // Table (same pattern as the other tabs' filtered Export as Excel).
   async function exportSummaryTableExcel() {
-    const all = currentCollectionData['summary_table'] || [];
-    const filtered = applyDataFilters('summary_table', all);
+    const filtered = getVisibleSummaryRows();
     if (!filtered.length) {
       alert('No records match the current filters to export.');
       return;
