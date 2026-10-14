@@ -65,6 +65,7 @@ SIMILAR_FIELD_MAP = [
     ('Purpose (Business/ Leisure)', 'Purpose of Travel'),
     ('No of Guests', 'Guests'),
     ('Monthly Rent (CHF)', 'Monthly Rent'),
+    ('Total Rent Received', 'Total Rent Received'),
     ('Actual Cleaning', 'Cleaning Fee'),
     ('Cleaning Paid ', 'Cleaning Paid'),
     ('Actual Deposit', 'Deposit Amt'),
@@ -330,49 +331,18 @@ def _find_by_guest_name(collection_name, doc_collection_name, doc):
     return candidates[0] if len(candidates) == 1 else None
 
 
-def sync_total_rent_by_name(collection_name, doc):
-    """Keeps Total Rent Received the same on both sheets, matching the
-    Revenue Tracker and Reservation Details rows by guest name (not booking
-    ID like sync_common_fields). The just-saved side pushes its value across
-    if it has one; otherwise it pulls the other side's value in."""
-    field = 'Total Rent Received'
-    if collection_name == 'revenue_tracker':
-        other_name = 'reservation_details'
-    elif collection_name == 'reservation_details':
-        other_name = 'revenue_tracker'
-    else:
-        return
-    other_doc = _find_by_guest_name(other_name, collection_name, doc)
-    if not other_doc:
-        return
-    this_val, other_val = doc.get(field), other_doc.get(field)
-    try:
-        if not _blank(this_val):
-            if other_val != this_val:
-                get_db()[other_name].update_one({'_id': other_doc['_id']}, {'$set': {field: this_val}})
-                mark_collection_updated(other_name)
-        elif not _blank(other_val):
-            get_db()[collection_name].update_one({'_id': doc['_id']}, {'$set': {field: other_val}})
-    except Exception as e:
-        print(f"sync_total_rent_by_name update failed: {e}")
-
-
 def sync_common_fields(collection_name, doc):
     """After a Revenue Tracker / Reservation Details record is saved, find
-    its counterpart in the other collection (matched by Booking Ref No <->
-    Reservation ID). If none exists yet, create one there with the common
-    fields copied over, so the booking actually appears on both sheets. If
-    one does exist, the just-saved side pushes every shared field it has a
-    value in across to the other side (so an edit on either sheet shows up
-    on both, not just the first time the field was filled in); any field
-    still blank on the saved side gets pulled in from the other side.
-    Skipped entirely if the booking ID is blank or matches more than one
-    record on the other side (ambiguous - e.g. a shared/reused reference
-    number)."""
-    # Total Rent Received is matched by guest name instead, so it runs even
-    # when the booking ID is blank or ambiguous.
-    sync_total_rent_by_name(collection_name, doc)
-
+    its counterpart in the other collection - by Booking Ref No <->
+    Reservation ID when that picks out exactly one record, otherwise by
+    guest name (plenty of rows have a blank or shared booking ID). If
+    neither finds one and the booking ID is set, create a counterpart with
+    the common fields copied over, so the booking actually appears on both
+    sheets. If one does exist, the just-saved side pushes every shared
+    field it has a value in across to the other side (so an edit on either
+    sheet shows up on both, not just the first time the field was filled
+    in); any field still blank on the saved side gets pulled in from the
+    other side."""
     if collection_name == 'revenue_tracker':
         other_name, this_id_field, other_id_field = 'reservation_details', 'Booking Ref No', 'Reservation ID'
     elif collection_name == 'reservation_details':
@@ -380,24 +350,25 @@ def sync_common_fields(collection_name, doc):
     else:
         return
 
-    booking_id = str(doc.get(this_id_field) or '').strip()
-    if not booking_id:
-        return
-
     db_inst = get_db()
     other_coll = db_inst[other_name]
-    try:
-        matches = list(other_coll.find({other_id_field: {'$regex': f'^\\s*{re.escape(booking_id)}\\s*$'}}))
-    except Exception as e:
-        print(f"sync_common_fields lookup failed: {e}")
-        return
+    booking_id = str(doc.get(this_id_field) or '').strip()
+    matches = []
+    if booking_id:
+        try:
+            matches = list(other_coll.find({other_id_field: {'$regex': f'^\\s*{re.escape(booking_id)}\\s*$'}}))
+        except Exception as e:
+            print(f"sync_common_fields lookup failed: {e}")
+            return
 
-    if len(matches) == 0:
-        _create_counterpart_record(db_inst, collection_name, other_name, other_id_field, booking_id, doc)
-        return
-    if len(matches) > 1:
-        return
-    other_doc = matches[0]
+    if len(matches) == 1:
+        other_doc = matches[0]
+    else:
+        other_doc = _find_by_guest_name(other_name, collection_name, doc)
+        if not other_doc:
+            if booking_id and not matches:
+                _create_counterpart_record(db_inst, collection_name, other_name, other_id_field, booking_id, doc)
+            return
 
     this_updates = {}
     other_updates = {}
@@ -427,6 +398,7 @@ def sync_common_fields(collection_name, doc):
             db_inst[collection_name].update_one({'_id': doc['_id']}, {'$set': this_updates})
         if other_updates:
             other_coll.update_one({'_id': other_doc['_id']}, {'$set': other_updates})
+            mark_collection_updated(other_name)
     except Exception as e:
         print(f"sync_common_fields update failed: {e}")
 
