@@ -2818,8 +2818,9 @@
           'Check Out Date': normalizeDateForDedupe
         }
       );
-      // Fills the Check-in / Check-out year dropdowns and re-renders.
+      // Fill the Check-in / Check-out year dropdowns, then draw the table.
       populateOverallDateFilterOptions('summary_table');
+      renderSummaryTable();
     } catch (error) {
       el.innerHTML = `<div class="error">Error loading summary table: ${error.message}</div>`;
     }
