@@ -336,7 +336,7 @@ def sync_common_fields(collection_name, doc):
     its counterpart in the other collection - by Booking Ref No <->
     Reservation ID when that picks out exactly one record, otherwise by
     guest name (plenty of rows have a blank or shared booking ID). If
-    neither finds one and the booking ID is set, create a counterpart with
+    neither finds one and the booking ID or guest name is set, create a counterpart with
     the common fields copied over, so the booking actually appears on both
     sheets. If one does exist, the just-saved side pushes every shared
     field it has a value in across to the other side (so an edit on either
@@ -366,7 +366,11 @@ def sync_common_fields(collection_name, doc):
     else:
         other_doc = _find_by_guest_name(other_name, collection_name, doc)
         if not other_doc:
-            if booking_id and not matches:
+            # Plenty of bookings never get a Reservation ID, so a guest name
+            # is enough to create the counterpart - otherwise those guests
+            # only ever show up on one sheet.
+            has_name = not _blank(doc.get(NAME_DEDUPE_FIELDS[collection_name]['name']))
+            if not matches and (booking_id or has_name):
                 _create_counterpart_record(db_inst, collection_name, other_name, other_id_field, booking_id, doc)
             return
 
