@@ -312,13 +312,13 @@
       font-size: 0.85rem;
       cursor: default;
     }
-    .filter-menu-mode-toggle {
+    .filter-menu-mode-toggle, .filter-menu-sort {
       display: flex;
       gap: 4px;
       padding: 8px 10px;
       border-bottom: 1px solid var(--border);
     }
-    .filter-menu-mode-toggle button {
+    .filter-menu-mode-toggle button, .filter-menu-sort button {
       flex: 1;
       background: var(--surface2);
       border: 1px solid var(--border);
@@ -330,7 +330,7 @@
       border-radius: 6px;
       transition: all 0.15s;
     }
-    .filter-menu-mode-toggle button.active {
+    .filter-menu-mode-toggle button.active, .filter-menu-sort button.active {
       background: rgba(99,102,241,0.18);
       border-color: var(--primary);
       color: var(--primary-lt);
@@ -1206,7 +1206,16 @@
       </div>`;
     })() : '';
 
+    // Summary Table's date columns also get Excel-style sort buttons here,
+    // since that table has no other way to change its order.
+    const sortHtml = (collection === 'summary_table' && SUMMARY_SORTABLE_FIELDS.includes(field)) ? `
+      <div class="filter-menu-sort">
+        <button type="button" class="${summarySort.field === field && summarySort.direction === 'asc' ? 'active' : ''}" onclick="setSummarySort('${escapedField}', 'asc')">↑ Sort A→Z</button>
+        <button type="button" class="${summarySort.field === field && summarySort.direction === 'desc' ? 'active' : ''}" onclick="setSummarySort('${escapedField}', 'desc')">↓ Sort Z→A</button>
+      </div>` : '';
+
     menu.innerHTML = `
+      ${sortHtml}
       ${modeToggleHtml}
       <div class="filter-menu-search">
         <input type="text" placeholder="Search..." oninput="filterFilterMenuItems(this.value)">
@@ -2828,20 +2837,40 @@
 
   const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment', 'Remarks'];
 
+  // Summary Table sort: Check In Date or Check Out Date, A→Z (oldest first)
+  // or Z→A (newest first). Set from the column header or its ⏷ menu.
+  const SUMMARY_SORTABLE_FIELDS = ['Check In Date', 'Check Out Date'];
+  let summarySort = { field: 'Check In Date', direction: 'asc' };
+
+  function setSummarySort(field, direction) {
+    summarySort = { field, direction };
+    closeFilterMenu();
+    document.removeEventListener('click', closeFilterMenuOnOutsideClick);
+    renderSummaryTable();
+  }
+
+  // Header click: same column flips direction, another column starts A→Z.
+  function toggleSummarySort(field) {
+    const direction = summarySort.field === field && summarySort.direction === 'asc' ? 'desc' : 'asc';
+    setSummarySort(field, direction);
+  }
+
   // The rows currently on screen: column filters + the Check-in/Check-out
-  // Year/Month filters, sorted by Check In Date. Shared by the table and
+  // Year/Month filters, in the current sort order. Shared by the table and
   // Export as Excel so the download matches what's shown, in the same order.
+  // Rows with no date always go last, whichever direction.
   function getVisibleSummaryRows() {
     const all = currentCollectionData['summary_table'] || [];
     let rows = applyDataFilters('summary_table', all);
     rows = applyOverallDateFilter('summary_table', rows);
+    const { field, direction } = summarySort;
     return [...rows].sort((a, b) => {
-      const da = parseDateString(a['Check In Date']);
-      const db = parseDateString(b['Check In Date']);
+      const da = parseDateString(a[field]);
+      const db = parseDateString(b[field]);
       if (!da && !db) return 0;
       if (!da) return 1;
       if (!db) return -1;
-      return da - db;
+      return direction === 'asc' ? da - db : db - da;
     });
   }
 
@@ -2860,7 +2889,12 @@
     SUMMARY_TABLE_FILTER_FIELDS.forEach(field => {
       const isFiltered = !!columnFilters['summary_table'][field];
       const filterIcon = `<span class="filter-icon ${isFiltered ? 'filter-active' : ''}" onclick="toggleFilterMenu(event, 'summary_table', '${field.replace(/'/g, "\\'")}')">⏷</span>`;
-      html += `<th>${field}${filterIcon}</th>`;
+      if (SUMMARY_SORTABLE_FIELDS.includes(field)) {
+        const sortIcon = summarySort.field === field ? (summarySort.direction === 'asc' ? ' ↑' : ' ↓') : '';
+        html += `<th style="cursor: pointer;" onclick="toggleSummarySort('${field}')">${field}${sortIcon}${filterIcon}</th>`;
+      } else {
+        html += `<th>${field}${filterIcon}</th>`;
+      }
     });
     html += '<th>Actions</th></tr></thead><tbody>';
     const canEdit = canEditGuestClientSheets();
