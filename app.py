@@ -308,9 +308,10 @@ def _normalize_name(name):
 
 def _find_by_guest_name(collection_name, doc_collection_name, doc):
     """Returns the single record in `collection_name` for the same guest as
-    `doc` (from `doc_collection_name`), matched by guest name. A name can
-    appear twice (back-to-back move), so if the name alone is ambiguous the
-    check-in date breaks the tie. Returns None if there's no unique match."""
+    `doc` (from `doc_collection_name`), matched by guest name plus the
+    check-in or check-out date. A name can appear twice (back-to-back
+    move), so if that's still ambiguous the check-in date breaks the tie.
+    Returns None if there's no unique match."""
     this_fields = NAME_DEDUPE_FIELDS[doc_collection_name]
     other_fields = NAME_DEDUPE_FIELDS[collection_name]
     name = _normalize_name(doc.get(this_fields['name']))
@@ -324,8 +325,17 @@ def _find_by_guest_name(collection_name, doc_collection_name, doc):
         print(f"_find_by_guest_name lookup failed: {e}")
         return None
     candidates = [c for c in candidates if _normalize_name(c.get(other_fields['name'])) == name]
+    # Same name isn't enough - a guest can have a separate entry for part of
+    # a longer stay (e.g. Akshay Bhandari), and linking those would copy the
+    # short entry's dates over the long one. Require the check-in or the
+    # check-out to match too; either one is enough, so correcting one of
+    # the two dates on a sheet still syncs across.
+    check_in = _parse_flexible_date(doc.get(this_fields['check_in']))
+    check_out = _parse_flexible_date(doc.get(this_fields['check_out']))
+    candidates = [c for c in candidates
+                  if (check_in and _parse_flexible_date(c.get(other_fields['check_in'])) == check_in)
+                  or (check_out and _parse_flexible_date(c.get(other_fields['check_out'])) == check_out)]
     if len(candidates) > 1:
-        check_in = _parse_flexible_date(doc.get(this_fields['check_in']))
         candidates = [c for c in candidates
                       if check_in and _parse_flexible_date(c.get(other_fields['check_in'])) == check_in]
     return candidates[0] if len(candidates) == 1 else None
