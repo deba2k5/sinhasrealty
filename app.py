@@ -50,6 +50,103 @@ def mark_collection_updated(collection_name):
         print(f"Failed to stamp sync metadata for '{collection_name}': {e}")
 
 
+# ==========================================
+# DAILY EDIT LOG
+# Every add / edit / delete on Revenue Tracker and Reservation Details
+# (including the changes sync_common_fields copies across to the other
+# sheet) is written here, so the "Daily Edits" tab can show who changed
+# what, which fields, and when.
+# ==========================================
+EDIT_LOG_COLLECTION = 'edit_log'
+EDIT_LOGGED_COLLECTIONS = ('revenue_tracker', 'reservation_details')
+# Audit stamps change on every save - not interesting as "what was edited".
+EDIT_LOG_IGNORE_FIELDS = {'_id', 'Last Modified By', 'Last Updated'}
+# Fields used to tell people which booking a log entry is about.
+EDIT_LOG_LABEL_FIELDS = {
+    'revenue_tracker': {'name': 'Guest Full Name', 'booking': 'Booking Ref No', 'address': 'Property Address', 'check_in': 'Check-in Date'},
+    'reservation_details': {'name': 'Guest Name', 'booking': 'Reservation ID', 'address': 'Address', 'check_in': 'Check In Date'},
+}
+_edit_log_index_ready = False
+
+
+def _sheet_label(collection_name):
+    return {'revenue_tracker': 'Revenue Tracker', 'reservation_details': 'Reservation Details'}.get(collection_name, collection_name)
+
+
+def _log_val(v):
+    if v is None:
+        return ''
+    if isinstance(v, float) and math.isnan(v):
+        return ''
+    if isinstance(v, (datetime.datetime, datetime.date)):
+        return v.isoformat()
+    return str(v).strip() if not isinstance(v, (int, float, bool)) else v
+
+
+def _edit_log_changes(before, after):
+    """Field-by-field diff of two versions of a record."""
+    before, after = before or {}, after or {}
+    changes = []
+    for field in list(dict.fromkeys(list(before.keys()) + list(after.keys()))):
+        if field in EDIT_LOG_IGNORE_FIELDS:
+            continue
+        old, new = _log_val(before.get(field)), _log_val(after.get(field))
+        if str(old) != str(new):
+            changes.append({'field': field, 'old': old, 'new': new})
+    return changes
+
+
+def log_edit(collection_name, action, user, doc_id, before=None, after=None, source='manual', note=''):
+    """Write one entry to the edit log. action: 'edit' | 'add' | 'delete'.
+    source: 'manual' (someone used the sheet) or 'sync' (auto-copied from
+    the other sheet). Never raises - logging must not break a save."""
+    global _edit_log_index_ready
+    if collection_name not in EDIT_LOGGED_COLLECTIONS:
+        return
+    try:
+        if action == 'edit':
+            changes = _edit_log_changes(before, after)
+            if not changes:
+                return
+        elif action == 'add':
+            changes = [c for c in _edit_log_changes({}, after) if not _blank(c['new'])]
+        else:
+            changes = [c for c in _edit_log_changes(before, {}) if not _blank(c['old'])]
+
+        ref = after or before or {}
+        label = EDIT_LOG_LABEL_FIELDS[collection_name]
+        entry = {
+            'at': datetime.datetime.utcnow(),
+            'collection': collection_name,
+            'action': action,
+            'source': source,
+            'user': (user or '').strip() or 'Unknown',
+            'record_id': str(doc_id) if doc_id else '',
+            'guest_name': _log_val(ref.get(label['name'])),
+            'booking_ref': _log_val(ref.get(label['booking'])),
+            'address': _log_val(ref.get(label['address'])),
+            'check_in': _log_val(ref.get(label['check_in'])),
+            'changes': changes,
+            'note': note,
+        }
+        db_inst = get_db()
+        if not _edit_log_index_ready:
+            db_inst[EDIT_LOG_COLLECTION].create_index('at')
+            _edit_log_index_ready = True
+        db_inst[EDIT_LOG_COLLECTION].insert_one(entry)
+    except Exception as e:
+        print(f"Failed to write edit log for '{collection_name}': {e}")
+
+
+def _request_user(data=None):
+    """Who is making this request - the dashboard sends it in the
+    X-User-Email header; saves also carry it in 'Last Modified By'."""
+    user = request.headers.get('X-User-Email', '').strip()
+    if not user and data:
+        user = str(data.get('Last Modified By') or '').strip()
+    return user or 'Unknown'
+
+
 # Fields that mean the same thing in both Revenue Tracker and Reservation
 # Details, just under different names. Keyed (revenue_tracker field,
 # reservation_details field). The join key itself (Booking Ref No <->
@@ -241,7 +338,7 @@ def check_name_duplicate_violation(collection_name, data, exclude_id=None, requi
             f'one stay\'s check-out date matching the next stay\'s check-in date, at a different address.')
 
 
-def dedupe_after_save(collection_name, saved_doc_id):
+def dedupe_after_save(collection_name, saved_doc_id, user=None):
     """After a create/update on Revenue Tracker or Reservation Details,
     check whether the saved record now exactly matches another one
     (ignoring serial number/audit fields) and, if so, delete the newer of
@@ -256,7 +353,10 @@ def dedupe_after_save(collection_name, saved_doc_id):
     dup = find_exact_duplicate(collection_name, doc, exclude_id=saved_doc_id)
     if dup:
         newer_id = max(saved_doc_id, dup['_id'])
+        newer_doc = doc if newer_id == saved_doc_id else dup
         coll.delete_one({'_id': newer_id})
+        log_edit(collection_name, 'delete', user, newer_id, before=newer_doc, source='sync',
+                 note='Removed automatically - identical to another record')
 
 
 def _next_running_number(coll, field):
@@ -264,7 +364,7 @@ def _next_running_number(coll, field):
     return str(max(numeric) + 1) if numeric else '1'
 
 
-def _create_counterpart_record(db_inst, this_collection_name, other_name, other_id_field, booking_id, doc):
+def _create_counterpart_record(db_inst, this_collection_name, other_name, other_id_field, booking_id, doc, user=None):
     """No record exists yet on the other side for this booking ID - create
     one (instead of silently doing nothing) so the booking actually shows
     up on both sheets, with whatever common fields are already known
@@ -296,8 +396,10 @@ def _create_counterpart_record(db_inst, this_collection_name, other_name, other_
         return
 
     try:
-        db_inst[other_name].insert_one(new_doc)
+        result = db_inst[other_name].insert_one(new_doc)
         mark_collection_updated(other_name)
+        log_edit(other_name, 'add', user, result.inserted_id, after=new_doc, source='sync',
+                 note=f'Created automatically from {_sheet_label(this_collection_name)}')
     except Exception as e:
         print(f"sync_common_fields auto-create failed: {e}")
 
@@ -341,7 +443,7 @@ def _find_by_guest_name(collection_name, doc_collection_name, doc):
     return candidates[0] if len(candidates) == 1 else None
 
 
-def sync_common_fields(collection_name, doc):
+def sync_common_fields(collection_name, doc, user=None):
     """After a Revenue Tracker / Reservation Details record is saved, find
     its counterpart in the other collection - by Booking Ref No <->
     Reservation ID when that picks out exactly one record, otherwise by
@@ -381,7 +483,7 @@ def sync_common_fields(collection_name, doc):
             # only ever show up on one sheet.
             has_name = not _blank(doc.get(NAME_DEDUPE_FIELDS[collection_name]['name']))
             if not matches and (booking_id or has_name):
-                _create_counterpart_record(db_inst, collection_name, other_name, other_id_field, booking_id, doc)
+                _create_counterpart_record(db_inst, collection_name, other_name, other_id_field, booking_id, doc, user)
             return
 
     this_updates = {}
@@ -410,9 +512,13 @@ def sync_common_fields(collection_name, doc):
     try:
         if this_updates:
             db_inst[collection_name].update_one({'_id': doc['_id']}, {'$set': this_updates})
+            log_edit(collection_name, 'edit', user, doc['_id'], before=doc, after={**doc, **this_updates},
+                     source='sync', note=f'Filled in from {_sheet_label(other_name)}')
         if other_updates:
             other_coll.update_one({'_id': other_doc['_id']}, {'$set': other_updates})
             mark_collection_updated(other_name)
+            log_edit(other_name, 'edit', user, other_doc['_id'], before=other_doc, after={**other_doc, **other_updates},
+                     source='sync', note=f'Copied from {_sheet_label(collection_name)}')
     except Exception as e:
         print(f"sync_common_fields update failed: {e}")
 
@@ -1083,11 +1189,49 @@ def create_data(collection):
             mark_collection_updated(collection)
             if collection in ('revenue_tracker', 'reservation_details'):
                 data['_id'] = result.inserted_id
-                sync_common_fields(collection, data)
+                user = _request_user(data)
+                log_edit(collection, 'add', user, result.inserted_id, after=data)
+                sync_common_fields(collection, data, user)
             return jsonify({'success': True, 'message': 'Record created successfully.', 'id': str(result.inserted_id)})
         return jsonify({'success': False, 'message': 'Failed to create record.'}), 400
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
+
+
+@app.route('/api/edit-log', methods=['GET'])
+def get_edit_log():
+    """Edit log entries between `start` and `end` (ISO timestamps, UTC -
+    the dashboard converts the picked local day into this range), newest
+    first. Optional `collection` / `user` filters."""
+    try:
+        def parse_iso(s):
+            s = (s or '').strip().replace('Z', '+00:00')
+            dt = datetime.datetime.fromisoformat(s)
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            return dt
+
+        try:
+            start = parse_iso(request.args.get('start'))
+            end = parse_iso(request.args.get('end'))
+        except ValueError:
+            return jsonify({'success': False, 'message': 'start and end must be ISO timestamps'}), 400
+
+        query = {'at': {'$gte': start, '$lt': end}}
+        collection = request.args.get('collection', '').strip()
+        if collection:
+            query['collection'] = collection
+        user = request.args.get('user', '').strip()
+        if user:
+            query['user'] = user
+
+        docs = list(get_db()[EDIT_LOG_COLLECTION].find(query).sort('at', -1).limit(5000))
+        for d in docs:
+            d['_id'] = str(d['_id'])
+            d['at'] = datetime_to_iso_z(d['at'])
+        return jsonify({'success': True, 'entries': docs})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/collection-last-updated', methods=['GET'])
@@ -1552,6 +1696,9 @@ def update_guest_client_record(collection, doc_id):
             if name_violation:
                 return jsonify({'success': False, 'message': name_violation}), 400
 
+        user = _request_user(data)
+        before_doc = db_inst[collection].find_one({'_id': oid}) if collection in EDIT_LOGGED_COLLECTIONS else None
+
         result = db_inst[collection].update_one({'_id': oid}, {'$set': data})
 
         if result.matched_count == 0:
@@ -1563,10 +1710,11 @@ def update_guest_client_record(collection, doc_id):
         if collection in ('revenue_tracker', 'reservation_details'):
             updated_doc = db_inst[collection].find_one({'_id': oid})
             if updated_doc:
-                sync_common_fields(collection, updated_doc)
+                log_edit(collection, 'edit', user, oid, before=before_doc, after=updated_doc)
+                sync_common_fields(collection, updated_doc, user)
             # If this edit made the record identical to another one (every
             # real field the same), drop the newer of the two automatically.
-            dedupe_after_save(collection, oid)
+            dedupe_after_save(collection, oid, user)
 
         return jsonify({
             'success': True,
@@ -1607,7 +1755,9 @@ def add_guest_client_record(collection):
 
         if collection in ('revenue_tracker', 'reservation_details'):
             data['_id'] = result.inserted_id
-            sync_common_fields(collection, data)
+            user = _request_user(data)
+            log_edit(collection, 'add', user, result.inserted_id, after=data)
+            sync_common_fields(collection, data, user)
 
         return jsonify({
             'success': True,
@@ -1630,12 +1780,14 @@ def delete_guest_client_record(collection, doc_id):
         except:
             return jsonify({'success': False, 'message': 'Invalid document ID'}), 400
         
+        before_doc = db_inst[collection].find_one({'_id': oid}) if collection in EDIT_LOGGED_COLLECTIONS else None
         result = db_inst[collection].delete_one({'_id': oid})
-        
+
         if result.deleted_count == 0:
             return jsonify({'success': False, 'message': 'Document not found'}), 404
 
         mark_collection_updated(collection)
+        log_edit(collection, 'delete', _request_user(), oid, before=before_doc)
         
         return jsonify({
             'success': True,
