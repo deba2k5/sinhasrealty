@@ -1870,12 +1870,18 @@
         });
     }
     
+    // Revenue Tracker shows the Actions column (Edit / Delete / Auto-Calc) on
+    // the far right; every other sheet keeps it on the far left.
+    const actionsLast = collection === 'revenue_tracker';
+
     if (columnGroups[collection] && keys.length === expectedCols) {
        html += '<tr>';
-       html += '<th rowspan="2" class="sticky-header-row1" style="vertical-align: middle; border-right: 2px solid var(--primary);">Actions</th>';
+       const actionsGroupTh = `<th rowspan="2" class="sticky-header-row1" style="vertical-align: middle; ${actionsLast ? 'border-left' : 'border-right'}: 2px solid var(--primary);">Actions</th>`;
+       if (!actionsLast) html += actionsGroupTh;
        columnGroups[collection].forEach(group => {
            html += `<th colspan="${group.colspan}" class="section-header-th sticky-header-row1" style="text-align: center; border-right: 2px solid var(--primary);">${group.title}</th>`;
        });
+       if (actionsLast) html += actionsGroupTh;
        html += '</tr><tr>';
        keys.forEach((k, idx) => {
            let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
@@ -1890,7 +1896,7 @@
        html += '</tr>';
     } else {
        html += '<tr>';
-       html += '<th>Actions</th>';
+       if (!actionsLast) html += '<th>Actions</th>';
        keys.forEach(k => {
          const isSorted = currentSort[collection].field === k;
          const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
@@ -1900,6 +1906,7 @@
            : '';
          html += `<th style="cursor: pointer;" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
        });
+       if (actionsLast) html += '<th>Actions</th>';
        html += '</tr>';
     }
     html += '</thead><tbody>';
@@ -1925,22 +1932,24 @@
       }
 
       html += `<tr>`;
-      let actionBorder = (columnGroups[collection] && keys.length === expectedCols) ? 'border-right: 2px solid var(--primary);' : '';
-      html += `<td style="${actionBorder}">`;
+      let actionBorder = (columnGroups[collection] && keys.length === expectedCols)
+        ? `${actionsLast ? 'border-left' : 'border-right'}: 2px solid var(--primary);` : '';
+      let actionsCell = `<td style="${actionBorder}">`;
       if (isEditing) {
-        html += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
-        html += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
+        actionsCell += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
+        actionsCell += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
         if (collection === 'revenue_tracker') {
-          html += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand. Total Rent Received and Rent Due/Payable are manual entry only.">⚡ Auto-Calc</button>`;
+          actionsCell += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand. Total Rent Received and Rent Due/Payable are manual entry only.">⚡ Auto-Calc</button>`;
         }
       } else if (EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets()) {
-        html += `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita, Soumika, and Debangshu can edit this sheet">View only</span>`;
+        actionsCell += `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita, Soumika, and Debangshu can edit this sheet">View only</span>`;
       } else {
-        html += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
-        html += `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
+        actionsCell += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
+        actionsCell += `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
       }
-      html += `</td>`;
-      
+      actionsCell += `</td>`;
+      if (!actionsLast) html += actionsCell;
+
       keys.forEach((k, colIdx) => {
         const value = record[k];
         let bStyle = (columnGroups[collection] && keys.length === expectedCols && boundaries.has(colIdx)) ? 'border-right: 2px solid var(--primary);' : '';
@@ -1995,6 +2004,7 @@
           html += `<td style="${bStyle}">${value || '—'}</td>`;
         }
       });
+      if (actionsLast) html += actionsCell;
       html += `</tr>`;
     });
     
