@@ -2115,18 +2115,19 @@
         });
     }
     
-    // Revenue Tracker shows the Actions column (Edit / Delete / Auto-Calc) on
-    // the far right; every other sheet keeps it on the far left.
-    const actionsLast = collection === 'revenue_tracker';
+    // Revenue Tracker splits its actions: Edit in a column at the far left,
+    // Save / Cancel / Auto-Calc / Delete in a column at the far right.
+    // Every other sheet keeps a single Actions column on the far left.
+    const splitActions = collection === 'revenue_tracker';
+    const startActionsTitle = splitActions ? 'Edit' : 'Actions';
 
     if (columnGroups[collection] && keys.length === expectedCols) {
        html += '<tr>';
-       const actionsGroupTh = `<th rowspan="2" class="sticky-header-row1" style="vertical-align: middle; ${actionsLast ? 'border-left' : 'border-right'}: 2px solid var(--primary);">Actions</th>`;
-       if (!actionsLast) html += actionsGroupTh;
+       html += `<th rowspan="2" class="sticky-header-row1" style="vertical-align: middle; border-right: 2px solid var(--primary);">${startActionsTitle}</th>`;
        columnGroups[collection].forEach(group => {
            html += `<th colspan="${group.colspan}" class="section-header-th sticky-header-row1" style="text-align: center; border-right: 2px solid var(--primary);">${group.title}</th>`;
        });
-       if (actionsLast) html += actionsGroupTh;
+       if (splitActions) html += '<th rowspan="2" class="sticky-header-row1" style="vertical-align: middle; border-left: 2px solid var(--primary);">Actions</th>';
        html += '</tr><tr>';
        keys.forEach((k, idx) => {
            let bStyle = boundaries.has(idx) ? 'border-right: 2px solid var(--primary);' : '';
@@ -2141,7 +2142,7 @@
        html += '</tr>';
     } else {
        html += '<tr>';
-       if (!actionsLast) html += '<th>Actions</th>';
+       html += `<th>${startActionsTitle}</th>`;
        keys.forEach(k => {
          const isSorted = currentSort[collection].field === k;
          const sortIcon = isSorted ? (currentSort[collection].direction === 'asc' ? ' ↑' : ' ↓') : '';
@@ -2151,7 +2152,7 @@
            : '';
          html += `<th style="cursor: pointer;" onclick="handleSort('${collection}', '${k}')">${k}${sortIcon}${filterIcon}</th>`;
        });
-       if (actionsLast) html += '<th>Actions</th>';
+       if (splitActions) html += '<th>Actions</th>';
        html += '</tr>';
     }
     html += '</thead><tbody>';
@@ -2177,23 +2178,31 @@
       }
 
       html += `<tr>`;
-      let actionBorder = (columnGroups[collection] && keys.length === expectedCols)
-        ? `${actionsLast ? 'border-left' : 'border-right'}: 2px solid var(--primary);` : '';
-      let actionsCell = `<td style="${actionBorder}">`;
-      if (isEditing) {
-        actionsCell += `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
-        actionsCell += `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
-        if (collection === 'revenue_tracker') {
-          actionsCell += `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand. Total Rent Received and Rent Due/Payable are manual entry only.">⚡ Auto-Calc</button>`;
+      const grouped = columnGroups[collection] && keys.length === expectedCols;
+      const saveBtn = `<button class="action-btn btn-save" onclick="saveRecord('${collection}', '${recordId}')">✓ Save</button>`;
+      const cancelBtn = `<button class="action-btn btn-cancel" onclick="cancelEdit('${recordId}')">✕ Cancel</button>`;
+      const autoCalcBtn = `<button class="action-btn" style="background: var(--primary); color: #fff;" onclick="runAutoCalc('${recordId}')" title="Fill Guest Nights, Pro-Rate Daily Rate, Refund Due By, Cleaning Due and Fnf Settlement Amount from the formulas below - you can still type over any of them by hand. Total Rent Received and Rent Due/Payable are manual entry only.">⚡ Auto-Calc</button>`;
+      const editBtn = `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
+      const deleteBtn = `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
+      const viewOnly = `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita, Soumika, and Debangshu can edit this sheet">View only</span>`;
+      const isViewOnly = !isEditing && EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets();
+
+      let startActions, endActions = '';
+      if (splitActions) {
+        if (isEditing) {
+          startActions = `<span style="color: var(--muted2); font-size: 0.8rem;">Editing…</span>`;
+          endActions = saveBtn + cancelBtn + autoCalcBtn;
+        } else if (isViewOnly) {
+          startActions = viewOnly;
+        } else {
+          startActions = editBtn;
+          endActions = deleteBtn;
         }
-      } else if (EDIT_RESTRICTED_COLLECTIONS.has(collection) && !canEditGuestClientSheets()) {
-        actionsCell += `<span style="color: var(--muted2); font-size: 0.8rem;" title="Only Sushmita, Soumika, and Debangshu can edit this sheet">View only</span>`;
       } else {
-        actionsCell += `<button class="action-btn btn-save" onclick="editRecord('${recordId}')">Edit</button>`;
-        actionsCell += `<button class="action-btn btn-delete" onclick="deleteRecord('${collection}', '${recordId}')">Delete</button>`;
+        startActions = isEditing ? saveBtn + cancelBtn : isViewOnly ? viewOnly : editBtn + deleteBtn;
       }
-      actionsCell += `</td>`;
-      if (!actionsLast) html += actionsCell;
+      html += `<td style="${grouped ? 'border-right: 2px solid var(--primary);' : ''}">${startActions}</td>`;
+      const endActionsCell = `<td style="${grouped ? 'border-left: 2px solid var(--primary);' : ''} white-space: nowrap;">${endActions}</td>`;
 
       keys.forEach((k, colIdx) => {
         const value = record[k];
@@ -2249,7 +2258,7 @@
           html += `<td style="${bStyle}">${value || '—'}</td>`;
         }
       });
-      if (actionsLast) html += actionsCell;
+      if (splitActions) html += endActionsCell;
       html += `</tr>`;
     });
     
