@@ -3041,6 +3041,7 @@
             _source: 'reservation_details',
             'Guest Name': r['Guest Name'] || '',
             'Address': r['Address'] || '',
+            'Room Specification': String(r['Room Specification'] || '').trim(),
             'Check In Date': r['Check In Date'] || '',
             'Check Out Date': r['Check Out Date'] || '',
             'Account Team Comment': r['Account Team Comment'] || '',
@@ -3063,6 +3064,8 @@
             _source: 'revenue_tracker',
             'Guest Name': r['Guest Full Name'] || '',
             'Address': r['Property Address'] || '',
+            // Revenue Tracker calls this field "Rooms".
+            'Room Specification': String(r['Rooms'] || '').trim(),
             'Check In Date': r['Check-in Date'] || '',
             'Check Out Date': r['Check-out Date'] || '',
             // Account Team Comment and Remarks are synced from Reservation
@@ -3100,7 +3103,7 @@
     }
   }
 
-  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Check In Date', 'Check Out Date', 'Account Team Comment', 'Remarks'];
+  const SUMMARY_TABLE_FILTER_FIELDS = ['Guest Name', 'Address', 'Room Specification', 'Check In Date', 'Check Out Date', 'Account Team Comment', 'Remarks'];
 
   // Summary Table sort: Check In Date or Check Out Date, A→Z (oldest first)
   // or Z→A (newest first). Set from the column header or its ⏷ menu.
@@ -3172,6 +3175,7 @@
         <td>${idx + 1}</td>
         <td>${r['Guest Name'] || '—'}</td>
         <td>${r['Address'] || '—'}</td>
+        <td>${r['Room Specification'] || '—'}</td>
         <td>${formatSummaryDate(r['Check In Date'])}</td>
         <td>${formatSummaryDate(r['Check Out Date'])}</td>
         <td>${r['Account Team Comment'] || '—'}</td>
@@ -3194,6 +3198,7 @@
     const rows = filtered.map(r => ({
       'Guest Name': r['Guest Name'] || '',
       'Address': r['Address'] || '',
+      'Room Specification': r['Room Specification'] || '',
       'Check In Date': formatSummaryDate(r['Check In Date']),
       'Check Out Date': formatSummaryDate(r['Check Out Date']),
       'Account Team Comment': r['Account Team Comment'] || '',

@@ -170,6 +170,14 @@ SIMILAR_FIELD_MAP = [
     ('Booking Channel', 'Partner'),
 ]
 
+# Shared fields that are only copied into a blank on the other side, never
+# overwritten. Room details are often written more fully on one sheet
+# ("2.5 zi - 5th Floor - Left") than the other ("2.5"), so a normal
+# push-on-save would replace the detailed value with the short one.
+FILL_ONLY_FIELD_MAP = [
+    ('Rooms', 'Room Specification'),
+]
+
 
 def _blank(v):
     return v is None or (isinstance(v, str) and v.strip() == '')
@@ -374,7 +382,7 @@ def _create_counterpart_record(db_inst, this_collection_name, other_name, other_
     new_doc = {c: '' for c in columns}
     new_doc[other_id_field] = booking_id
 
-    for rt_field, rd_field in SIMILAR_FIELD_MAP:
+    for rt_field, rd_field in SIMILAR_FIELD_MAP + FILL_ONLY_FIELD_MAP:
         this_field, other_field = (rt_field, rd_field) if this_collection_name == 'revenue_tracker' else (rd_field, rt_field)
         val = doc.get(this_field)
         if not _blank(val):
@@ -502,6 +510,14 @@ def sync_common_fields(collection_name, doc, user=None):
             if other_val != this_val:
                 other_updates[other_field] = this_val
         elif not other_blank:
+            this_updates[this_field] = other_val
+
+    for rt_field, rd_field in FILL_ONLY_FIELD_MAP:
+        this_field, other_field = (rt_field, rd_field) if collection_name == 'revenue_tracker' else (rd_field, rt_field)
+        this_val, other_val = doc.get(this_field), other_doc.get(other_field)
+        if _blank(other_val) and not _blank(this_val):
+            other_updates[other_field] = this_val
+        elif _blank(this_val) and not _blank(other_val):
             this_updates[this_field] = other_val
 
     if collection_name == 'revenue_tracker':
