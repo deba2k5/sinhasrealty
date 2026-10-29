@@ -3005,6 +3005,63 @@
   // Excel-style per-column filters (including the By Month/By Date toggle
   // on the two date columns) as every other tab, via applyDataFilters /
   // toggleFilterMenu - see renderSummaryTable().
+  // Many addresses have the flat written into them, e.g.
+  // "Altbergstrasse 2, 8953 Dietikon –2.5zi-3rd Floor -Right Side" or
+  // "Hoflistrasse 65a (2.5,2nd Floor, Middle) 8135 Langnau am Albis".
+  // The Summary Table shows just the street address in Address and the
+  // flat part in Room Specification. Display only - stored data is untouched.
+  const ROOM_DETAIL_PATTERN = /(\d[.,]5|zi\b|floor|\b\d+\s?F\b|\b[GB]F\b|\bleft\b|\bright\b|\bmiddle\b|basement|\broom\b|\bS-?\d+\b|object no)/i;
+
+  function splitAddressAndRoom(rawAddress) {
+    // Only the first line - later lines are notes like "(Moving from ...)".
+    const firstLine = String(rawAddress || '').split(/\r?\n/)[0].trim();
+    if (!firstLine) return { address: '', room: '' };
+
+    // The whole thing is a room description with no street, e.g.
+    // "(1402) 3.5 Room - 14F -Left".
+    if (/^\(\s*\d+\s*\)/.test(firstLine) && ROOM_DETAIL_PATTERN.test(firstLine)) {
+      return { address: '', room: firstLine };
+    }
+
+    // Room details in brackets anywhere in the address.
+    const roomParts = [];
+    const text = firstLine.replace(/\(([^()]*)\)/g, (whole, inner) => {
+      if (ROOM_DETAIL_PATTERN.test(inner) && !/^\s*moving/i.test(inner)) {
+        roomParts.push(inner.trim());
+        return ' ';
+      }
+      return whole;
+    });
+
+    // Street, postcode + city - anything after the city is room detail.
+    const cityWord = "[A-ZÄÖÜ][^\\s,–—()\\-]*";
+    const m = text.match(new RegExp(`\\b\\d{4}\\s+${cityWord}(?:\\s+(?:am|an|der|bei|im)\\s+${cityWord})?`));
+    let address = text;
+    if (m) {
+      const end = m.index + m[0].length;
+      const rest = text.slice(end).replace(/^[\s.,;:)–—\-]+/, '').trim();
+      if (!rest) {
+        address = text.slice(0, end);
+      } else if (ROOM_DETAIL_PATTERN.test(rest)) {
+        address = text.slice(0, end);
+        roomParts.push(rest);
+      }
+    }
+
+    address = address.replace(/[()]/g, ' ').replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim().replace(/[\s,–—\-]+$/, '');
+    // "Seebacherstrasse 64 8052 Zurich" -> "Seebacherstrasse 64, 8052 Zurich"
+    address = address.replace(/([^,\s])\s+(\d{4}\s+[A-ZÄÖÜ])/, '$1, $2');
+    return { address, room: roomParts.join(', ') };
+  }
+
+  // Address + Room Specification for a Summary Table row: the stored room
+  // wins; otherwise use whatever room detail was written into the address.
+  function summaryAddressAndRoom(rawAddress, storedRoom) {
+    const split = splitAddressAndRoom(rawAddress);
+    const room = String(storedRoom || '').trim();
+    return { 'Address': split.address, 'Room Specification': room || split.room };
+  }
+
   async function loadSummaryTable() {
     const el = document.getElementById('summary-table-container');
     if (!el) return;
@@ -3040,8 +3097,7 @@
             _id: r._id,
             _source: 'reservation_details',
             'Guest Name': r['Guest Name'] || '',
-            'Address': r['Address'] || '',
-            'Room Specification': String(r['Room Specification'] || '').trim(),
+            ...summaryAddressAndRoom(r['Address'], r['Room Specification']),
             'Check In Date': r['Check In Date'] || '',
             'Check Out Date': r['Check Out Date'] || '',
             'Account Team Comment': r['Account Team Comment'] || '',
@@ -3063,9 +3119,8 @@
             _id: r._id,
             _source: 'revenue_tracker',
             'Guest Name': r['Guest Full Name'] || '',
-            'Address': r['Property Address'] || '',
-            // Revenue Tracker calls this field "Rooms".
-            'Room Specification': String(r['Rooms'] || '').trim(),
+            // Revenue Tracker calls the room field "Rooms".
+            ...summaryAddressAndRoom(r['Property Address'], r['Rooms']),
             'Check In Date': r['Check-in Date'] || '',
             'Check Out Date': r['Check-out Date'] || '',
             // Account Team Comment and Remarks are synced from Reservation
